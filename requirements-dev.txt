@@ -1,0 +1,6 @@
+# -*- coding: utf-8 -*-
+# Copyright (c) 2016-present, CloudZero, Inc. All rights reserved.
+# Licensed under the BSD-style license. See LICENSE file in the project root for full license information.
+
+awscli>=1.16.1,<=1.16.184
+cfn-lint==0.21.6

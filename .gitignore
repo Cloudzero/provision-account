@@ -1,0 +1,32 @@
+# Copyright (c) 2017 CloudZero - ALL RIGHTS RESERVED - PROPRIETARY AND CONFIDENTIAL
+# Unauthorized copying of this file and/or project, via any medium is strictly prohibited.
+# Direct all questions to legal@cloudzero.com
+
+# Mac OS garbage
+.DS_Store
+*.out
+
+# Python tests
+.coverage
+.pytest_cache
+.tox
+.cache
+coverage-reports
+coverage.xml
+test-results
+
+# SAM/Lambda artifacts
+packaged-template.yaml
+
+# Python artifacts
+__pycache__
+*.pyc
+
+# PyCharm
+.idea
+
+# Makefile temp stuff
+.cz_*_verified
+
+# Log files
+*.log
