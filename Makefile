@@ -33,8 +33,10 @@ help:
 #################
 .PHONY: init                                                                            ## Install package dependencies for python
 init: guard-VIRTUAL_ENV $(VIRTUAL_ENV)
-$(VIRTUAL_ENV): $(REQUIREMENTS_FILE)
-	pip install -r $(REQUIREMENTS_FILE)
+$(VIRTUAL_ENV): $(REQUIREMENTS_FILES)
+	for f in $^ ; do \
+			pip install -r $${f} ; \
+	done
 	touch $(VIRTUAL_ENV)
 
 

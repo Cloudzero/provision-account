@@ -15,6 +15,7 @@ NO_COLOR = \033[0m
 
 # Prerequisite verification
 REQUIREMENTS_FILE = requirements-dev.txt
+REQUIREMENTS_FILES = $(shell find . -name "requirements*.txt")
 
 # Git
 # GIT_REV := $(shell git rev-parse HEAD)

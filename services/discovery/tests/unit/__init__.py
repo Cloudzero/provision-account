@@ -1,15 +1,3 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2016-present, CloudZero, Inc. All rights reserved.
 # Licensed under the BSD-style license. See LICENSE file in the project root for full license information.
-
-awscli>=1.16,<1.17
-cfn-lint>0.22
-aws-sam-cli>=0.17.0
-flake8-codeclimate>=0.2.0
-flake8-copyright>=0.2.0
-flake8==3.6.0
-pycodestyle==2.4.0
-pytest-cov==2.5.1
-pytest-mock==1.10.0
-pytest==3.5.1
-
