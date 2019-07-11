@@ -27,7 +27,7 @@ s3 = boto3.client('s3')
 INPUT_SCHEMA = Schema({
     'event': {
         'ResourceProperties': {
-            'accountId': str
+            'AccountId': str
         },
         'PhysicalResourceId': Any(None, str),
     }
@@ -52,6 +52,8 @@ OUTPUT_SCHEMA = Schema({
         },
     },
 }, required=True, extra=ALLOW_EXTRA)
+
+event_account_id = get_in(['event', 'ResourceProperties', 'AccountId'])
 
 
 #####################
@@ -103,7 +105,7 @@ def coeffects_cur(world):
 #
 #####################
 def audit(world):
-    account_id = get_in(['event', 'ResourceProperties', 'accountId'], world)
+    account_id = event_account_id(world)
     trail_bucket = get_in(['coeffects', 'cloudtrail', 'trailList', 0, 'S3BucketName'], world)
     local_buckets = {x['Name'] for x in get_in(['coeffects', 's3', 'Buckets'], world, [])}
     output = {
@@ -115,7 +117,7 @@ def audit(world):
 
 def connected(world):
     output = {
-        'accountId': get_in(['event', 'ResourceProperties', 'accountId'], world),
+        'accountId': event_account_id(world),
     }
     return assoc_in(world, ['output', 'connected'], output)
 
@@ -131,7 +133,7 @@ def cloudtrail(world):
 
 
 def master_payer(world):
-    account_id = get_in(['event', 'ResourceProperties', 'accountId'], world)
+    account_id = event_account_id(world)
     payer_bucket = get_in(['coeffects', 'cur', 'ReportDefinitions', 0, 'S3Bucket'], world)
     local_buckets = {x['Name'] for x in get_in(['coeffects', 's3', 'Buckets'], world, [])}
     output = {

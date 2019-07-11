@@ -28,7 +28,7 @@ REMOTE_TOPIC_ARN = f'arn:aws:sns:us-east-1:{REMOTE_ACCOUNT_ID}:remote-cloudtrail
 def cfn_event():
     return {
         'ResourceProperties': {
-            'accountId': LOCAL_ACCOUNT_ID,
+            'AccountId': LOCAL_ACCOUNT_ID,
         },
         'PhysicalResourceId': None,
     }
