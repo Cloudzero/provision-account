@@ -5,7 +5,7 @@
 from pprint import pformat
 import boto3
 import cfnresponse
-from toolz.curried import assoc_in, get_in, keyfilter, pipe
+from toolz.curried import assoc_in, get_in, keyfilter, merge, pipe, update_in
 from voluptuous import Any, Schema, ALLOW_EXTRA, REMOVE_EXTRA
 
 
@@ -18,6 +18,16 @@ ct = boto3.client('cloudtrail')
 cur = boto3.client('cur')
 s3 = boto3.client('s3')
 
+DEFAULT_OUTPUT = {
+    'IsAuditAccount': False,
+    'AuditCloudTrailBucketName': None,
+    'IsConnectedAccount': False,
+    'IsCloudTrailAccount': False,
+    'CloudTrailSNSTopicName': None,
+    'IsMasterPayerAccount': False,
+    'MasterPayerBillingBucketName': None,
+}
+
 
 #####################
 #
@@ -26,30 +36,27 @@ s3 = boto3.client('s3')
 #####################
 INPUT_SCHEMA = Schema({
     'event': {
+        # 'LogicalResourceId': str,
+        # 'PhysicalResourceId': Any(None, str),
+        # 'RequestId': str,
+        'RequestType': Any('Create', 'Update', 'Delete'),
         'ResourceProperties': {
             'AccountId': str
         },
-        'PhysicalResourceId': Any(None, str),
+        'ResponseURL': str,
+        'StackId': str
     }
 }, required=True, extra=REMOVE_EXTRA)
 
 OUTPUT_SCHEMA = Schema({
     'output': {
-        'audit': {
-            'accountId': str,
-            'cloudTrailBucketName': str
-        },
-        'connected': {
-            'accountId': str,
-        },
-        'cloudTrail': {
-            'accountId': str,
-            'snsTopicName': str,
-        },
-        'masterPayer': {
-            'accountId': str,
-            'billingBucketName': str,
-        },
+        'IsAuditAccount': bool,
+        'AuditCloudTrailBucketName': Any(None, str),
+        'IsConnectedAccount': bool,
+        'IsCloudTrailAccount': bool,
+        'CloudTrailSNSTopicName': Any(None, str),
+        'IsMasterPayerAccount': bool,
+        'MasterPayerBillingBucketName': Any(None, str),
     },
 }, required=True, extra=ALLOW_EXTRA)
 
@@ -75,7 +82,7 @@ def coeffect(name):
             try:
                 data = f(world)
             except Exception:
-                logger.warning(f'Failed to get {name} information.')
+                logger.warning(f'Failed to get {name} information.', exc_info=True)
             return assoc_in(world, ['coeffects', name], data)
         return w
     return d
@@ -109,27 +116,27 @@ def audit(world):
     trail_bucket = get_in(['coeffects', 'cloudtrail', 'trailList', 0, 'S3BucketName'], world)
     local_buckets = {x['Name'] for x in get_in(['coeffects', 's3', 'Buckets'], world, [])}
     output = {
-        'accountId': account_id if trail_bucket in local_buckets else None,
-        'cloudTrailBucketName': trail_bucket,
+        'IsAuditAccount': trail_bucket in local_buckets,
+        'AuditCloudTrailBucketName': trail_bucket,
     }
-    return assoc_in(world, ['output', 'audit'], output)
+    return update_in(world, ['output'], lambda x: merge(x or {}, output))
 
 
 def connected(world):
     output = {
-        'accountId': event_account_id(world),
+        'IsConnectedAccount': True,
     }
-    return assoc_in(world, ['output', 'connected'], output)
+    return update_in(world, ['output'], lambda x: merge(x or {}, output))
 
 
 def cloudtrail(world):
     trail_topic = get_in(['coeffects', 'cloudtrail', 'trailList', 0, 'SnsTopicName'], world)
     account_id = trail_topic.split(':')[4]
     output = {
-        'accountId': account_id,
-        'snsTopicName': trail_topic,
+        'IsCloudTrailAccount': account_id == event_account_id(world),
+        'CloudTrailSNSTopicName': trail_topic,
     }
-    return assoc_in(world, ['output', 'cloudTrail'], output)
+    return update_in(world, ['output'], lambda x: merge(x or {}, output))
 
 
 def master_payer(world):
@@ -137,10 +144,10 @@ def master_payer(world):
     payer_bucket = get_in(['coeffects', 'cur', 'ReportDefinitions', 0, 'S3Bucket'], world)
     local_buckets = {x['Name'] for x in get_in(['coeffects', 's3', 'Buckets'], world, [])}
     output = {
-        'accountId': account_id if payer_bucket in local_buckets else None,
-        'billingBucketName': payer_bucket,
+        'IsMasterPayerAccount': payer_bucket in local_buckets,
+        'MasterPayerBillingBucketName': payer_bucket,
     }
-    return assoc_in(world, ['output', 'masterPayer'], output)
+    return update_in(world, ['output'], lambda x: merge(x or {}, output))
 
 
 def discover_account_types(world):
@@ -160,14 +167,17 @@ def handler(event, context, **kwargs):
     status = cfnresponse.SUCCESS
     world = {}
     try:
+        logger.info(f'Processing event {pformat(event)}')
         world = pipe({'event': event, 'kwargs': kwargs},
                      INPUT_SCHEMA,
                      coeffects,
                      discover_account_types,
                      OUTPUT_SCHEMA)
-        print(f'Finished Processing: {pformat(world)}')
+        logger.info(f'Finished Processing: {pformat(world)}')
     except Exception as err:
         logger.exception(err)
-        status = cfnresponse.FAILED
     finally:
-        cfnresponse.send(event, context, status, world.get('output', {}), event.get('PhysicalResourceId'))
+        output = world.get('output', DEFAULT_OUTPUT)
+        output['String'] = 'foo'
+        logger.info(f'Sending output {pformat(output)}')
+        cfnresponse.send(event, context, status, output, event.get('PhysicalResourceId'))

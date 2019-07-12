@@ -7,14 +7,16 @@
 # Project Constants
 #
 ####################
-PROJECT = discovery
+FEATURE = provision-account-discovery
 SRC_FILES = $(shell find src -name "*.py")
 TEST_FILES = $(shell find tests -name "test_*.py")
 REQUIREMENTS_FILES = $(shell find tests -name "requirements*.txt")
 COVERAGE_REPORT = coverage-report
 FLAKE8_OUT = flake8.out
 TEMPLATE = template.yaml
+PACKAGED_TEMPLATE = packaged.template.yaml
 BUILD_DIR = .aws-sam
+DEPLOYMENT_FILE = .deploy
 
 
 ####################
@@ -79,6 +81,23 @@ $(COVERAGE_REPORT): $(SRC_FILES) $(TEST_FILES)
 build: $(BUILD_DIR)
 $(BUILD_DIR): $(SRC_FILES) $(TEMPLATE)
 	sam build
+
+.PHONY: package
+package: $(PACKAGED_TEMPLATE)
+$(PACKAGED_TEMPLATE): $(BUILD_DIR)
+	account_id=`aws sts get-caller-identity | jq -r -e '.Account'` && \
+	sam package \
+		--s3-bucket cz-sam-deployment-$${account_id} \
+		--output-template-file $@
+
+
+.PHONY: deploy
+deploy: $(DEPLOYMENT_FILE)
+$(DEPLOYMENT_FILE): $(PACKAGED_TEMPLATE)
+	sam deploy \
+		--template-file $^ \
+		--stack-name cz-$${namespace:-${NAMESPACE}}-$(FEATURE) \
+		--capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM
 
 
 ####################

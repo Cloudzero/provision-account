@@ -27,10 +27,15 @@ REMOTE_TOPIC_ARN = f'arn:aws:sns:us-east-1:{REMOTE_ACCOUNT_ID}:remote-cloudtrail
 @pytest.fixture()
 def cfn_event():
     return {
+        'LogicalResourceId': 'some logical resource id',
+        'PhysicalResourceId': None,
+        'RequestId': 'some request id',
+        'RequestType': 'Create',
         'ResourceProperties': {
             'AccountId': LOCAL_ACCOUNT_ID,
         },
-        'PhysicalResourceId': None,
+        'ResponseURL': 'https://cfn.amazonaws.com/callback',
+        'StackId': 'some-cfn-stack-id',
     }
 
 

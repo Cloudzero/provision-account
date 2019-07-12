@@ -9,25 +9,37 @@ Description: >
 Globals:
   Function:
     Runtime: python3.6
-    Timeout: 3
+    MemorySize: 256
+    Timeout: 10
 
 Resources:
   DiscoveryFunction:
     Type: AWS::Serverless::Function 
     Properties:
       CodeUri: src/
-      Handler: app.lambda_handler
+      Handler: app.handler
+      Policies:
+        - AmazonS3ReadOnlyAccess
+        - AWSCloudTrailReadOnlyAccess
+        - Billing
+      Environment:
+        Variables:
+          VERSION: 12
+
+  DiscoveryResource:
+    Type: Custom::Discovery
+    Properties:
+      ServiceToken: !GetAtt DiscoveryFunction.Arn
+      AccountId: !Sub ${AWS::AccountId}
+      Version: 12
 
 Outputs:
-  # ServerlessRestApi is an implicit API created out of Events key under Serverless::Function
-  # Find out more about other implicit resources you can reference within SAM
-  # https://github.com/awslabs/serverless-application-model/blob/master/docs/internals/generated_resources.rst#api
-  HelloWorldApi:
-    Description: "API Gateway endpoint URL for Prod stage for Hello World function"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello/"
-  HelloWorldFunction:
-    Description: "Hello World Lambda Function ARN"
-    Value: !GetAtt HelloWorldFunction.Arn
-  HelloWorldFunctionIamRole:
-    Description: "Implicit IAM Role created for Hello World function"
-    Value: !GetAtt HelloWorldFunctionRole.Arn
+  IsAudit:
+    Value: !GetAtt DiscoveryResource.IsAuditAccount
+  IsMasterPayer:
+    Value: !GetAtt DiscoveryResource.IsMasterPayerAccount
+  IsCloudTrail:
+    Value: !GetAtt DiscoveryResource.IsCloudTrailAccount
+  IsConnected:
+    Value: !GetAtt DiscoveryResource.IsConnectedAccount
+

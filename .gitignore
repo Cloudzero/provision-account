@@ -31,3 +31,4 @@ __pycache__
 # Log files
 *.log
 coverage-report
+packaged.template.yaml
