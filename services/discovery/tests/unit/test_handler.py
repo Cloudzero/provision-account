@@ -7,6 +7,7 @@ import os
 import attrdict
 import cfnresponse
 import pytest
+from voluptuous import All, Schema, ALLOW_EXTRA
 
 import src.app as app
 
@@ -40,7 +41,7 @@ def cfn_event():
 
 
 @pytest.fixture()
-def describe_trails_response():
+def describe_trails_response_local():
     return {
         'trailList': [
             {
@@ -72,13 +73,30 @@ def list_buckets_response():
 
 
 @pytest.fixture()
-def describe_report_definitions_response():
+def describe_report_definitions_response_local():
     return {
         'ReportDefinitions': [
             {
                 'S3Bucket': LOCAL_BUCKET_NAME,
                 'S3Prefix': 'path',
                 'ReportName': 'billing_report',
+            },
+            {
+                "ReportName": "valid-local-report",
+                "TimeUnit": "HOURLY",
+                "Format": "textORcsv",
+                "Compression": "GZIP",
+                "AdditionalSchemaElements": [
+                    "RESOURCES"
+                ],
+                "S3Bucket": LOCAL_BUCKET_NAME,
+                "S3Prefix": "reports",
+                "S3Region": "us-east-1",
+                "AdditionalArtifacts": [
+                    "REDSHIFT"
+                ],
+                "RefreshClosedReports": True,
+                "ReportVersioning": "CREATE_NEW_REPORT"
             }
         ]
     }
@@ -99,14 +117,56 @@ def context(mocker):
     mocker.stopall()
 
 
+IS_MASTER_PAYER = Schema({
+    'IsMasterPayerAccount': True,
+    'MasterPayerBillingBucketName': LOCAL_BUCKET_NAME,
+}, extra=ALLOW_EXTRA, required=True)
+
+IS_AUDIT = Schema({
+    'IsAuditAccount': True,
+}, extra=ALLOW_EXTRA, required=True)
+
+IS_CONNECTED = Schema({
+    'IsConnectedAccount': True,
+}, extra=ALLOW_EXTRA, required=True)
+
+IS_CLOUDTRAIL_OWNER = Schema({
+    'CloudTrailSNSTopicName': LOCAL_TOPIC_ARN,
+    'IsCloudTrailAccount': True,
+}, extra=ALLOW_EXTRA, required=True)
+
+ALL_LOCAL = All(IS_MASTER_PAYER, IS_AUDIT, IS_CONNECTED, IS_CLOUDTRAIL_OWNER)
+
+
 @pytest.mark.unit
-def test_handler(context, cfn_event, describe_trails_response, list_buckets_response, describe_report_definitions_response):
-    context.mock_ct.describe_trails.return_value = describe_trails_response
-    context.mock_cur.describe_report_definitions.return_value = describe_report_definitions_response
+def test_handler_all_local(context, cfn_event, describe_trails_response_local, list_buckets_response, describe_report_definitions_response_local):
+    context.mock_ct.describe_trails.return_value = describe_trails_response_local
+    context.mock_cur.describe_report_definitions.return_value = describe_report_definitions_response_local
     context.mock_s3.list_buckets.return_value = list_buckets_response
     ret = app.handler(cfn_event, None)
     assert ret is None
     assert context.mock_cfnresponse_send.call_count == 1
     ((_, _, status, output, _), kwargs) = context.mock_cfnresponse_send.call_args
     assert status == cfnresponse.SUCCESS
-    app.OUTPUT_SCHEMA({'output': output})
+    assert output == {
+        'AuditCloudTrailBucketName': 'local-bucket',
+        'CloudTrailSNSTopicName': 'arn:aws:sns:us-east-1:123456789012:local-cloudtrail-topic',
+        'IsAuditAccount': True,
+        'IsCloudTrailAccount': True,
+        'IsConnectedAccount': True,
+        'IsMasterPayerAccount': True,
+        'MasterPayerBillingBucketName': 'local-bucket',
+    }
+
+
+@pytest.mark.unit
+def test_handler_all_false(context, cfn_event):
+    context.mock_ct.describe_trails.return_value = {'trailList': []}
+    context.mock_cur.describe_report_definitions.return_value = {'ReportDefinitions': []}
+    context.mock_s3.list_buckets.return_value = {'Buckets': []}
+    ret = app.handler(cfn_event, None)
+    assert ret is None
+    assert context.mock_cfnresponse_send.call_count == 1
+    ((_, _, status, output, _), kwargs) = context.mock_cfnresponse_send.call_args
+    assert status == cfnresponse.SUCCESS
+    assert output == app.DEFAULT_OUTPUT

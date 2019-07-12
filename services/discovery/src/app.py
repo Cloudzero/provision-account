@@ -6,7 +6,7 @@ from pprint import pformat
 import boto3
 import cfnresponse
 from toolz.curried import assoc_in, get_in, keyfilter, merge, pipe, update_in
-from voluptuous import Any, Schema, ALLOW_EXTRA, REMOVE_EXTRA
+from voluptuous import Any, ExactSequence, Schema, ALLOW_EXTRA, REMOVE_EXTRA
 
 
 import logging
@@ -112,7 +112,6 @@ def coeffects_cur(world):
 #
 #####################
 def audit(world):
-    account_id = event_account_id(world)
     trail_bucket = get_in(['coeffects', 'cloudtrail', 'trailList', 0, 'S3BucketName'], world)
     local_buckets = {x['Name'] for x in get_in(['coeffects', 's3', 'Buckets'], world, [])}
     output = {
@@ -139,13 +138,39 @@ def cloudtrail(world):
     return update_in(world, ['output'], lambda x: merge(x or {}, output))
 
 
+MINIMUM_BILLING_REPORT = Schema({
+    'TimeUnit': 'HOURLY',
+    'Format': 'textORcsv',
+    'Compression': 'GZIP',
+    'AdditionalSchemaElements': ExactSequence(['RESOURCES']),
+    'S3Bucket': str,
+    'S3Prefix': str,
+    'S3Region': str,
+    'ReportVersioning': 'CREATE_NEW_REPORT',
+    'RefreshClosedReports': True,
+}, extra=ALLOW_EXTRA, required=True)
+
+
+def safe_check(schema, data):
+    try:
+        return schema(data)
+    except Exception:
+        return None
+
+
 def master_payer(world):
-    account_id = event_account_id(world)
-    payer_bucket = get_in(['coeffects', 'cur', 'ReportDefinitions', 0, 'S3Bucket'], world)
+    report_definitions = get_in(['coeffects', 'cur', 'ReportDefinitions'], world)
     local_buckets = {x['Name'] for x in get_in(['coeffects', 's3', 'Buckets'], world, [])}
+    valid_report_definitions = [
+        y for y in [safe_check(MINIMUM_BILLING_REPORT, x) for x in report_definitions]
+        if y is not None
+    ]
+    default = valid_report_definitions[0]['S3Bucket'] if any(valid_report_definitions) else None
+    valid_local_report_definitions = [x for x in valid_report_definitions if x['S3Bucket'] in local_buckets]
+    local = any(valid_local_report_definitions)
     output = {
-        'IsMasterPayerAccount': payer_bucket in local_buckets,
-        'MasterPayerBillingBucketName': payer_bucket,
+        'IsMasterPayerAccount': local,
+        'MasterPayerBillingBucketName': valid_local_report_definitions[0]['S3Bucket'] if local else default,
     }
     return update_in(world, ['output'], lambda x: merge(x or {}, output))
 
@@ -178,6 +203,5 @@ def handler(event, context, **kwargs):
         logger.exception(err)
     finally:
         output = world.get('output', DEFAULT_OUTPUT)
-        output['String'] = 'foo'
         logger.info(f'Sending output {pformat(output)}')
         cfnresponse.send(event, context, status, output, event.get('PhysicalResourceId'))
