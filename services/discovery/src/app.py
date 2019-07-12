@@ -128,9 +128,39 @@ def connected(world):
     return update_in(world, ['output'], lambda x: merge(x or {}, output))
 
 
+def safe_check(schema, data):
+    try:
+        return schema(data)
+    except Exception:
+        return None
+
+
+def keep_valid(schema, xs):
+    return [
+        y for y in [safe_check(schema, x) for x in xs]
+        if y is not None
+    ]
+
+
+MINIMUM_CLOUDTRAIL = Schema({
+    "S3BucketName": str,
+    "SnsTopicName": str,
+    "SnsTopicARN": str,
+    "IsMultiRegionTrail": True,
+    "TrailARN": str,
+}, extra=ALLOW_EXTRA, required=True)
+
+
+IDEAL_CLOUDTRAIL = MINIMUM_CLOUDTRAIL.extend({
+    "IsOrganizationTrail": True,
+}, extra=ALLOW_EXTRA, required=True)
+
+
 def cloudtrail(world):
-    trail_topic = get_in(['coeffects', 'cloudtrail', 'trailList', 0, 'SnsTopicName'], world)
-    account_id = trail_topic.split(':')[4]
+    trails = get_in(['coeffects', 'cloudtrail', 'trailList'], world)
+    valid_trails = keep_valid(IDEAL_CLOUDTRAIL, trails) or keep_valid(MINIMUM_CLOUDTRAIL, trails)
+    trail_topic = valid_trails[0]['SnsTopicName'] if valid_trails else None
+    account_id = trail_topic.split(':')[4] if trail_topic else None
     output = {
         'IsCloudTrailAccount': account_id == event_account_id(world),
         'CloudTrailSNSTopicName': trail_topic,
@@ -151,20 +181,10 @@ MINIMUM_BILLING_REPORT = Schema({
 }, extra=ALLOW_EXTRA, required=True)
 
 
-def safe_check(schema, data):
-    try:
-        return schema(data)
-    except Exception:
-        return None
-
-
 def master_payer(world):
     report_definitions = get_in(['coeffects', 'cur', 'ReportDefinitions'], world)
     local_buckets = {x['Name'] for x in get_in(['coeffects', 's3', 'Buckets'], world, [])}
-    valid_report_definitions = [
-        y for y in [safe_check(MINIMUM_BILLING_REPORT, x) for x in report_definitions]
-        if y is not None
-    ]
+    valid_report_definitions = keep_valid(MINIMUM_BILLING_REPORT, report_definitions)
     default = valid_report_definitions[0]['S3Bucket'] if any(valid_report_definitions) else None
     valid_local_report_definitions = [x for x in valid_report_definitions if x['S3Bucket'] in local_buckets]
     local = any(valid_local_report_definitions)

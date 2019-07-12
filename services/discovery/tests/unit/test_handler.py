@@ -8,6 +8,7 @@ import attrdict
 import cfnresponse
 import pytest
 from voluptuous import All, Schema, ALLOW_EXTRA
+from toolz.curried import assoc_in
 
 import src.app as app
 
@@ -62,6 +63,48 @@ def describe_trails_response_local():
 
 
 @pytest.fixture()
+def describe_trails_response_remote():
+    return {
+        'trailList': [
+            {
+                'HasCustomEventSelectors': True,
+                'HomeRegion': 'us-east-1',
+                'IncludeGlobalServiceEvents': True,
+                'IsMultiRegionTrail': True,
+                'IsOrganizationTrail': False,
+                'LogFileValidationEnabled': True,
+                'Name': 'my-local-trail',
+                'S3BucketName': LOCAL_BUCKET_NAME,
+                'SnsTopicARN': REMOTE_TOPIC_ARN,
+                'SnsTopicName': REMOTE_TOPIC_ARN,
+                'TrailARN': REMOTE_TRAIL_ARN,
+            },
+        ],
+    }
+
+
+@pytest.fixture()
+def describe_trails_response_remote_bucket():
+    return {
+        'trailList': [
+            {
+                'HasCustomEventSelectors': True,
+                'HomeRegion': 'us-east-1',
+                'IncludeGlobalServiceEvents': True,
+                'IsMultiRegionTrail': True,
+                'IsOrganizationTrail': False,
+                'LogFileValidationEnabled': True,
+                'Name': 'my-local-trail',
+                'S3BucketName': REMOTE_BUCKET_NAME,
+                'SnsTopicARN': LOCAL_TOPIC_ARN,
+                'SnsTopicName': LOCAL_TOPIC_ARN,
+                'TrailARN': LOCAL_TRAIL_ARN,
+            },
+        ],
+    }
+
+
+@pytest.fixture()
 def list_buckets_response():
     return {
         'Buckets': [
@@ -98,6 +141,44 @@ def describe_report_definitions_response_local():
                 "RefreshClosedReports": True,
                 "ReportVersioning": "CREATE_NEW_REPORT"
             }
+        ]
+    }
+
+
+@pytest.fixture()
+def describe_report_definitions_response_remote():
+    return {
+        'ReportDefinitions': [
+            {
+                "ReportName": "valid-local-report",
+                "TimeUnit": "HOURLY",
+                "Format": "textORcsv",
+                "Compression": "GZIP",
+                "AdditionalSchemaElements": [
+                    "RESOURCES"
+                ],
+                "S3Bucket": REMOTE_BUCKET_NAME,
+                "S3Prefix": "reports",
+                "S3Region": "us-east-1",
+                "AdditionalArtifacts": [
+                    "REDSHIFT"
+                ],
+                "RefreshClosedReports": True,
+                "ReportVersioning": "CREATE_NEW_REPORT"
+            }
+        ]
+    }
+
+
+@pytest.fixture()
+def describe_report_definitions_response_invalid():
+    return {
+        'ReportDefinitions': [
+            {
+                'S3Bucket': LOCAL_BUCKET_NAME,
+                'S3Prefix': 'path',
+                'ReportName': 'billing_report',
+            },
         ]
     }
 
@@ -149,19 +230,116 @@ def test_handler_all_local(context, cfn_event, describe_trails_response_local, l
     ((_, _, status, output, _), kwargs) = context.mock_cfnresponse_send.call_args
     assert status == cfnresponse.SUCCESS
     assert output == {
-        'AuditCloudTrailBucketName': 'local-bucket',
-        'CloudTrailSNSTopicName': 'arn:aws:sns:us-east-1:123456789012:local-cloudtrail-topic',
+        'AuditCloudTrailBucketName': LOCAL_BUCKET_NAME,
+        'CloudTrailSNSTopicName': LOCAL_TOPIC_ARN,
         'IsAuditAccount': True,
         'IsCloudTrailAccount': True,
         'IsConnectedAccount': True,
         'IsMasterPayerAccount': True,
-        'MasterPayerBillingBucketName': 'local-bucket',
+        'MasterPayerBillingBucketName': LOCAL_BUCKET_NAME,
     }
 
 
 @pytest.mark.unit
-def test_handler_all_false(context, cfn_event):
+def test_handler_non_audit(context, cfn_event, describe_trails_response_remote_bucket, list_buckets_response, describe_report_definitions_response_local):
+    context.mock_ct.describe_trails.return_value = describe_trails_response_remote_bucket
+    context.mock_cur.describe_report_definitions.return_value = describe_report_definitions_response_local
+    context.mock_s3.list_buckets.return_value = list_buckets_response
+    ret = app.handler(cfn_event, None)
+    assert ret is None
+    assert context.mock_cfnresponse_send.call_count == 1
+    ((_, _, status, output, _), kwargs) = context.mock_cfnresponse_send.call_args
+    assert status == cfnresponse.SUCCESS
+    assert output == {
+        'AuditCloudTrailBucketName': REMOTE_BUCKET_NAME,
+        'CloudTrailSNSTopicName': LOCAL_TOPIC_ARN,
+        'IsAuditAccount': False,
+        'IsCloudTrailAccount': True,
+        'IsConnectedAccount': True,
+        'IsMasterPayerAccount': True,
+        'MasterPayerBillingBucketName': LOCAL_BUCKET_NAME,
+    }
+
+
+@pytest.mark.unit
+def test_handler_non_cloudtrail_owner(context, cfn_event, describe_trails_response_remote, list_buckets_response, describe_report_definitions_response_local):
+    context.mock_ct.describe_trails.return_value = describe_trails_response_remote
+    context.mock_cur.describe_report_definitions.return_value = describe_report_definitions_response_local
+    context.mock_s3.list_buckets.return_value = list_buckets_response
+    ret = app.handler(cfn_event, None)
+    assert ret is None
+    assert context.mock_cfnresponse_send.call_count == 1
+    ((_, _, status, output, _), kwargs) = context.mock_cfnresponse_send.call_args
+    assert status == cfnresponse.SUCCESS
+    assert output == {
+        'AuditCloudTrailBucketName': LOCAL_BUCKET_NAME,
+        'CloudTrailSNSTopicName': REMOTE_TOPIC_ARN,
+        'IsAuditAccount': True,
+        'IsCloudTrailAccount': False,
+        'IsConnectedAccount': True,
+        'IsMasterPayerAccount': True,
+        'MasterPayerBillingBucketName': LOCAL_BUCKET_NAME,
+    }
+
+
+@pytest.mark.unit
+def test_handler_non_master_payer_invalid(context, cfn_event, describe_trails_response_local, list_buckets_response, describe_report_definitions_response_invalid):
+    context.mock_ct.describe_trails.return_value = describe_trails_response_local
+    context.mock_cur.describe_report_definitions.return_value = describe_report_definitions_response_invalid
+    context.mock_s3.list_buckets.return_value = list_buckets_response
+    ret = app.handler(cfn_event, None)
+    assert ret is None
+    assert context.mock_cfnresponse_send.call_count == 1
+    ((_, _, status, output, _), kwargs) = context.mock_cfnresponse_send.call_args
+    assert status == cfnresponse.SUCCESS
+    assert output == {
+        'AuditCloudTrailBucketName': LOCAL_BUCKET_NAME,
+        'CloudTrailSNSTopicName': LOCAL_TOPIC_ARN,
+        'IsAuditAccount': True,
+        'IsCloudTrailAccount': True,
+        'IsConnectedAccount': True,
+        'IsMasterPayerAccount': False,
+        'MasterPayerBillingBucketName': None,
+    }
+
+
+@pytest.mark.unit
+def test_handler_non_master_payer_remote(context, cfn_event, describe_trails_response_local, list_buckets_response, describe_report_definitions_response_remote):
+    context.mock_ct.describe_trails.return_value = describe_trails_response_local
+    context.mock_cur.describe_report_definitions.return_value = describe_report_definitions_response_remote
+    context.mock_s3.list_buckets.return_value = list_buckets_response
+    ret = app.handler(cfn_event, None)
+    assert ret is None
+    assert context.mock_cfnresponse_send.call_count == 1
+    ((_, _, status, output, _), kwargs) = context.mock_cfnresponse_send.call_args
+    assert status == cfnresponse.SUCCESS
+    assert output == {
+        'AuditCloudTrailBucketName': LOCAL_BUCKET_NAME,
+        'CloudTrailSNSTopicName': LOCAL_TOPIC_ARN,
+        'IsAuditAccount': True,
+        'IsCloudTrailAccount': True,
+        'IsConnectedAccount': True,
+        'IsMasterPayerAccount': False,
+        'MasterPayerBillingBucketName': REMOTE_BUCKET_NAME,
+    }
+
+
+@pytest.mark.unit
+def test_handler_only_connected(context, cfn_event):
     context.mock_ct.describe_trails.return_value = {'trailList': []}
+    context.mock_cur.describe_report_definitions.return_value = {'ReportDefinitions': []}
+    context.mock_s3.list_buckets.return_value = {'Buckets': []}
+    ret = app.handler(cfn_event, None)
+    assert ret is None
+    assert context.mock_cfnresponse_send.call_count == 1
+    ((_, _, status, output, _), kwargs) = context.mock_cfnresponse_send.call_args
+    assert status == cfnresponse.SUCCESS
+    assert output == assoc_in(app.DEFAULT_OUTPUT, ['IsConnectedAccount'], True)
+
+
+@pytest.mark.unit
+def test_handler_exception(context, cfn_event):
+    context.mock_ct.describe_trails.side_effect = Exception('Oh No!')
     context.mock_cur.describe_report_definitions.return_value = {'ReportDefinitions': []}
     context.mock_s3.list_buckets.return_value = {'Buckets': []}
     ret = app.handler(cfn_event, None)
