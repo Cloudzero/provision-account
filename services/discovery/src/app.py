@@ -157,7 +157,7 @@ IDEAL_CLOUDTRAIL = MINIMUM_CLOUDTRAIL.extend({
 
 
 def cloudtrail(world):
-    trails = get_in(['coeffects', 'cloudtrail', 'trailList'], world)
+    trails = get_in(['coeffects', 'cloudtrail', 'trailList'], world, [])
     valid_trails = keep_valid(IDEAL_CLOUDTRAIL, trails) or keep_valid(MINIMUM_CLOUDTRAIL, trails)
     trail_topic = valid_trails[0]['SnsTopicName'] if valid_trails else None
     account_id = trail_topic.split(':')[4] if trail_topic else None
@@ -182,7 +182,7 @@ MINIMUM_BILLING_REPORT = Schema({
 
 
 def master_payer(world):
-    report_definitions = get_in(['coeffects', 'cur', 'ReportDefinitions'], world)
+    report_definitions = get_in(['coeffects', 'cur', 'ReportDefinitions'], world, [])
     local_buckets = {x['Name'] for x in get_in(['coeffects', 's3', 'Buckets'], world, [])}
     valid_report_definitions = keep_valid(MINIMUM_BILLING_REPORT, report_definitions)
     default = valid_report_definitions[0]['S3Bucket'] if any(valid_report_definitions) else None
