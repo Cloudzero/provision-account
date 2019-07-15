@@ -32,10 +32,12 @@ help:
 #
 #################
 .PHONY: init                                                                            ## Install package dependencies for python
-init: guard-VIRTUAL_ENV $(VIRTUAL_ENV)
-$(VIRTUAL_ENV): $(REQUIREMENTS_FILE)
-	pip install -r $(REQUIREMENTS_FILE)
-	touch $(VIRTUAL_ENV)
+init: guard-VIRTUAL_ENV $(PYTHON_DEPENDENCY_FILE)
+$(PYTHON_DEPENDENCY_FILE): $(REQUIREMENTS_FILES)
+	for f in $^ ; do \
+    pip install -r $${f} ; \
+  done
+	touch $(PYTHON_DEPENDENCY_FILE)
 
 
 .PHONY: lint                                                                            ## Lints the code for all available runtimes
@@ -51,6 +53,7 @@ test: lint
 clean:
 	-rm -f $(PACKAGED_TEMPLATE_FILE)
 	-touch $(REQUIREMENTS_FILE)
+	-rm $(PYTHON_DEPENDENCY_FILE)
 	-pip freeze | xargs pip uninstall -y -q
 
 
@@ -103,11 +106,12 @@ cfn-dryrun: guard-stack_name guard-template_file
 
 
 
-$(PACKAGED_TEMPLATE_FILE): $(TEMPLATE_FILE) guard-deployment_bucket
-	@aws cloudformation package \
+$(PACKAGED_TEMPLATE_FILE): $(TEMPLATE_FILE)
+	account_id=`aws sts get-caller-identity | jq -r -e '.Account'` && \
+	aws cloudformation package \
 		--template-file $< \
 		--output-template-file $@ \
-		--s3-bucket $(deployment_bucket)
+		--s3-bucket cz-sam-deployment-$${account_id}
 
 
 .PHONY: deploy-dry-run                                                                  ## Almost-deploys SAM template to AWS stack =)
@@ -118,10 +122,10 @@ deploy-dry-run: $(VIRTUAL_ENV) $(PACKAGED_TEMPLATE_FILE)
 .PHONY: deploy                                                                          ## Deploys Artifacts to S3 Bucket
 deploy: $(VIRTUAL_ENV) $(PACKAGED_TEMPLATE_FILE)
 	@$(MAKE) cfn-deploy stack_name=cz-$(FEATURE_NAME) template_file=$(PACKAGED_TEMPLATE_FILE)
-	@bucket=`$(MAKE) describe | grep -v -e '^make' | jq -re '.Stacks[0].Outputs | map(select(.OutputKey == "BucketName")) | .[0].OutputValue'` && \
-  version=`git rev-list --count HEAD` && \
-  aws s3 sync services s3://$${bucket}/services/v$${version} && \
-  aws s3 sync services s3://$${bucket}/services/latest
+	# @bucket=`$(MAKE) describe | grep -v -e '^make' | jq -re '.Stacks[0].Outputs | map(select(.OutputKey == "BucketName")) | .[0].OutputValue'` && \
+  # version=`git rev-list --count HEAD` && \
+  # aws s3 sync services s3://$${bucket}/services/v$${version} && \
+  # aws s3 sync services s3://$${bucket}/services/latest
 
 
 .PHONY: describe                                                                        ## Return information about SAM-created stack from AWS

@@ -1,0 +1,12 @@
+{
+  "LogicalResourceId": "some cfn logical resource id",
+  "PhysicalResourceId": "physical_id",
+  "RequestId": "Some Request Id",
+  "RequestType": "Create",
+  "ResourceProperties": {
+    "AccountId": "123456789012"
+  },
+  "ResponseURL": "https://examplecallback",
+  "StackId": "some stack id"
+}
+
