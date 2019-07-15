@@ -5,12 +5,20 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Description: CloudZero Connected Account Template
 
-Parameters:
-  Namespace:
-    Type: String
+# Parameters:
 
 Resources:
-  # TODO: Fill In
+  Discovery:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      # Parameters:
+      #   Prefix: !Sub cz-${Namespace}-${FeatureName}
+      Tags:
+        - Key: cloudzero
+          Value: cloudzero
+      TemplateURL: https://s3.amazonaws.com/cz-provision-account/services/latest/discovery.yaml
 
 Outputs:
-  # TODO: Fill In
+  DiscoveryIsAuditAccount:
+    Value: !GetAtt Discovery.Outputs.IsAuditAccount
+    Description: Whether or not this account is an Audit Account
