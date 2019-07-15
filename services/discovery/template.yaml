@@ -1,11 +1,11 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  discovery
+  CZ Discovery Stack:
+    Determine the Types CZ can apply to the current account.
 
-  Sample SAM Template for discovery
+  SAM Template for discovery
 
-# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
 Globals:
   Function:
     Runtime: python3.6
@@ -24,22 +24,28 @@ Resources:
         - Billing
       Environment:
         Variables:
-          VERSION: 12
+          VERSION: 1
 
   DiscoveryResource:
     Type: Custom::Discovery
     Properties:
       ServiceToken: !GetAtt DiscoveryFunction.Arn
       AccountId: !Sub ${AWS::AccountId}
-      Version: 12
+      Version: 1
 
 Outputs:
-  IsAudit:
+  AuditCloudTrailBucketName:
+    Value: !GetAtt DiscoveryResource.AuditCloudTrailBucketName
+  CloudTrailSNSTopicName:
+    Value: !GetAtt DiscoveryResource.CloudTrailSNSTopicName
+  IsAuditAccount:
     Value: !GetAtt DiscoveryResource.IsAuditAccount
-  IsMasterPayer:
+  IsMasterPayerAccount:
     Value: !GetAtt DiscoveryResource.IsMasterPayerAccount
-  IsCloudTrail:
+  IsCloudTrailAccount:
     Value: !GetAtt DiscoveryResource.IsCloudTrailAccount
-  IsConnected:
+  IsConnectedAccount:
     Value: !GetAtt DiscoveryResource.IsConnectedAccount
+  MasterPayerBillingBucketName:
+    Value: !GetAtt DiscoveryResource.MasterPayerBillingBucketName
 
