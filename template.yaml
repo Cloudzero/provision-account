@@ -8,8 +8,6 @@ Description: CloudZero Provision Account CFN Templates
 Parameters:
   FeatureName:
     Type: String
-  Namespace:
-    Type: String
 
 Resources:
   Bucket:

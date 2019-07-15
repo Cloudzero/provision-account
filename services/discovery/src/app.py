@@ -36,9 +36,6 @@ DEFAULT_OUTPUT = {
 #####################
 INPUT_SCHEMA = Schema({
     'event': {
-        # 'LogicalResourceId': str,
-        # 'PhysicalResourceId': Any(None, str),
-        # 'RequestId': str,
         'RequestType': Any('Create', 'Update', 'Delete'),
         'ResourceProperties': {
             'AccountId': str

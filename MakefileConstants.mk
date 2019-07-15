@@ -3,9 +3,9 @@
 # Licensed under the BSD-style license. See LICENSE file in the project root for full license information.
 
 # Main parameters
-FEATURE_NAME ?= provision-accounts
+FEATURE_NAME ?= provision-account
 TEAM_NAME ?= cloudzero
-SRC_FILES = $(shell find . -name "*.yaml")
+SRC_FILES = $(shell find . -name "*.yaml" -maxdepth 1)
 
 # Util constants
 ERROR_COLOR = \033[1;31m
