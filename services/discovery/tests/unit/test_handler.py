@@ -26,6 +26,7 @@ LOCAL_TOPIC_ARN = f'arn:aws:sns:us-east-1:{LOCAL_ACCOUNT_ID}:local-cloudtrail-to
 REMOTE_TOPIC_ARN = f'arn:aws:sns:us-east-1:{REMOTE_ACCOUNT_ID}:remote-cloudtrail-topic'
 
 
+# TODO: Replace these fixtures with Voluptuous Schemas + Hypothesis + Property Tests
 @pytest.fixture()
 def cfn_event():
     return {
@@ -321,6 +322,27 @@ def test_handler_non_master_payer_remote(context, cfn_event, describe_trails_res
         'IsConnectedAccount': True,
         'IsMasterPayerAccount': False,
         'MasterPayerBillingBucketName': REMOTE_BUCKET_NAME,
+    }
+
+
+@pytest.mark.unit
+def test_handler_cannot_determine_audit_only(context, cfn_event, list_buckets_response):
+    context.mock_ct.describe_trails.return_value = {'trailList': []}
+    context.mock_cur.describe_report_definitions.return_value = {'ReportDefinitions': []}
+    context.mock_s3.list_buckets.return_value = list_buckets_response
+    ret = app.handler(cfn_event, None)
+    assert ret is None
+    assert context.mock_cfnresponse_send.call_count == 1
+    ((_, _, status, output, _), kwargs) = context.mock_cfnresponse_send.call_args
+    assert status == cfnresponse.SUCCESS
+    assert output == {
+        'AuditCloudTrailBucketName': None,
+        'CloudTrailSNSTopicName': None,
+        'IsAuditAccount': False,
+        'IsCloudTrailAccount': False,
+        'IsConnectedAccount': True,
+        'IsMasterPayerAccount': False,
+        'MasterPayerBillingBucketName': None,
     }
 
 
