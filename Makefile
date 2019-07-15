@@ -32,12 +32,12 @@ help:
 #
 #################
 .PHONY: init                                                                            ## Install package dependencies for python
-init: guard-VIRTUAL_ENV $(VIRTUAL_ENV)
-$(VIRTUAL_ENV): $(REQUIREMENTS_FILES)
+init: guard-VIRTUAL_ENV $(PYTHON_DEPENDENCY_FILE)
+$(PYTHON_DEPENDENCY_FILE): $(REQUIREMENTS_FILES)
 	for f in $^ ; do \
-			pip install -r $${f} ; \
-	done
-	touch $(VIRTUAL_ENV)
+    pip install -r $${f} ; \
+  done
+	touch $(PYTHON_DEPENDENCY_FILE)
 
 
 .PHONY: lint                                                                            ## Lints the code for all available runtimes
@@ -53,6 +53,7 @@ test: lint
 clean:
 	-rm -f $(PACKAGED_TEMPLATE_FILE)
 	-touch $(REQUIREMENTS_FILE)
+	-rm $(PYTHON_DEPENDENCY_FILE)
 	-pip freeze | xargs pip uninstall -y -q
 
 

@@ -16,6 +16,7 @@ NO_COLOR = \033[0m
 # Prerequisite verification
 REQUIREMENTS_FILE = requirements-dev.txt
 REQUIREMENTS_FILES = $(shell find . -name "requirements*.txt")
+PYTHON_DEPENDENCY_FILE = .cz_py_dependencies_installed
 
 # Git
 # GIT_REV := $(shell git rev-parse HEAD)
