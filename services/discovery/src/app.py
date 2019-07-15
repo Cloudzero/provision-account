@@ -108,7 +108,7 @@ def coeffects_cur(world):
 # Business Logic
 #
 #####################
-def audit(world):
+def discover_audit_account(world):
     trail_bucket = get_in(['coeffects', 'cloudtrail', 'trailList', 0, 'S3BucketName'], world)
     local_buckets = {x['Name'] for x in get_in(['coeffects', 's3', 'Buckets'], world, [])}
     output = {
@@ -118,7 +118,7 @@ def audit(world):
     return update_in(world, ['output'], lambda x: merge(x or {}, output))
 
 
-def connected(world):
+def discover_connected_account(world):
     output = {
         'IsConnectedAccount': True,
     }
@@ -129,6 +129,7 @@ def safe_check(schema, data):
     try:
         return schema(data)
     except Exception:
+        logger.debug(f'Data {pformat(data)} did not match schema {schema}', exc_info=True)
         return None
 
 
@@ -139,7 +140,7 @@ def keep_valid(schema, xs):
     ]
 
 
-MINIMUM_CLOUDTRAIL = Schema({
+MINIMUM_CLOUDTRAIL_CONFIGURATION = Schema({
     "S3BucketName": str,
     "SnsTopicName": str,
     "SnsTopicARN": str,
@@ -148,15 +149,19 @@ MINIMUM_CLOUDTRAIL = Schema({
 }, extra=ALLOW_EXTRA, required=True)
 
 
-IDEAL_CLOUDTRAIL = MINIMUM_CLOUDTRAIL.extend({
+IDEAL_CLOUDTRAIL_CONFIGURATION = MINIMUM_CLOUDTRAIL_CONFIGURATION.extend({
     "IsOrganizationTrail": True,
 }, extra=ALLOW_EXTRA, required=True)
 
 
-def cloudtrail(world):
+def get_first_valid_trail(trails):
+    return trails[0]['SnsTopicName'] if trails else None
+
+
+def discover_cloudtrail_account(world):
     trails = get_in(['coeffects', 'cloudtrail', 'trailList'], world, [])
-    valid_trails = keep_valid(IDEAL_CLOUDTRAIL, trails) or keep_valid(MINIMUM_CLOUDTRAIL, trails)
-    trail_topic = valid_trails[0]['SnsTopicName'] if valid_trails else None
+    valid_trails = keep_valid(IDEAL_CLOUDTRAIL_CONFIGURATION, trails) or keep_valid(MINIMUM_CLOUDTRAIL_CONFIGURATION, trails)
+    trail_topic = get_first_valid_trail(valid_trails)
     account_id = trail_topic.split(':')[4] if trail_topic else None
     output = {
         'IsCloudTrailAccount': account_id == event_account_id(world),
@@ -178,26 +183,30 @@ MINIMUM_BILLING_REPORT = Schema({
 }, extra=ALLOW_EXTRA, required=True)
 
 
-def master_payer(world):
+def get_first_valid_report_definition_s3_bucket(valid_report_definitions, default=None):
+    return valid_report_definitions[0]['S3Bucket'] if any(valid_report_definitions) else default
+
+
+def discover_master_payer_account(world):
     report_definitions = get_in(['coeffects', 'cur', 'ReportDefinitions'], world, [])
     local_buckets = {x['Name'] for x in get_in(['coeffects', 's3', 'Buckets'], world, [])}
     valid_report_definitions = keep_valid(MINIMUM_BILLING_REPORT, report_definitions)
-    default = valid_report_definitions[0]['S3Bucket'] if any(valid_report_definitions) else None
+    default_s3_bucket = get_first_valid_report_definition_s3_bucket(valid_report_definitions)
     valid_local_report_definitions = [x for x in valid_report_definitions if x['S3Bucket'] in local_buckets]
     local = any(valid_local_report_definitions)
     output = {
         'IsMasterPayerAccount': local,
-        'MasterPayerBillingBucketName': valid_local_report_definitions[0]['S3Bucket'] if local else default,
+        'MasterPayerBillingBucketName': get_first_valid_report_definition_s3_bucket(valid_local_report_definitions, default=default_s3_bucket),
     }
     return update_in(world, ['output'], lambda x: merge(x or {}, output))
 
 
 def discover_account_types(world):
     return pipe(world,
-                audit,
-                connected,
-                cloudtrail,
-                master_payer)
+                discover_audit_account,
+                discover_connected_account,
+                discover_cloudtrail_account,
+                discover_master_payer_account)
 
 
 #####################

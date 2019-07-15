@@ -360,11 +360,8 @@ def test_handler_only_connected(context, cfn_event):
 
 
 @pytest.mark.unit
-def test_handler_exception(context, cfn_event):
-    context.mock_ct.describe_trails.side_effect = Exception('Oh No!')
-    context.mock_cur.describe_report_definitions.return_value = {'ReportDefinitions': []}
-    context.mock_s3.list_buckets.return_value = {'Buckets': []}
-    ret = app.handler(cfn_event, None)
+def test_handler_exception(context):
+    ret = app.handler({}, None)
     assert ret is None
     assert context.mock_cfnresponse_send.call_count == 1
     ((_, _, status, output, _), kwargs) = context.mock_cfnresponse_send.call_args
