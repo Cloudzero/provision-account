@@ -10,7 +10,8 @@
 FEATURE = provision-account-discovery
 SRC_FILES = $(shell find src -name "*.py")
 TEST_FILES = $(shell find tests -name "test_*.py")
-REQUIREMENTS_FILES = $(shell find tests -name "requirements*.txt")
+PYTHON_DEPENDENCY_FILE = .cz_py_dependencies_installed
+REQUIREMENTS_FILES = $(shell find . -name "requirements*.txt")
 COVERAGE_REPORT = coverage-report
 FLAKE8_OUT = flake8.out
 TEMPLATE = template.yaml
@@ -38,13 +39,14 @@ help:
 
 .PHONY: clean                                         ## Clean python c files, reports, and build dir
 clean:
-	rm $(FLAKE8_OUT)
-	rm -rf $(COVERAGE_REPORT)
-	rm -rf $(BUILD_DIR)
-	find . -name '*.pyc' -exec rm -f {} +
-	find . -name '*.pyo' -exec rm -f {} +
-	find . -name '*~' -exec rm -f {} +
-	find . -name '__pycache__' -exec rm -fr {} +
+	-rm $(FLAKE8_OUT)
+	-rm -rf $(COVERAGE_REPORT)
+	-rm -rf $(BUILD_DIR)
+	-touch $(PYTHON_DEPENDENCY_FILE)
+	-find . -name '*.pyc' -exec rm -f {} +
+	-find . -name '*.pyo' -exec rm -f {} +
+	-find . -name '*~' -exec rm -f {} +
+	-find . -name '__pycache__' -exec rm -fr {} +
 
 
 #################
@@ -53,12 +55,12 @@ clean:
 #
 #################
 .PHONY: init                                          ## Initialize Python Environment. Requires $(VIRTUAL_ENV)
-init: guard-VIRTUAL_ENV $(VIRTUAL_ENV)
-$(VIRTUAL_ENV): $(REQUIREMENTS_FILES)
+init: guard-VIRTUAL_ENV $(PYTHON_DEPENDENCY_FILE)
+$(PYTHON_DEPENDENCY_FILE): $(REQUIREMENTS_FILES)
 	for f in $^ ; do \
-			pip install -r $${f} ; \
-	done
-	touch $(VIRTUAL_ENV)
+    pip install -r $${f} ; \
+  done
+	touch $(PYTHON_DEPENDENCY_FILE)
 
 
 .PHONY: lint                                          ## Lint Python Files via Flake8
