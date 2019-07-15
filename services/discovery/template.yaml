@@ -8,7 +8,7 @@ Description: >
 
 Globals:
   Function:
-    Runtime: python3.6
+    Runtime: python3.7
     MemorySize: 256
     Timeout: 10
 

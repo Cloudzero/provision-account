@@ -89,7 +89,7 @@ package: $(PACKAGED_TEMPLATE)
 $(PACKAGED_TEMPLATE): $(BUILD_DIR)
 	account_id=`aws sts get-caller-identity | jq -r -e '.Account'` && \
 	sam package \
-		--s3-bucket cz-sam-deployment-$${account_id} \
+		--s3-bucket $${BUCKET:=cz-sam-deployment-$${account_id}} \
 		--output-template-file $@
 
 
