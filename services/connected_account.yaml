@@ -50,16 +50,20 @@ Resources:
     Type: AWS::CloudFormation::Stack
     Properties:
       Tags:
-        - Key: cloudzero
-          Value: cloudzero
+        - Key: cloudzero-stack
+          Value: !Ref AWS::StackName
+        - Key: cloudzero-reactor-id
+          Value: !Ref ReactorAccountId
       TemplateURL: https://s3.amazonaws.com/cz-provision-account/services/latest/discovery.yaml
 
   ResourceOwnerAccount:
     Type: AWS::CloudFormation::Stack
     Properties:
       Tags:
-        - Key: cloudzero
-          Value: cloudzero
+        - Key: cloudzero-stack
+          Value: !Ref AWS::StackName
+        - Key: cloudzero-reactor-id
+          Value: !Ref ReactorAccountId
       Parameters:
         IsResourceOwnerAccount: !GetAtt Discovery.Outputs.IsConnectedAccount
         ExternalId: !Ref ExternalId
@@ -70,8 +74,10 @@ Resources:
     Type: AWS::CloudFormation::Stack
     Properties:
       Tags:
-        - Key: cloudzero
-          Value: cloudzero
+        - Key: cloudzero-stack
+          Value: !Ref AWS::StackName
+        - Key: cloudzero-reactor-id
+          Value: !Ref ReactorAccountId
       Parameters:
         IsCloudTrailOwnerAccount: !GetAtt Discovery.Outputs.IsCloudTrailOwnerAccount
         CloudTrailSNSTopicName: !GetAtt Discovery.Outputs.CloudTrailSNSTopicName  # ARN?
@@ -83,8 +89,10 @@ Resources:
     Type: AWS::CloudFormation::Stack
     Properties:
       Tags:
-        - Key: cloudzero
-          Value: cloudzero
+        - Key: cloudzero-stack
+          Value: !Ref AWS::StackName
+        - Key: cloudzero-reactor-id
+          Value: !Ref ReactorAccountId
       Parameters:
         IsAuditAccount: !GetAtt Discovery.Outputs.IsAuditAccount
         AuditCloudTrailBucketName: !GetAtt Discovery.Outputs.AuditCloudTrailBucketName
@@ -96,8 +104,10 @@ Resources:
     Type: AWS::CloudFormation::Stack
     Properties:
       Tags:
-        - Key: cloudzero
-          Value: cloudzero
+        - Key: cloudzero-stack
+          Value: !Ref AWS::StackName
+        - Key: cloudzero-reactor-id
+          Value: !Ref ReactorAccountId
       Parameters:
         IsAuditAccount: !GetAtt Discovery.Outputs.IsMasterPayerAccount
         MasterPayerBillingBucketName: !GetAtt Discovery.Outputs.MasterPayerBillingBucketName
@@ -110,8 +120,10 @@ Resources:
     Type: AWS::CloudFormation::Stack
     Properties:
       Tags:
-        - Key: cloudzero
-          Value: cloudzero
+        - Key: cloudzero-stack
+          Value: !Ref AWS::StackName
+        - Key: cloudzero-reactor-id
+          Value: !Ref ReactorAccountId
       Parameters:
         # Parameters
         ExternalId: !Ref ExternalId
