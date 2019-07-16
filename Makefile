@@ -138,16 +138,16 @@ deploy-dry-run: $(VIRTUAL_ENV) $(PACKAGED_TEMPLATE_FILE)
 .PHONY: deploy                                                                          ## Deploys Artifacts to S3 Bucket
 deploy: $(PACKAGED_TEMPLATE_FILE) package-sam-apps
 	@. ./project.sh && cz_assert_profile && \
-  $(MAKE) cfn-deploy stack_name=cz-$(FEATURE_NAME) template_file=$(PACKAGED_TEMPLATE_FILE)
+	$(MAKE) cfn-deploy stack_name=cz-$(FEATURE_NAME) template_file=$(PACKAGED_TEMPLATE_FILE)
 	version=`git rev-list --count HEAD` && \
 	for cfn in $(CFN_TEMPLATES) ; do \
-    aws s3 cp $${cfn} s3://$(BUCKET)/v$${version}/$${cfn} && \
-    aws s3 cp $${cfn} s3://$(BUCKET)/latest/$${cfn} ; \
-  done && \
-  for app in $(SAM_APPS) ; do \
-    aws s3 cp $${app}/$(PACKAGED_TEMPLATE_FILE) s3://$(BUCKET)/v$${version}/$${app}.yaml && \
-    aws s3 cp $${app}/$(PACKAGED_TEMPLATE_FILE) s3://$(BUCKET)/latest/$${app}.yaml ; \
-  done
+		aws s3 cp $${cfn} s3://$(BUCKET)/v$${version}/$${cfn} && \
+		aws s3 cp $${cfn} s3://$(BUCKET)/latest/$${cfn} ; \
+	done && \
+	for app in $(SAM_APPS) ; do \
+		aws s3 cp $${app}/$(PACKAGED_TEMPLATE_FILE) s3://$(BUCKET)/v$${version}/$${app}.yaml && \
+		aws s3 cp $${app}/$(PACKAGED_TEMPLATE_FILE) s3://$(BUCKET)/latest/$${app}.yaml ; \
+	done
 
 
 .PHONY: describe                                                                        ## Return information about SAM-created stack from AWS
