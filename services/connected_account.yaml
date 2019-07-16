@@ -52,7 +52,7 @@ Resources:
       Tags:
         - Key: cloudzero-stack
           Value: !Ref AWS::StackName
-        - Key: cloudzero-reactor-id
+        - Key: cloudzero-reactor-account-id
           Value: !Ref ReactorAccountId
       TemplateURL: https://s3.amazonaws.com/cz-provision-account/services/latest/discovery.yaml
 
@@ -62,7 +62,7 @@ Resources:
       Tags:
         - Key: cloudzero-stack
           Value: !Ref AWS::StackName
-        - Key: cloudzero-reactor-id
+        - Key: cloudzero-reactor-account-id
           Value: !Ref ReactorAccountId
       Parameters:
         IsResourceOwnerAccount: !GetAtt Discovery.Outputs.IsConnectedAccount
@@ -76,7 +76,7 @@ Resources:
       Tags:
         - Key: cloudzero-stack
           Value: !Ref AWS::StackName
-        - Key: cloudzero-reactor-id
+        - Key: cloudzero-reactor-account-id
           Value: !Ref ReactorAccountId
       Parameters:
         IsCloudTrailOwnerAccount: !GetAtt Discovery.Outputs.IsCloudTrailOwnerAccount
@@ -91,7 +91,7 @@ Resources:
       Tags:
         - Key: cloudzero-stack
           Value: !Ref AWS::StackName
-        - Key: cloudzero-reactor-id
+        - Key: cloudzero-reactor-account-id
           Value: !Ref ReactorAccountId
       Parameters:
         IsAuditAccount: !GetAtt Discovery.Outputs.IsAuditAccount
@@ -106,7 +106,7 @@ Resources:
       Tags:
         - Key: cloudzero-stack
           Value: !Ref AWS::StackName
-        - Key: cloudzero-reactor-id
+        - Key: cloudzero-reactor-account-id
           Value: !Ref ReactorAccountId
       Parameters:
         IsAuditAccount: !GetAtt Discovery.Outputs.IsMasterPayerAccount
@@ -122,7 +122,7 @@ Resources:
       Tags:
         - Key: cloudzero-stack
           Value: !Ref AWS::StackName
-        - Key: cloudzero-reactor-id
+        - Key: cloudzero-reactor-account-id
           Value: !Ref ReactorAccountId
       Parameters:
         # Parameters
