@@ -24,14 +24,14 @@ Resources:
         - Billing
       Environment:
         Variables:
-          VERSION: 1
+          VERSION: '1'
 
   DiscoveryResource:
     Type: Custom::Discovery
     Properties:
       ServiceToken: !GetAtt DiscoveryFunction.Arn
       AccountId: !Sub ${AWS::AccountId}
-      Version: 1
+      Version: '1'
 
 Outputs:
   AuditCloudTrailBucketName:
