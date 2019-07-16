@@ -6,6 +6,7 @@
 FEATURE_NAME ?= provision-account
 TEAM_NAME ?= cloudzero
 BUCKET = cz-$(FEATURE_NAME)
+SEMVER_MAJ_MIN = 1.0
 
 # Source Files
 CFN_TEMPLATES = services/connected_account.yaml
