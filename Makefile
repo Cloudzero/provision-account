@@ -42,7 +42,8 @@ $(PYTHON_DEPENDENCY_FILE): $(REQUIREMENTS_FILES)
 
 .PHONY: lint                                                                            ## Lints the code for all available runtimes
 lint:
-	cfn-lint -t $(SRC_FILES)
+	@printf "$(WARN_COLOR)WARNING:$(NO_COLOR) This lint check does not validate GetAtt b/c of a bug in cfn-lint, so please test!"
+	cfn-lint -i E1010 -t $(SRC_FILES)
 
 
 .PHONY: test                                                                            ## Lints the code for all available runtimes

@@ -5,7 +5,7 @@
 # Main parameters
 FEATURE_NAME ?= provision-account
 TEAM_NAME ?= cloudzero
-SRC_FILES = $(shell find . -name "*.yaml" -maxdepth 1)
+SRC_FILES = $(shell find . -name "*.yaml" -a \! -name "packaged*.yaml" -a \! -path "*.aws-sam*")
 
 # Util constants
 ERROR_COLOR = \033[1;31m
