@@ -23,7 +23,7 @@ DEFAULT_OUTPUT = {
     'AuditCloudTrailBucketName': None,
     'IsConnectedAccount': False,
     'IsCloudTrailAccount': False,
-    'CloudTrailSNSTopicName': None,
+    'CloudTrailSNSTopicArn': None,
     'IsMasterPayerAccount': False,
     'MasterPayerBillingBucketName': None,
 }
@@ -51,7 +51,7 @@ OUTPUT_SCHEMA = Schema({
         'AuditCloudTrailBucketName': Any(None, str),
         'IsConnectedAccount': bool,
         'IsCloudTrailAccount': bool,
-        'CloudTrailSNSTopicName': Any(None, str),
+        'CloudTrailSNSTopicArn': Any(None, str),
         'IsMasterPayerAccount': bool,
         'MasterPayerBillingBucketName': Any(None, str),
     },
@@ -155,7 +155,7 @@ IDEAL_CLOUDTRAIL_CONFIGURATION = MINIMUM_CLOUDTRAIL_CONFIGURATION.extend({
 
 
 def get_first_valid_trail(trails):
-    return trails[0]['SnsTopicName'] if trails else None
+    return trails[0]['SnsTopicARN'] if trails else None
 
 
 def discover_cloudtrail_account(world):
@@ -165,7 +165,7 @@ def discover_cloudtrail_account(world):
     account_id = trail_topic.split(':')[4] if trail_topic else None
     output = {
         'IsCloudTrailAccount': account_id == event_account_id(world),
-        'CloudTrailSNSTopicName': trail_topic,
+        'CloudTrailSNSTopicArn': trail_topic,
     }
     return update_in(world, ['output'], lambda x: merge(x or {}, output))
 

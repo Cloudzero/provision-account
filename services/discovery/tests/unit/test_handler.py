@@ -213,7 +213,7 @@ IS_CONNECTED = Schema({
 }, extra=ALLOW_EXTRA, required=True)
 
 IS_CLOUDTRAIL_OWNER = Schema({
-    'CloudTrailSNSTopicName': LOCAL_TOPIC_ARN,
+    'CloudTrailSNSTopicArn': LOCAL_TOPIC_ARN,
     'IsCloudTrailAccount': True,
 }, extra=ALLOW_EXTRA, required=True)
 
@@ -232,7 +232,7 @@ def test_handler_all_local(context, cfn_event, describe_trails_response_local, l
     assert status == cfnresponse.SUCCESS
     assert output == {
         'AuditCloudTrailBucketName': LOCAL_BUCKET_NAME,
-        'CloudTrailSNSTopicName': LOCAL_TOPIC_ARN,
+        'CloudTrailSNSTopicArn': LOCAL_TOPIC_ARN,
         'IsAuditAccount': True,
         'IsCloudTrailAccount': True,
         'IsConnectedAccount': True,
@@ -253,7 +253,7 @@ def test_handler_non_audit(context, cfn_event, describe_trails_response_remote_b
     assert status == cfnresponse.SUCCESS
     assert output == {
         'AuditCloudTrailBucketName': REMOTE_BUCKET_NAME,
-        'CloudTrailSNSTopicName': LOCAL_TOPIC_ARN,
+        'CloudTrailSNSTopicArn': LOCAL_TOPIC_ARN,
         'IsAuditAccount': False,
         'IsCloudTrailAccount': True,
         'IsConnectedAccount': True,
@@ -274,7 +274,7 @@ def test_handler_non_cloudtrail_owner(context, cfn_event, describe_trails_respon
     assert status == cfnresponse.SUCCESS
     assert output == {
         'AuditCloudTrailBucketName': LOCAL_BUCKET_NAME,
-        'CloudTrailSNSTopicName': REMOTE_TOPIC_ARN,
+        'CloudTrailSNSTopicArn': REMOTE_TOPIC_ARN,
         'IsAuditAccount': True,
         'IsCloudTrailAccount': False,
         'IsConnectedAccount': True,
@@ -295,7 +295,7 @@ def test_handler_non_master_payer_invalid(context, cfn_event, describe_trails_re
     assert status == cfnresponse.SUCCESS
     assert output == {
         'AuditCloudTrailBucketName': LOCAL_BUCKET_NAME,
-        'CloudTrailSNSTopicName': LOCAL_TOPIC_ARN,
+        'CloudTrailSNSTopicArn': LOCAL_TOPIC_ARN,
         'IsAuditAccount': True,
         'IsCloudTrailAccount': True,
         'IsConnectedAccount': True,
@@ -316,7 +316,7 @@ def test_handler_non_master_payer_remote(context, cfn_event, describe_trails_res
     assert status == cfnresponse.SUCCESS
     assert output == {
         'AuditCloudTrailBucketName': LOCAL_BUCKET_NAME,
-        'CloudTrailSNSTopicName': LOCAL_TOPIC_ARN,
+        'CloudTrailSNSTopicArn': LOCAL_TOPIC_ARN,
         'IsAuditAccount': True,
         'IsCloudTrailAccount': True,
         'IsConnectedAccount': True,
@@ -337,7 +337,7 @@ def test_handler_cannot_determine_audit_only(context, cfn_event, list_buckets_re
     assert status == cfnresponse.SUCCESS
     assert output == {
         'AuditCloudTrailBucketName': None,
-        'CloudTrailSNSTopicName': None,
+        'CloudTrailSNSTopicArn': None,
         'IsAuditAccount': False,
         'IsCloudTrailAccount': False,
         'IsConnectedAccount': True,

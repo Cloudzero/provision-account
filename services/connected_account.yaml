@@ -80,7 +80,7 @@ Resources:
   #         Value: !Ref ReactorAccountId
   #     Parameters:
   #       IsCloudTrailOwnerAccount: !GetAtt Discovery.Outputs.IsCloudTrailOwnerAccount
-  #       CloudTrailSNSTopicName: !GetAtt Discovery.Outputs.CloudTrailSNSTopicName  # ARN?
+  #       CloudTrailSNSTopicArn: !GetAtt Discovery.Outputs.CloudTrailSNSTopicArn
   #       ExternalId: !Ref ExternalId
   #       ReactorAccountId: !Ref ReactorAccountId
   #     TemplateURL: https://s3.amazonaws.com/cz-provision-account/services/latest/account_types/cloudtrail_owner.yaml
@@ -130,7 +130,7 @@ Resources:
   #       ReactorSQSQueueUrl: !Ref ReactorSQSQueueUrl
   #       # Discovery Output
   #       AuditCloudTrailBucketName: !GetAtt Discovery.Outputs.AuditCloudTrailBucketName
-  #       CloudTrailSNSTopicName: !GetAtt Discovery.Outputs.CloudTrailSNSTopicName
+  #       CloudTrailSNSTopicArn: !GetAtt Discovery.Outputs.CloudTrailSNSTopicArn
   #       IsAuditAccount: !GetAtt Discovery.Outputs.IsAuditAccount
   #       IsMasterPayerAccount: !GetAtt Discovery.Outputs.IsMasterPayerAccount
   #       IsCloudTrailAccount: !GetAtt Discovery.Outputs.IsCloudTrailAccount

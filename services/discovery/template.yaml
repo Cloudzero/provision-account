@@ -36,8 +36,8 @@ Resources:
 Outputs:
   AuditCloudTrailBucketName:
     Value: !GetAtt DiscoveryResource.AuditCloudTrailBucketName
-  CloudTrailSNSTopicName:
-    Value: !GetAtt DiscoveryResource.CloudTrailSNSTopicName
+  CloudTrailSNSTopicArn:
+    Value: !GetAtt DiscoveryResource.CloudTrailSNSTopicArn
   IsAuditAccount:
     Value: !GetAtt DiscoveryResource.IsAuditAccount
   IsMasterPayerAccount:
