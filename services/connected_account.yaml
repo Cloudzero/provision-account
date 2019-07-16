@@ -46,7 +46,7 @@ Parameters:
       CloudZero Reactor Queue Url; receives callbacks from this template
 
 Resources:
-  Disovery:
+  Discovery:
     Type: AWS::CloudFormation::Stack
     Properties:
       Tags:
