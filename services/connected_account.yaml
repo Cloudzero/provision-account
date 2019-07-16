@@ -151,13 +151,13 @@ Outputs:
     Description: Does this Account own AWS Resources?
   ReactorSQSQueueUrl:
     Value: !Ref ReactorSQSQueueUrl
-    Description: This template Reactor SQS Queue the
+    Description: The Reactor SQS Queue this template sends notifications to
   ExternalId:
     Value: !Ref ExternalId
     Description: The External ID used for cross account roles
   ReactorAccountId:
     Value: !Ref ReactorAccountId
-    Description: The Reactor Account used for cross account roles
+    Description: The Reactor Account Id used for cross account roles
 
   # ResourceOwnerRoleArn:
   #   Value: !GetAtt ResourceOwnerAccount.Outputs.RoleArn
