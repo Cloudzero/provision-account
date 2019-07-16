@@ -76,19 +76,19 @@ clean: clean-sam-apps
 
 cfn-deploy: guard-stack_name guard-template_file
 	@. ./project.sh && cz_assert_profile && \
-  aws cloudformation deploy \
+		aws cloudformation deploy \
 		--template-file $${template_file} \
 		--stack-name $${stack_name} \
 		--capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
 		--no-fail-on-empty-changeset \
 		--parameter-overrides \
-      BucketName=$(BUCKET) \
+			BucketName=$(BUCKET) \
 		--tags "cz:feature=$(FEATURE_NAME)" "cz:team=$(TEAM_NAME)"
 
 
 cfn-delete: guard-stack_name
 	@. ./project.sh && cz_assert_profile && \
-  aws cloudformation delete-stack \
+	aws cloudformation delete-stack \
 		--stack-name $${stack_name}
 	@printf "Deleting stack $${stack_name} "
 	@while aws cloudformation describe-stacks --stack-name $${stack_name} 2>/dev/null | grep -q IN_PROGRESS ; do \
@@ -103,7 +103,7 @@ cfn-delete: guard-stack_name
 
 cfn-describe: guard-stack_name
 	@. ./project.sh && cz_assert_profile && \
-  aws cloudformation describe-stacks \
+	aws cloudformation describe-stacks \
 		--stack-name $${stack_name}
 
 
