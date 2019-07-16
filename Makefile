@@ -75,8 +75,7 @@ clean: clean-sam-apps
 ###################
 
 cfn-deploy: guard-stack_name guard-template_file
-	@. ./project.sh && cz_assert_profile && \
-		aws cloudformation deploy \
+	@aws cloudformation deploy \
 		--template-file $${template_file} \
 		--stack-name $${stack_name} \
 		--capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
@@ -87,8 +86,7 @@ cfn-deploy: guard-stack_name guard-template_file
 
 
 cfn-delete: guard-stack_name
-	@. ./project.sh && cz_assert_profile && \
-	aws cloudformation delete-stack \
+	@aws cloudformation delete-stack \
 		--stack-name $${stack_name}
 	@printf "Deleting stack $${stack_name} "
 	@while aws cloudformation describe-stacks --stack-name $${stack_name} 2>/dev/null | grep -q IN_PROGRESS ; do \
@@ -102,14 +100,12 @@ cfn-delete: guard-stack_name
 
 
 cfn-describe: guard-stack_name
-	@. ./project.sh && cz_assert_profile && \
-	aws cloudformation describe-stacks \
+	@aws cloudformation describe-stacks \
 		--stack-name $${stack_name}
 
 
 cfn-dryrun: guard-stack_name guard-template_file
-	@. ./project.sh && cz_assert_profile && \
-	aws cloudformation deploy \
+	@aws cloudformation deploy \
 		--template-file $${template_file} \
 		--stack-name $${stack_name} \
 		--capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
@@ -122,7 +118,6 @@ cfn-dryrun: guard-stack_name guard-template_file
 
 
 $(PACKAGED_TEMPLATE_FILE): $(TEMPLATE_FILE)
-	@. ./project.sh && cz_assert_profile && \
 	account_id=`aws sts get-caller-identity | jq -r -e '.Account'` && \
 	aws cloudformation package \
 		--template-file $< \
@@ -136,16 +131,18 @@ deploy-dry-run: $(VIRTUAL_ENV) $(PACKAGED_TEMPLATE_FILE)
 
 
 .PHONY: deploy                                                                          ## Deploys Artifacts to S3 Bucket
-deploy: $(PACKAGED_TEMPLATE_FILE) package-sam-apps
+deploy:
 	@. ./project.sh && cz_assert_profile && \
+	$(MAKE) $(PACKAGED_TEMPLATE_FILE) && \
+	$(MAKE) package-sam-apps && \
 	$(MAKE) cfn-deploy stack_name=cz-$(FEATURE_NAME) template_file=$(PACKAGED_TEMPLATE_FILE)
 	version=`git rev-list --count HEAD` && \
 	for cfn in $(CFN_TEMPLATES) ; do \
-		aws s3 cp $${cfn} s3://$(BUCKET)/v$${version}/$${cfn} && \
+		aws s3 cp $${cfn} s3://$(BUCKET)/v$(SEMVER_MAJ_MIN).$${version}/$${cfn} && \
 		aws s3 cp $${cfn} s3://$(BUCKET)/latest/$${cfn} ; \
 	done && \
 	for app in $(SAM_APPS) ; do \
-		aws s3 cp $${app}/$(PACKAGED_TEMPLATE_FILE) s3://$(BUCKET)/v$${version}/$${app}.yaml && \
+		aws s3 cp $${app}/$(PACKAGED_TEMPLATE_FILE) s3://$(BUCKET)/v$(SEMVER_MAJ_MIN).$${version}/$${app}.yaml && \
 		aws s3 cp $${app}/$(PACKAGED_TEMPLATE_FILE) s3://$(BUCKET)/latest/$${app}.yaml ; \
 	done
 
