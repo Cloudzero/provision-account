@@ -6,14 +6,14 @@ AWSTemplateFormatVersion: '2010-09-09'
 Description: CloudZero Provision Account CFN Templates
 
 Parameters:
-  FeatureName:
+  BucketName:
     Type: String
 
 Resources:
   Bucket:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Sub cz-${FeatureName}
+      BucketName: !Ref BucketName
   Policy:
     Type: AWS::S3::BucketPolicy
     Properties:
@@ -32,10 +32,6 @@ Outputs:
   BucketName:
     Value: !Ref Bucket
     Description: CloudZero Provision Account CFN Templates Bucket Name
-    Export:
-      Name: !Sub cz-${FeatureName}:BucketName
   BucketArn:
     Value: !GetAtt Bucket.Arn
     Description: CloudZero Provision Account CFN Templates Bucket Arn
-    Export:
-      Name: !Sub cz-${FeatureName}:BucketArn

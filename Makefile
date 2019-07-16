@@ -41,19 +41,30 @@ $(PYTHON_DEPENDENCY_FILE): $(REQUIREMENTS_FILES)
 
 
 .PHONY: lint                                                                            ## Lints the code for all available runtimes
-lint:
-	cfn-lint -t $(SRC_FILES)
+lint: lint-templates lint-sam-apps
 
 
-.PHONY: test                                                                            ## Lints the code for all available runtimes
-test: lint
+.PHONY: lint-templates
+lint-templates: $(CFN_LINT_OUTPUT)
+$(CFN_LINT_OUTPUT): $(CFN_TEMPLATES)
+	cfn-lint -t $(CFN_TEMPLATES)
 
+.PHONY: test                                                                            ## Lints then tests code for all available runtimes
+test: lint test-sam-apps
+
+# Generic Sam Apps Target, loop through SAM_APPS calling make with stem
+.PHONY: %-sam-apps
+%-sam-apps:
+	for app in $(SAM_APPS) ; do \
+    cd $${app} && $(MAKE) $* ; \
+  done
 
 .PHONY: clean                                                                           ## Cleans up everything that isn't source code (similar to re-cloning the repo)
-clean:
+clean: clean-sam-apps
 	-rm -f $(PACKAGED_TEMPLATE_FILE)
-	-touch $(REQUIREMENTS_FILE)
+	-touch $(REQUIREMENTS_FILES)
 	-rm $(PYTHON_DEPENDENCY_FILE)
+	-rm $(CFN_LINT_OUTPUT)
 	-pip freeze | xargs pip uninstall -y -q
 
 
@@ -64,18 +75,20 @@ clean:
 ###################
 
 cfn-deploy: guard-stack_name guard-template_file
-	@aws cloudformation deploy \
+	@. ./project.sh && cz_assert_profile && \
+  aws cloudformation deploy \
 		--template-file $${template_file} \
 		--stack-name $${stack_name} \
 		--capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
 		--no-fail-on-empty-changeset \
 		--parameter-overrides \
-			FeatureName=$(FEATURE_NAME) \
+      BucketName=$(BUCKET) \
 		--tags "cz:feature=$(FEATURE_NAME)" "cz:team=$(TEAM_NAME)"
 
 
 cfn-delete: guard-stack_name
-	@aws cloudformation delete-stack \
+	@. ./project.sh && cz_assert_profile && \
+  aws cloudformation delete-stack \
 		--stack-name $${stack_name}
 	@printf "Deleting stack $${stack_name} "
 	@while aws cloudformation describe-stacks --stack-name $${stack_name} 2>/dev/null | grep -q IN_PROGRESS ; do \
@@ -89,24 +102,27 @@ cfn-delete: guard-stack_name
 
 
 cfn-describe: guard-stack_name
-	@aws cloudformation describe-stacks \
+	@. ./project.sh && cz_assert_profile && \
+  aws cloudformation describe-stacks \
 		--stack-name $${stack_name}
 
 
 cfn-dryrun: guard-stack_name guard-template_file
-	@aws cloudformation deploy \
+	@. ./project.sh && cz_assert_profile && \
+	aws cloudformation deploy \
 		--template-file $${template_file} \
 		--stack-name $${stack_name} \
 		--capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
 		--no-fail-on-empty-changeset \
 		--no-execute-changeset \
 		--parameter-overrides \
-			FeatureName=$(FEATURE_NAME) \
+			BucketName=$(BUCKET) \
 		--tags "cz:feature=$(FEATURE_NAME)" "cz:team=$(TEAM_NAME)"
 
 
 
 $(PACKAGED_TEMPLATE_FILE): $(TEMPLATE_FILE)
+	@. ./project.sh && cz_assert_profile && \
 	account_id=`aws sts get-caller-identity | jq -r -e '.Account'` && \
 	aws cloudformation package \
 		--template-file $< \
@@ -120,12 +136,18 @@ deploy-dry-run: $(VIRTUAL_ENV) $(PACKAGED_TEMPLATE_FILE)
 
 
 .PHONY: deploy                                                                          ## Deploys Artifacts to S3 Bucket
-deploy: $(VIRTUAL_ENV) $(PACKAGED_TEMPLATE_FILE)
-	@$(MAKE) cfn-deploy stack_name=cz-$(FEATURE_NAME) template_file=$(PACKAGED_TEMPLATE_FILE)
-	# @bucket=`$(MAKE) describe | grep -v -e '^make' | jq -re '.Stacks[0].Outputs | map(select(.OutputKey == "BucketName")) | .[0].OutputValue'` && \
-  # version=`git rev-list --count HEAD` && \
-  # aws s3 sync services s3://$${bucket}/services/v$${version} && \
-  # aws s3 sync services s3://$${bucket}/services/latest
+deploy: $(PACKAGED_TEMPLATE_FILE) package-sam-apps
+	@. ./project.sh && cz_assert_profile && \
+  $(MAKE) cfn-deploy stack_name=cz-$(FEATURE_NAME) template_file=$(PACKAGED_TEMPLATE_FILE)
+	version=`git rev-list --count HEAD` && \
+	for cfn in $(CFN_TEMPLATES) ; do \
+    aws s3 cp $${cfn} s3://$(BUCKET)/v$${version}/$${cfn} && \
+    aws s3 cp $${cfn} s3://$(BUCKET)/latest/$${cfn} ; \
+  done && \
+  for app in $(SAM_APPS) ; do \
+    aws s3 cp $${app}/$(PACKAGED_TEMPLATE_FILE) s3://$(BUCKET)/v$${version}/$${app}.yaml && \
+    aws s3 cp $${app}/$(PACKAGED_TEMPLATE_FILE) s3://$(BUCKET)/latest/$${app}.yaml ; \
+  done
 
 
 .PHONY: describe                                                                        ## Return information about SAM-created stack from AWS

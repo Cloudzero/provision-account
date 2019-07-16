@@ -2,20 +2,19 @@
 # Copyright (c) 2016-present, CloudZero, Inc. All rights reserved.
 # Licensed under the BSD-style license. See LICENSE file in the project root for full license information.
 
+# Include Makefile Constants
+include ../../MakefileConstants.mk
+
 ####################
 #
 # Project Constants
 #
 ####################
-FEATURE = provision-account-discovery
+APP_NAME = $(FEATURE_NAME)-discovery
 SRC_FILES = $(shell find src -name "*.py")
 TEST_FILES = $(shell find tests -name "test_*.py")
-PYTHON_DEPENDENCY_FILE = .cz_py_dependencies_installed
-REQUIREMENTS_FILES = $(shell find . -name "requirements*.txt")
 COVERAGE_REPORT = coverage-report
 FLAKE8_OUT = flake8.out
-TEMPLATE = template.yaml
-PACKAGED_TEMPLATE = packaged.template.yaml
 BUILD_DIR = .aws-sam
 DEPLOYMENT_FILE = .deploy
 
@@ -42,7 +41,6 @@ clean:
 	-rm $(FLAKE8_OUT)
 	-rm -rf $(COVERAGE_REPORT)
 	-rm -rf $(BUILD_DIR)
-	-touch $(PYTHON_DEPENDENCY_FILE)
 	-find . -name '*.pyc' -exec rm -f {} +
 	-find . -name '*.pyo' -exec rm -f {} +
 	-find . -name '*~' -exec rm -f {} +
@@ -54,15 +52,6 @@ clean:
 # Dev Targets
 #
 #################
-.PHONY: init                                          ## Initialize Python Environment. Requires $(VIRTUAL_ENV)
-init: guard-VIRTUAL_ENV $(PYTHON_DEPENDENCY_FILE)
-$(PYTHON_DEPENDENCY_FILE): $(REQUIREMENTS_FILES)
-	for f in $^ ; do \
-    pip install -r $${f} ; \
-  done
-	touch $(PYTHON_DEPENDENCY_FILE)
-
-
 .PHONY: lint                                          ## Lint Python Files via Flake8
 lint: $(FLAKE8_OUT)
 $(FLAKE8_OUT): $(SRC_FILES) $(TEST_FILES) tox.ini
@@ -70,7 +59,7 @@ $(FLAKE8_OUT): $(SRC_FILES) $(TEST_FILES) tox.ini
 
 
 .PHONY: test                                          ## Run Tests and Produce Coverage Report
-test: init lint $(COVERAGE_REPORT)
+test: lint $(COVERAGE_REPORT)
 $(COVERAGE_REPORT): $(SRC_FILES) $(TEST_FILES)
 	@pytest src tests \
 		--doctest-modules \
@@ -78,16 +67,25 @@ $(COVERAGE_REPORT): $(SRC_FILES) $(TEST_FILES)
 		--cov-report html:$(COVERAGE_REPORT) \
 		--cov-branch \
 		-vvv
+	@touch $(COVERAGE_REPORT)
 
+
+#################
+#
+# Convenience SAM wrapper targets for development.
+# All official deployment automation is done in the root Makefile.
+#
+#################
 .PHONY: build                                         ## Build sam app
 build: $(BUILD_DIR)
-$(BUILD_DIR): $(SRC_FILES) $(TEMPLATE)
+$(BUILD_DIR): $(SRC_FILES) $(TEMPLATE_FILE)
 	sam build
 
 .PHONY: package
-package: $(PACKAGED_TEMPLATE)
-$(PACKAGED_TEMPLATE): $(BUILD_DIR)
-	account_id=`aws sts get-caller-identity | jq -r -e '.Account'` && \
+package: $(PACKAGED_TEMPLATE_FILE)
+$(PACKAGED_TEMPLATE_FILE): $(BUILD_DIR)
+	@. ../../project.sh && cz_assert_profile && \
+  account_id=`aws sts get-caller-identity | jq -r -e '.Account'` && \
 	sam package \
 		--s3-bucket $${BUCKET:=cz-sam-deployment-$${account_id}} \
 		--output-template-file $@
@@ -95,19 +93,9 @@ $(PACKAGED_TEMPLATE): $(BUILD_DIR)
 
 .PHONY: deploy
 deploy: $(DEPLOYMENT_FILE)
-$(DEPLOYMENT_FILE): $(PACKAGED_TEMPLATE)
-	sam deploy \
+$(DEPLOYMENT_FILE): $(PACKAGED_TEMPLATE_FILE)
+	@. ../../project.sh && cz_assert_profile && \
+  sam deploy \
 		--template-file $^ \
-		--stack-name cz-$${namespace:-${NAMESPACE}}-$(FEATURE) \
+		--stack-name cz-$${namespace:-${NAMESPACE}}-$(APP_NAME) \
 		--capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM
-
-
-####################
-#
-# Util Constants
-#
-####################
-ERROR_COLOR = \033[1;31m
-INFO_COLOR = \033[1;32m
-WARN_COLOR = \033[1;33m
-NO_COLOR = \033[0m

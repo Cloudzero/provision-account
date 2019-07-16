@@ -5,7 +5,10 @@
 # Main parameters
 FEATURE_NAME ?= provision-account
 TEAM_NAME ?= cloudzero
-SRC_FILES = $(shell find . -name "*.yaml" -a \! -name "packaged*.yaml" -a \! -path "*.aws-sam*")
+BUCKET = cz-$(FEATURE_NAME)
+
+# Source Files
+CFN_TEMPLATES = services/connected_account.yaml
 SAM_APPS = services/discovery
 
 # Util constants
@@ -15,9 +18,11 @@ WARN_COLOR = \033[1;33m
 NO_COLOR = \033[0m
 
 # Prerequisite verification
-REQUIREMENTS_FILE = requirements-dev.txt
 REQUIREMENTS_FILES = $(shell find . -name "requirements*.txt")
 PYTHON_DEPENDENCY_FILE = .cz_py_dependencies_installed
+
+# Testing
+CFN_LINT_OUTPUT = cfn-lint.output
 
 # Git
 # GIT_REV := $(shell git rev-parse HEAD)
