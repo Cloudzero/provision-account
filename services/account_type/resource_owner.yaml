@@ -3,7 +3,7 @@
 # Licensed under the BSD-style license. See LICENSE file in the project root for full license information.
 
 AWSTemplateFormatVersion: '2010-09-09'
-Description: CloudZero Connected Account Template
+Description: CloudZero Resource Owner Account Template
 
 Metadata:
   AWS::CloudFormation::Interface:
