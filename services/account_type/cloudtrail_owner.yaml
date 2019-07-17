@@ -1,36 +1,36 @@
-AWSTemplateFormatVersion: "2010-09-09"
+AWSTemplateFormatVersion: '2010-09-09'
 
 
-Description: "CloudZero :: CloudTrail owner template"
+Description: CloudZero CloudTrail Owner Template
 
 
 Parameters:
   IsCloudTrailOwnerAccount:
-    Description: "Flag that indicates if this account owns the cloudtrail"
-    Type: "String"
-    AllowedValues:
-      - "true"
-      - "false"
-  CloudTrailSNSTopicArn:
-    Description: "The CloudZero SNS Topic ARN responsible for receiving notifications from the cloudtrail"
-    Type: "String"
-  ReactorAccountId:
-    Description: "The CloudZero reactor AWS account ID"
+    Description: Flag that indicates if this account owns the cloudtrail
     Type: String
-    Default: "061190967865"
+    AllowedValues:
+      - 'true'
+      - 'false'
+  CloudTrailSNSTopicArn:
+    Description: 'The CloudZero SNS Topic ARN responsible for receiving notifications from the cloudtrail'
+    Type: String
+  ReactorAccountId:
+    Description: The CloudZero reactor AWS account ID
+    Type: String
+    Default: '061190967865'
 
 
 Conditions:
-  CreateResources: !And [ !Not [ !Equals [ !Ref CloudTrailSNSTopicArn, "null" ] ], !Equals [ !Ref IsCloudTrailOwnerAccount, "true" ] ]
+  CreateResources: !And [ !Not [ !Equals [ !Ref CloudTrailSNSTopicArn, 'null' ] ], !Equals [ !Ref IsCloudTrailOwnerAccount, 'true' ] ]
 
 
 Resources:
 
   SqsQueue:
-    Type: "AWS::SQS::Queue"
+    Type: 'AWS::SQS::Queue'
     Condition: CreateResources
     Properties:
-      QueueName: !Join [ "-", [ "cz-reactor-events", !Ref ReactorAccountId ] ]
+      QueueName: !Sub "cz-reactor-events-${ReactorAccountId}"
       Tags:
         - Key: cloudzero-stack
           Value: !Ref AWS::StackName
@@ -38,36 +38,36 @@ Resources:
           Value: !Ref ReactorAccountId
 
   SnsTopic:
-    Type: "AWS::SNS::Topic"
+    Type: 'AWS::SNS::Topic'
     Condition: CreateResources
     Properties:
-      DisplayName: !Join [ "-", [ "cloudtrail-events", !Ref ReactorAccountId ] ]
-      TopicName: !Join [ "-", [ "cloudtrail-events", !Ref ReactorAccountId ] ]
+      DisplayName: !Sub "cloudtrail-events-${ReactorAccountId}"
+      TopicName: !Sub "cloudtrail-events-${ReactorAccountId}"
 
   SnsTopicPolicy:
-    Type: "AWS::SNS::TopicPolicy"
+    Type: 'AWS::SNS::TopicPolicy'
     Condition: CreateResources
     Properties:
       Topics:
         - !Ref SnsTopic
       PolicyDocument:
-        Version: "2012-10-17"
+        Version: '2012-10-17'
         Statement:
-          - Sid: "AWSCloudTrailSNSPolicyCloudZeroReactor20170207"
-            Effect: "Allow"
+          - Sid: AWSCloudTrailSNSPolicyCloudZeroReactor20170207
+            Effect: Allow
             Principal:
-              Service: "cloudtrail.amazonaws.com"
+              Service: cloudtrail.amazonaws.com
             Action:
-              - "sns:Publish"
+              - 'sns:Publish'
             Resource: !Ref SnsTopic
-          - Sid: "AWSCloudTrailCrossAccountSNSPolicy20170207ForCloudZeroReactor"
-            Effect: "Allow"
+          - Sid: AWSCloudTrailCrossAccountSNSPolicy20170207ForCloudZeroReactor
+            Effect: Allow
             Principal:
-              AWS: !Join [ ":", [ "arn:aws:iam:", !Ref ReactorAccountId, "root" ] ]
+              AWS: !Sub "arn:aws:iam::${ReactorAccountId}:root"
             Action:
-              - "sns:Subscribe"
-              - "sns:Receive"
-              - "sns:ListSubscriptionsByTopic"
+              - 'sns:Subscribe'
+              - 'sns:Receive'
+              - 'sns:ListSubscriptionsByTopic'
             Resource: !Ref SnsTopic
 
   SnsSubscription:
@@ -80,35 +80,35 @@ Resources:
       TopicArn: !Ref SnsTopic
 
   SqsPolicy:
-    Type: "AWS::SQS::QueuePolicy"
+    Type: 'AWS::SQS::QueuePolicy'
     Condition: CreateResources
     Properties:
       Queues:
         - !Ref SqsQueue
       PolicyDocument:
-        Version: "2012-10-17"
+        Version: '2012-10-17'
         Statement:
-          - Effect: "Allow"
+          - Effect: Allow
             Action:
-              - "sqs:SendMessage"
+              - 'sqs:SendMessage'
             Principal:
               AWS: "*"
             Resource: "*"
             Condition:
               ArnEquals:
-                "aws:SourceArn": !Ref SnsTopic
+                'aws:SourceArn': !Ref SnsTopic
 
 
 Outputs:
   SQSQueueArn:
     Condition: CreateResources
-    Description: "The CloudZero SQS queue"
+    Description: The CloudZero SQS queue
     Value: !GetAtt SqsQueue.Arn
   SQSQueuePolicyArn:
     Condition: CreateResources
-    Description: "The CloudZero SQS queue policy"
+    Description: The CloudZero SQS queue policy
     Value: !Ref SqsPolicy
   SNSTopicPolicyArn:
     Condition: CreateResources
-    Description: "The ARN of the cloudtrail SNS topic"
+    Description: The ARN of the cloudtrail SNS topic
     Value: !Ref SnsTopicPolicy
