@@ -91,6 +91,8 @@ Resources:
           - Effect: "Allow"
             Action:
               - "sqs:SendMessage"
+            Principal:
+              AWS: "*"
             Resource: "*"
             Condition:
               ArnEquals:
