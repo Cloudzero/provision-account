@@ -30,7 +30,7 @@ Resources:
     Type: 'AWS::SQS::Queue'
     Condition: CreateResources
     Properties:
-      QueueName: !Sub "cz-reactor-events-${ReactorAccountId}"
+      QueueName: !Sub 'cz-reactor-events-${ReactorAccountId}'
       Tags:
         - Key: cloudzero-stack
           Value: !Ref AWS::StackName
@@ -41,8 +41,8 @@ Resources:
     Type: 'AWS::SNS::Topic'
     Condition: CreateResources
     Properties:
-      DisplayName: !Sub "cloudtrail-events-${ReactorAccountId}"
-      TopicName: !Sub "cloudtrail-events-${ReactorAccountId}"
+      DisplayName: !Sub 'cloudtrail-events-${ReactorAccountId}'
+      TopicName: !Sub 'cloudtrail-events-${ReactorAccountId}'
 
   SnsTopicPolicy:
     Type: 'AWS::SNS::TopicPolicy'
@@ -63,7 +63,7 @@ Resources:
           - Sid: AWSCloudTrailCrossAccountSNSPolicy20170207ForCloudZeroReactor
             Effect: Allow
             Principal:
-              AWS: !Sub "arn:aws:iam::${ReactorAccountId}:root"
+              AWS: !Sub 'arn:aws:iam::${ReactorAccountId}:root'
             Action:
               - 'sns:Subscribe'
               - 'sns:Receive'
