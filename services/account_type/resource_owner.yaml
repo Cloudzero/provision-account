@@ -48,8 +48,14 @@ Resources:
   Role: 
     Type: AWS::IAM::Role
     Condition: CreateResources
-    Properties: 
-      AssumeRolePolicyDocument: 
+    Properties:
+      Tags:
+        - Key: cloudzero-stack
+          Value: !Ref AWS::StackName
+        - Key: cloudzero-reactor-account-id
+          Value: !Ref ReactorAccountId
+      Path: /cloudzero/
+      AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement: 
           - Effect: Allow
@@ -59,15 +65,13 @@ Resources:
               - 'sts:AssumeRole'
             Condition:
               StringEquals:
-                'sts:ExternalId': !Sub '"${ExternalId}"'
-
-      Path: "/cloudzero/"
+                'sts:ExternalId': !Ref ExternalId
 
   RolePolicy:
     Type: AWS::IAM::Policy
     Condition: CreateResources
-    Properties: 
-      PolicyName: cloudzero-resource-owner-policy
+    Properties:
+      PolicyName: !Sub 'cloudzero-resource-owner-policy-${ReactorAccountId}'
       PolicyDocument: 
         Version: 2012-10-17
         Statement: 
@@ -179,7 +183,6 @@ Resources:
           - waf-regional:List*
           Effect: Allow
           Resource: "*"
-
       Roles: 
         - !Ref Role
 
