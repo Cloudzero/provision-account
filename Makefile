@@ -47,7 +47,9 @@ lint: lint-templates lint-sam-apps
 .PHONY: lint-templates
 lint-templates: $(CFN_LINT_OUTPUT)
 $(CFN_LINT_OUTPUT): $(CFN_TEMPLATES)
-	cfn-lint -t $(CFN_TEMPLATES)
+	for t in $(CFN_TEMPLATES) ; do \
+		cfn-lint -t $${t} ; \
+	done
 
 .PHONY: test                                                                            ## Lints then tests code for all available runtimes
 test: lint test-sam-apps
