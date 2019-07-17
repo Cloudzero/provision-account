@@ -9,7 +9,7 @@ BUCKET = cz-$(FEATURE_NAME)
 SEMVER_MAJ_MIN = 1.0
 
 # Source Files
-CFN_TEMPLATES = services/connected_account.yaml
+CFN_TEMPLATES = services/connected_account.yaml services/account_type/cloudtrail_owner.yaml
 SAM_APPS = services/discovery
 
 # Util constants
