@@ -5,6 +5,16 @@
 # Include Makefile Constants
 include MakefileConstants.mk
 
+####################
+#
+# Project Constants
+#
+####################
+ALL_CFN_TEMPLATES := $(shell find services -name "*.yaml" -a ! -name "packaged*.yaml" -a ! -path "*.aws-sam*")
+SAM_APPS := $(shell find services -name "tox.ini" | xargs -Ipath dirname path | uniq)
+SAM_TEMPLATES := $(shell find $(SAM_APPS) -name "template.yaml" -maxdepth 1)
+CFN_TEMPLATES := $(filter-out $(SAM_TEMPLATES), $(ALL_CFN_TEMPLATES))
+
 
 ####################
 #
@@ -46,8 +56,8 @@ lint: lint-templates lint-sam-apps
 
 .PHONY: lint-templates
 lint-templates: $(CFN_LINT_OUTPUT)
-$(CFN_LINT_OUTPUT): $(CFN_TEMPLATES)
-	for t in $(CFN_TEMPLATES) ; do \
+$(CFN_LINT_OUTPUT): $(ALL_CFN_TEMPLATES) $(TEMPLATE_FILE)
+	for t in $? ; do \
 		cfn-lint -t $${t} ; \
 	done
 
@@ -157,3 +167,11 @@ describe: $(VIRTUAL_ENV)
 .PHONY: delete                                                                          ## Removes SAM-created stack from AWS
 delete: $(VIRTUAL_ENV)
 	@$(MAKE) cfn-delete stack_name=cz-$(FEATURE_NAME)
+
+
+.PHONY: foo
+foo:
+	@echo $(ALL_CFN_TEMPLATES)
+	@echo $(SAM_APPS)
+	@echo $(SAM_)
+	@echo $(CFN_TEMPLATES)
