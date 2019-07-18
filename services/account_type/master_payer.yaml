@@ -1,7 +1,11 @@
+# -*- coding: utf-8 -*-
+# Copyright (c) 2016-present, CloudZero, Inc. All rights reserved.
+# Licensed under the BSD-style license. See LICENSE file in the project root for full license information.
+
 AWSTemplateFormatVersion: '2010-09-09'
 
 
-Description: Lists the cloudtrails in the current account
+Description: CloudZero Master Payer Template
 
 
 Parameters:
@@ -36,7 +40,7 @@ Resources:
     Type: 'AWS::IAM::Role'
     Properties:
       RoleName: !Sub 'cz-reactor-access-${ReactorAccountId}'
-      Path: '/'
+      Path: '/cloudzero/'
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -49,11 +53,6 @@ Resources:
             Condition:
               StringEquals:
                 'sts:ExternalId': !Ref ExternalId
-          - Sid: czVpcFlowLogs01
-            Effect: Allow
-            Principal:
-              Service: 'vpc-flow-logs.amazonaws.com'
-            Action: 'sts:AssumeRole'
       ManagedPolicyArns:
         - 'arn:aws:iam::aws:policy/SecurityAudit'
         - 'arn:aws:iam::aws:policy/AmazonSNSReadOnlyAccess'
@@ -63,12 +62,18 @@ Resources:
         - 'arn:aws:iam::aws:policy/AmazonGuardDutyReadOnlyAccess'
         - 'arn:aws:iam::aws:policy/AmazonInspectorReadOnlyAccess'
         - 'arn:aws:iam::aws:policy/AmazonRoute53ReadOnlyAccess'
+      Tags:
+        - Key: cloudzero-stack
+          Value: !Ref AWS::StackName
+        - Key: cloudzero-reactor-account-id
+          Value: !Ref ReactorAccountId
+
 
   CrossAccountRoleAccessPolicyPayer:
     Condition: CreateResources
     Type: 'AWS::IAM::Policy'
     Properties:
-      PolicyName: CrossAccountRoleAccessPolicyPayer
+      PolicyName: !Sub 'cloudzero-master-payer-policy-${ReactorAccountId}'
       Roles:
         - !Ref CrossAccountRole
       PolicyDocument:
@@ -97,19 +102,22 @@ Resources:
           - Sid: ReservedCapacityServices
             Effect: Allow
             Action:
-              - 'ec2:Describe*'
-              - 'ec2:Get*'
-              - 'ec2:Get*'
-              - 'rds:Describe*'
+              - 'cloudfront:Get*'
+              - 'cloudfront:List*'
               - 'dynamodb:Describe*'
               - 'dynamodb:Get*'
               - 'dynamodb:List*'
-              - 'cloudfront:Get*'
-              - 'cloudfront:List*'
+              - 'ec2:Describe*'
+              - 'ec2:Get*'
+              - 'ec2:Get*'
               - 'elasticache:Describe*'
               - 'elasticache:List*'
               - 'elasticmapreduce:Describe*'
               - 'elasticmapreduce:List*'
+              - 'elasticsearch:Describe*'
+              - 'elasticsearch:List*'
+              - 'elasticsearch:Get*'
+              - 'rds:Describe*'
               - 'redshift:Describe*'
               - 'redshift:List*'
             Resource: '*'
