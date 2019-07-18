@@ -1,0 +1,79 @@
+# -*- coding: utf-8 -*-
+# Copyright (c) 2016-present, CloudZero, Inc. All rights reserved.
+# Licensed under the BSD-style license. See LICENSE file in the project root for full license information.
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudZero Audit Account Template
+
+
+Parameters:
+  IsAuditAccount:
+    Description: Flag to indicate if this is the master payer account
+    Type: String
+    AllowedValues:
+      - 'true'
+      - 'false'
+  AuditCloudTrailBucketName:
+    Description: The name of the S3 bucket responsible for billing data
+    Type: String
+  ReactorAccountId:
+    Description: The CloudZero reactor AWS account ID
+    Type: String
+    Default: '061190967865'
+  ExternalId:
+    Description: |
+      Unique ExternalId for Customer Organization; for cross-account Role Access and
+      associating this template with a Customer Organization
+    Type: String
+
+
+Conditions:
+  CreateResources: !And
+    - !Not
+      - !Equals [ !Ref AuditCloudTrailBucketName, 'null' ]
+    - !Equals [ !Ref IsAuditAccount, 'true' ]
+
+
+Resources:
+
+  Role:
+    Condition: CreateResources
+    Type: 'AWS::IAM::Role'
+    Properties:
+      Path: '/cloudzero/'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action:
+              - 'sts:AssumeRole'
+            Condition:
+              StringEquals:
+                'sts:ExternalId': !Ref ExternalId
+
+  RolePolicy:
+    Condition: CreateResources
+    Type: 'AWS::IAM::Policy'
+    Properties:
+      PolicyName: !Sub 'cloudzero-audit-policy-${ReactorAccountId}'
+      Roles:
+        - !Ref Role
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AccessAuditCloudTrailBucket
+            Effect: Allow
+            Action:
+              - 's3:Get*'
+              - 's3:List*'
+            Resource:
+              - !Sub 'arn:aws:s3:::${AuditCloudTrailBucketName}'
+              - !Sub 'arn:aws:s3:::${AuditCloudTrailBucketName}/*'
+
+Outputs:
+  RoleArn:
+    Condition: CreateResources
+    Description: The cloudzero cross account role ARN
+    Value: !GetAtt Role.Arn
