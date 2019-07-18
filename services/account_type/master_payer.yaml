@@ -1,0 +1,120 @@
+# -*- coding: utf-8 -*-
+# Copyright (c) 2016-present, CloudZero, Inc. All rights reserved.
+# Licensed under the BSD-style license. See LICENSE file in the project root for full license information.
+
+AWSTemplateFormatVersion: '2010-09-09'
+
+
+Description: CloudZero Master Payer Template
+
+
+Parameters:
+  IsMasterPayerAccount:
+    Description: Flag to indicate if this is the master payer account
+    Type: String
+    AllowedValues:
+      - 'true'
+      - 'false'
+  MasterPayerBillingBucketName:
+    Description: The name of the S3 bucket responsible for billing data
+    Type: String
+  ReactorAccountId:
+    Description: The CloudZero reactor AWS account ID
+    Type: String
+    Default: '061190967865'
+  ExternalId:
+    Description: |
+      Unique ExternalId for Customer Organization; for cross-account Role Access and
+      associating this template with a Customer Organization
+    Type: String
+
+
+Conditions:
+  CreateResources: !And [ !Not [ !Equals [ !Ref MasterPayerBillingBucketName, 'null' ] ], !Equals [ !Ref IsMasterPayerAccount, 'true' ] ]
+
+
+Resources:
+
+  CrossAccountRole:
+    Condition: CreateResources
+    Type: 'AWS::IAM::Role'
+    Properties:
+      RoleName: !Sub 'cz-reactor-access-${ReactorAccountId}'
+      Path: '/cloudzero/'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: czServiceAccount01
+            Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+            Action:
+              - 'sts:AssumeRole'
+            Condition:
+              StringEquals:
+                'sts:ExternalId': !Ref ExternalId
+      Tags:
+        - Key: cloudzero-stack
+          Value: !Ref AWS::StackName
+        - Key: cloudzero-reactor-account-id
+          Value: !Ref ReactorAccountId
+
+
+  CrossAccountRoleAccessPolicyPayer:
+    Condition: CreateResources
+    Type: 'AWS::IAM::Policy'
+    Properties:
+      PolicyName: !Sub 'cloudzero-master-payer-policy-${ReactorAccountId}'
+      Roles:
+        - !Ref CrossAccountRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: ProtectAccountInfo1
+            Effect: Deny
+            Action: 'aws-portal:*Account'
+            Resource: '*'
+          - Sid: AccessMasterPayerBillingBucket
+            Effect: Allow
+            Action:
+              - 's3:Get*'
+              - 's3:List*'
+            Resource:
+              - !Sub 'arn:aws:s3:::${MasterPayerBillingBucketName}'
+              - !Sub 'arn:aws:s3:::${MasterPayerBillingBucketName}/*'
+          - Sid: ViewBilling1
+            Effect: Allow
+            Action:
+              - 'aws-portal:View*'
+              - 'budgets:*'
+              - 'cur:*'
+              - 'ce:*'
+            Resource: '*'
+          - Sid: ReservedCapacityServices
+            Effect: Allow
+            Action:
+              - 'cloudfront:Get*'
+              - 'cloudfront:List*'
+              - 'dynamodb:Describe*'
+              - 'dynamodb:Get*'
+              - 'dynamodb:List*'
+              - 'ec2:Describe*'
+              - 'ec2:Get*'
+              - 'ec2:Get*'
+              - 'elasticache:Describe*'
+              - 'elasticache:List*'
+              - 'elasticmapreduce:Describe*'
+              - 'elasticmapreduce:List*'
+              - 'es:Describe*'
+              - 'es:List*'
+              - 'es:Get*'
+              - 'rds:Describe*'
+              - 'redshift:Describe*'
+              - 'redshift:List*'
+            Resource: '*'
+
+Outputs:
+  RoleArn:
+    Condition: CreateResources
+    Description: The cloudzero cross account role ARN
+    Value: !GetAtt CrossAccountRole.Arn
