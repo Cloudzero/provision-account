@@ -53,15 +53,6 @@ Resources:
             Condition:
               StringEquals:
                 'sts:ExternalId': !Ref ExternalId
-      ManagedPolicyArns:
-        - 'arn:aws:iam::aws:policy/SecurityAudit'
-        - 'arn:aws:iam::aws:policy/AmazonSNSReadOnlyAccess'
-        - 'arn:aws:iam::aws:policy/CloudWatchReadOnlyAccess'
-        - 'arn:aws:iam::aws:policy/CloudWatchEventsReadOnlyAccess'
-        - 'arn:aws:iam::aws:policy/AWSXrayFullAccess'
-        - 'arn:aws:iam::aws:policy/AmazonGuardDutyReadOnlyAccess'
-        - 'arn:aws:iam::aws:policy/AmazonInspectorReadOnlyAccess'
-        - 'arn:aws:iam::aws:policy/AmazonRoute53ReadOnlyAccess'
       Tags:
         - Key: cloudzero-stack
           Value: !Ref AWS::StackName
