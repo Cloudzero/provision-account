@@ -14,7 +14,7 @@ Parameters:
       - 'true'
       - 'false'
   AuditCloudTrailBucketName:
-    Description: The name of the S3 bucket responsible for billing data
+    Description: The name of the S3 bucket responsible for CloudTrail event data
     Type: String
   ReactorAccountId:
     Description: The CloudZero reactor AWS account ID
