@@ -88,8 +88,8 @@ def effect(name):
             try:
                 data = f(world)
             except Exception:
-                logger.warning(f'Failed to get {name} information.', exc_info=True)
-            return assoc_in(world, ['coeffects', name], data)
+                logger.warning(f'Failed to effect {name} change.', exc_info=True)
+            return assoc_in(world, ['effects', name], data)
         return w
     return d
 
