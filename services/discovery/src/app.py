@@ -21,8 +21,8 @@ s3 = boto3.client('s3')
 DEFAULT_OUTPUT = {
     'IsAuditAccount': False,
     'AuditCloudTrailBucketName': None,
-    'IsConnectedAccount': False,
-    'IsCloudTrailAccount': False,
+    'IsResourceOwnerAccount': False,
+    'IsCloudTrailOwnerAccount': False,
     'CloudTrailSNSTopicArn': None,
     'IsMasterPayerAccount': False,
     'MasterPayerBillingBucketName': None,
@@ -49,8 +49,8 @@ OUTPUT_SCHEMA = Schema({
     'output': {
         'IsAuditAccount': bool,
         'AuditCloudTrailBucketName': Any(None, str),
-        'IsConnectedAccount': bool,
-        'IsCloudTrailAccount': bool,
+        'IsResourceOwnerAccount': bool,
+        'IsCloudTrailOwnerAccount': bool,
         'CloudTrailSNSTopicArn': Any(None, str),
         'IsMasterPayerAccount': bool,
         'MasterPayerBillingBucketName': Any(None, str),
@@ -120,7 +120,7 @@ def discover_audit_account(world):
 
 def discover_connected_account(world):
     output = {
-        'IsConnectedAccount': True,
+        'IsResourceOwnerAccount': True,
     }
     return update_in(world, ['output'], lambda x: merge(x or {}, output))
 
@@ -164,7 +164,7 @@ def discover_cloudtrail_account(world):
     trail_topic = get_first_valid_trail(valid_trails)
     account_id = trail_topic.split(':')[4] if trail_topic else None
     output = {
-        'IsCloudTrailAccount': account_id == event_account_id(world),
+        'IsCloudTrailOwnerAccount': account_id == event_account_id(world),
         'CloudTrailSNSTopicArn': trail_topic,
     }
     return update_in(world, ['output'], lambda x: merge(x or {}, output))
