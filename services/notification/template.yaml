@@ -1,0 +1,51 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  CZ Discovery Stack:
+    Determine the Types CZ can apply to the current account.
+
+  SAM Template for discovery
+
+Globals:
+  Function:
+    Runtime: python3.7
+    MemorySize: 256
+    Timeout: 10
+
+Resources:
+  DiscoveryFunction:
+    Type: AWS::Serverless::Function 
+    Properties:
+      CodeUri: src/
+      Handler: app.handler
+      Policies:
+        - AmazonS3ReadOnlyAccess
+        - AWSCloudTrailReadOnlyAccess
+        - Billing
+      Environment:
+        Variables:
+          VERSION: '1'
+
+  DiscoveryResource:
+    Type: Custom::Discovery
+    Properties:
+      ServiceToken: !GetAtt DiscoveryFunction.Arn
+      AccountId: !Sub ${AWS::AccountId}
+      Version: '1'
+
+Outputs:
+  AuditCloudTrailBucketName:
+    Value: !GetAtt DiscoveryResource.AuditCloudTrailBucketName
+  CloudTrailSNSTopicArn:
+    Value: !GetAtt DiscoveryResource.CloudTrailSNSTopicArn
+  IsAuditAccount:
+    Value: !GetAtt DiscoveryResource.IsAuditAccount
+  IsMasterPayerAccount:
+    Value: !GetAtt DiscoveryResource.IsMasterPayerAccount
+  IsCloudTrailAccount:
+    Value: !GetAtt DiscoveryResource.IsCloudTrailAccount
+  IsConnectedAccount:
+    Value: !GetAtt DiscoveryResource.IsConnectedAccount
+  MasterPayerBillingBucketName:
+    Value: !GetAtt DiscoveryResource.MasterPayerBillingBucketName
+
