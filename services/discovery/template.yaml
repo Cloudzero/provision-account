@@ -42,10 +42,10 @@ Outputs:
     Value: !GetAtt DiscoveryResource.IsAuditAccount
   IsMasterPayerAccount:
     Value: !GetAtt DiscoveryResource.IsMasterPayerAccount
-  IsCloudTrailAccount:
-    Value: !GetAtt DiscoveryResource.IsCloudTrailAccount
-  IsConnectedAccount:
-    Value: !GetAtt DiscoveryResource.IsConnectedAccount
+  IsCloudTrailOwnerAccount:
+    Value: !GetAtt DiscoveryResource.IsCloudTrailOwnerAccount
+  IsResourceOwnerAccount:
+    Value: !GetAtt DiscoveryResource.IsResourceOwnerAccount
   MasterPayerBillingBucketName:
     Value: !GetAtt DiscoveryResource.MasterPayerBillingBucketName
 

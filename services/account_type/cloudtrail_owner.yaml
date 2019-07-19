@@ -30,7 +30,6 @@ Resources:
     Type: 'AWS::SQS::Queue'
     Condition: CreateResources
     Properties:
-      QueueName: !Sub 'cz-reactor-events-${ReactorAccountId}'
       Tags:
         - Key: cloudzero-stack
           Value: !Ref AWS::StackName
@@ -42,7 +41,6 @@ Resources:
     Condition: CreateResources
     Properties:
       DisplayName: !Sub 'cloudtrail-events-${ReactorAccountId}'
-      TopicName: !Sub 'cloudtrail-events-${ReactorAccountId}'
 
   SnsTopicPolicy:
     Type: 'AWS::SNS::TopicPolicy'

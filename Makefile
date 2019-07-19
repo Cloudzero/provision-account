@@ -18,6 +18,13 @@ CFN_TEMPLATES := $(filter-out $(SAM_TEMPLATES), $(ALL_CFN_TEMPLATES))
 
 ####################
 #
+# Guard Defaults
+#
+####################
+
+
+####################
+#
 # Makefile Niceties
 #
 ####################
@@ -167,11 +174,3 @@ describe: $(VIRTUAL_ENV)
 .PHONY: delete                                                                          ## Removes SAM-created stack from AWS
 delete: $(VIRTUAL_ENV)
 	@$(MAKE) cfn-delete stack_name=cz-$(FEATURE_NAME)
-
-
-.PHONY: foo
-foo:
-	@echo $(ALL_CFN_TEMPLATES)
-	@echo $(SAM_APPS)
-	@echo $(SAM_)
-	@echo $(CFN_TEMPLATES)

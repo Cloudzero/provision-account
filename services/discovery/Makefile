@@ -17,6 +17,17 @@ COVERAGE_REPORT = coverage-report
 FLAKE8_OUT = flake8.out
 BUILD_DIR = .aws-sam
 DEPLOYMENT_FILE = .deploy
+ACCOUNT_ID = $(shell source ../../project.sh && cz_assert_profile &> /dev/null && \
+							 aws sts get-caller-identity | jq -r -e '.Account')
+
+
+####################
+#
+# Guard Defaults
+#
+####################
+bucket = $${BUCKET:=cz-sam-deployment-$(ACCOUNT_ID)}  # DEFAULT deployment bucket
+namespace = $${namespace:-${NAMESPACE}}  # DEFAULT namespace
 
 
 ####################
@@ -35,6 +46,17 @@ guard-%:
 .PHONY: help                                          ## Prints the names and descriptions of available targets
 help:
 	@grep -E '^.PHONY: [a-zA-Z_%-\]+.*? ## .*$$' $(MAKEFILE_LIST) | cut -c 9- | sort | awk 'BEGIN {FS = "[ \t]+?## "}; {printf "\033[36m%-50s\033[0m %s\n", $$1, $$2}'
+
+
+.PHONY: default-%
+default-%:
+	@printf "$(WARN_COLOR)$*$(NO_COLOR): $(INFO_COLOR)$($*)$(NO_COLOR)\n"
+
+
+.PHONY: defaults                                      ## Prints the names and values of defaults
+defaults:
+	@grep -E '^[a-z]+\ =.*DEFAULT' $(MAKEFILE_LIST) | cut -c 10- | cut -f1 -d= | sort | \
+		while read var ; do $(MAKE) default-$${var} ; done
 
 .PHONY: clean                                         ## Clean python c files, reports, and build dir
 clean:
@@ -85,17 +107,17 @@ $(BUILD_DIR): $(SRC_FILES) $(TEMPLATE_FILE)
 package: $(PACKAGED_TEMPLATE_FILE)
 $(PACKAGED_TEMPLATE_FILE): $(BUILD_DIR)
 	@. ../../project.sh && cz_assert_profile && \
-  account_id=`aws sts get-caller-identity | jq -r -e '.Account'` && \
 	sam package \
-		--s3-bucket $${BUCKET:=cz-sam-deployment-$${account_id}} \
+		--s3-bucket $(bucket) \
 		--output-template-file $@
 
 
 .PHONY: deploy
 deploy: $(DEPLOYMENT_FILE)
-$(DEPLOYMENT_FILE): $(PACKAGED_TEMPLATE_FILE)
+$(DEPLOYMENT_FILE): $(PACKAGED_TEMPLATE_FILE) guard-namespace
+	@$(MAKE) defaults
 	@. ../../project.sh && cz_assert_profile && \
   sam deploy \
-		--template-file $^ \
-		--stack-name cz-$${namespace:-${NAMESPACE}}-$(APP_NAME) \
+		--template-file $< \
+		--stack-name "cz-$(namespace)-$(APP_NAME)" \
 		--capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM

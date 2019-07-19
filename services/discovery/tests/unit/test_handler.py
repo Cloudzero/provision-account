@@ -209,12 +209,12 @@ IS_AUDIT = Schema({
 }, extra=ALLOW_EXTRA, required=True)
 
 IS_CONNECTED = Schema({
-    'IsConnectedAccount': True,
+    'IsResourceOwnerAccount': True,
 }, extra=ALLOW_EXTRA, required=True)
 
 IS_CLOUDTRAIL_OWNER = Schema({
     'CloudTrailSNSTopicArn': LOCAL_TOPIC_ARN,
-    'IsCloudTrailAccount': True,
+    'IsCloudTrailOwnerAccount': True,
 }, extra=ALLOW_EXTRA, required=True)
 
 ALL_LOCAL = All(IS_MASTER_PAYER, IS_AUDIT, IS_CONNECTED, IS_CLOUDTRAIL_OWNER)
@@ -234,8 +234,8 @@ def test_handler_all_local(context, cfn_event, describe_trails_response_local, l
         'AuditCloudTrailBucketName': LOCAL_BUCKET_NAME,
         'CloudTrailSNSTopicArn': LOCAL_TOPIC_ARN,
         'IsAuditAccount': True,
-        'IsCloudTrailAccount': True,
-        'IsConnectedAccount': True,
+        'IsCloudTrailOwnerAccount': True,
+        'IsResourceOwnerAccount': True,
         'IsMasterPayerAccount': True,
         'MasterPayerBillingBucketName': LOCAL_BUCKET_NAME,
     }
@@ -255,8 +255,8 @@ def test_handler_non_audit(context, cfn_event, describe_trails_response_remote_b
         'AuditCloudTrailBucketName': REMOTE_BUCKET_NAME,
         'CloudTrailSNSTopicArn': LOCAL_TOPIC_ARN,
         'IsAuditAccount': False,
-        'IsCloudTrailAccount': True,
-        'IsConnectedAccount': True,
+        'IsCloudTrailOwnerAccount': True,
+        'IsResourceOwnerAccount': True,
         'IsMasterPayerAccount': True,
         'MasterPayerBillingBucketName': LOCAL_BUCKET_NAME,
     }
@@ -276,8 +276,8 @@ def test_handler_non_cloudtrail_owner(context, cfn_event, describe_trails_respon
         'AuditCloudTrailBucketName': LOCAL_BUCKET_NAME,
         'CloudTrailSNSTopicArn': REMOTE_TOPIC_ARN,
         'IsAuditAccount': True,
-        'IsCloudTrailAccount': False,
-        'IsConnectedAccount': True,
+        'IsCloudTrailOwnerAccount': False,
+        'IsResourceOwnerAccount': True,
         'IsMasterPayerAccount': True,
         'MasterPayerBillingBucketName': LOCAL_BUCKET_NAME,
     }
@@ -297,8 +297,8 @@ def test_handler_non_master_payer_invalid(context, cfn_event, describe_trails_re
         'AuditCloudTrailBucketName': LOCAL_BUCKET_NAME,
         'CloudTrailSNSTopicArn': LOCAL_TOPIC_ARN,
         'IsAuditAccount': True,
-        'IsCloudTrailAccount': True,
-        'IsConnectedAccount': True,
+        'IsCloudTrailOwnerAccount': True,
+        'IsResourceOwnerAccount': True,
         'IsMasterPayerAccount': False,
         'MasterPayerBillingBucketName': None,
     }
@@ -318,8 +318,8 @@ def test_handler_non_master_payer_remote(context, cfn_event, describe_trails_res
         'AuditCloudTrailBucketName': LOCAL_BUCKET_NAME,
         'CloudTrailSNSTopicArn': LOCAL_TOPIC_ARN,
         'IsAuditAccount': True,
-        'IsCloudTrailAccount': True,
-        'IsConnectedAccount': True,
+        'IsCloudTrailOwnerAccount': True,
+        'IsResourceOwnerAccount': True,
         'IsMasterPayerAccount': False,
         'MasterPayerBillingBucketName': REMOTE_BUCKET_NAME,
     }
@@ -339,8 +339,8 @@ def test_handler_cannot_determine_audit_only(context, cfn_event, list_buckets_re
         'AuditCloudTrailBucketName': None,
         'CloudTrailSNSTopicArn': None,
         'IsAuditAccount': False,
-        'IsCloudTrailAccount': False,
-        'IsConnectedAccount': True,
+        'IsCloudTrailOwnerAccount': False,
+        'IsResourceOwnerAccount': True,
         'IsMasterPayerAccount': False,
         'MasterPayerBillingBucketName': None,
     }
@@ -356,7 +356,7 @@ def test_handler_only_connected(context, cfn_event):
     assert context.mock_cfnresponse_send.call_count == 1
     ((_, _, status, output, _), kwargs) = context.mock_cfnresponse_send.call_args
     assert status == cfnresponse.SUCCESS
-    assert output == assoc_in(app.DEFAULT_OUTPUT, ['IsConnectedAccount'], True)
+    assert output == assoc_in(app.DEFAULT_OUTPUT, ['IsResourceOwnerAccount'], True)
 
 
 @pytest.mark.unit
