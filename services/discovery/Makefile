@@ -21,6 +21,14 @@ DEPLOYMENT_FILE = .deploy
 
 ####################
 #
+# Guard Defaults
+#
+####################
+namespace = $${namespace:-${NAMESPACE}}
+
+
+####################
+#
 # Makefile Niceties
 #
 ####################
@@ -93,9 +101,9 @@ $(PACKAGED_TEMPLATE_FILE): $(BUILD_DIR)
 
 .PHONY: deploy
 deploy: $(DEPLOYMENT_FILE)
-$(DEPLOYMENT_FILE): $(PACKAGED_TEMPLATE_FILE)
+$(DEPLOYMENT_FILE): $(PACKAGED_TEMPLATE_FILE) guard-namespace
 	@. ../../project.sh && cz_assert_profile && \
   sam deploy \
-		--template-file $^ \
-		--stack-name cz-$${namespace:-${NAMESPACE}}-$(APP_NAME) \
+		--template-file $< \
+		--stack-name "cz-$(namespace)-$(APP_NAME)" \
 		--capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM
