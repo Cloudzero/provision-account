@@ -46,7 +46,7 @@ Parameters:
     Description: |
       Optional Name you can set for your AWS Account; you can use this as a
       descriptive alias for AccountId. It's useful to set this here when you
-      are automating provisioning many  accounts with this template.
+      are automating provisioning many accounts with this template.
   ExternalId:
     Type: String
     Description: |
