@@ -42,7 +42,7 @@ Parameters:
 
 
 Conditions: 
-  CreateResources: !Equals [ !Ref IsResourceOwnerAccount, "true" ]
+  CreateResources: !Equals [ !Ref IsResourceOwnerAccount, 'true' ]
 
 Resources:
   Role: 
@@ -196,7 +196,7 @@ Resources:
         - !Ref Role
 
 Outputs:
-  ResourceOwnerRoleArn:
+  RoleArn:
     Condition: CreateResources
     Value: !GetAtt Role.Arn
     Description: Resource Owner Cross Account Role ARN

@@ -1,0 +1,46 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  CloudZero Notification Stack
+    Send results of Connected Account Provisioning to a CloudZero Reactor.
+
+  SAM Template for notification
+
+Parameters:
+  ReactorSQSQueueUrl:
+    Type: String
+    Default: 'null'
+    Description: |
+      CloudZero Reactor Queue Url; receives callbacks from this template
+
+Conditions:
+  ValidReactorSQSQueueUrl: !Not
+    - !Equals [ !Ref ReactorSQSQueueUrl, 'null' ]
+
+Globals:
+  Function:
+    Runtime: python3.7
+    MemorySize: 256
+    Timeout: 10
+
+Resources:
+  NotificationFunction:
+    Type: AWS::Serverless::Function
+    Condition: ValidReactorSQSQueueUrl
+    Properties:
+      CodeUri: src/
+      Handler: app.handler
+      Policies:
+        - SQSSendMessagePolicy:
+            QueueName: !Select
+              - 4
+              - !Split [ '/', !Ref ReactorSQSQueueUrl ]
+      Environment:
+        Variables:
+          VERSION: '1'
+
+Outputs:
+  Arn:
+    Condition: ValidReactorSQSQueueUrl
+    Value: !GetAtt NotificationFunction.Arn
+    Description: Notification Function ARN 
