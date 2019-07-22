@@ -58,6 +58,7 @@ def describe_trails_response_local():
                 'SnsTopicARN': LOCAL_TOPIC_ARN,
                 'SnsTopicName': LOCAL_TOPIC_ARN,
                 'TrailARN': LOCAL_TRAIL_ARN,
+                'S3KeyPrefix': 'trails',
             },
         ],
     }
@@ -231,13 +232,17 @@ def test_handler_all_local(context, cfn_event, describe_trails_response_local, l
     ((_, _, status, output, _), kwargs) = context.mock_cfnresponse_send.call_args
     assert status == cfnresponse.SUCCESS
     assert output == {
+        'AuditCloudTrailBucketPrefix': 'trails',
         'AuditCloudTrailBucketName': LOCAL_BUCKET_NAME,
         'CloudTrailSNSTopicArn': LOCAL_TOPIC_ARN,
+        'CloudTrailTrailArn': LOCAL_TRAIL_ARN,
         'IsAuditAccount': True,
         'IsCloudTrailOwnerAccount': True,
         'IsResourceOwnerAccount': True,
         'IsMasterPayerAccount': True,
         'MasterPayerBillingBucketName': LOCAL_BUCKET_NAME,
+        'MasterPayerBillingBucketPrefix': 'reports',
+        'RemoteCloudTrailBucket': False,
     }
 
 
@@ -252,13 +257,17 @@ def test_handler_non_audit(context, cfn_event, describe_trails_response_remote_b
     ((_, _, status, output, _), kwargs) = context.mock_cfnresponse_send.call_args
     assert status == cfnresponse.SUCCESS
     assert output == {
+        'AuditCloudTrailBucketPrefix': None,
         'AuditCloudTrailBucketName': REMOTE_BUCKET_NAME,
+        'RemoteCloudTrailBucket': True,
         'CloudTrailSNSTopicArn': LOCAL_TOPIC_ARN,
+        'CloudTrailTrailArn': LOCAL_TRAIL_ARN,
         'IsAuditAccount': False,
         'IsCloudTrailOwnerAccount': True,
         'IsResourceOwnerAccount': True,
         'IsMasterPayerAccount': True,
         'MasterPayerBillingBucketName': LOCAL_BUCKET_NAME,
+        'MasterPayerBillingBucketPrefix': 'reports',
     }
 
 
@@ -273,13 +282,17 @@ def test_handler_non_cloudtrail_owner(context, cfn_event, describe_trails_respon
     ((_, _, status, output, _), kwargs) = context.mock_cfnresponse_send.call_args
     assert status == cfnresponse.SUCCESS
     assert output == {
+        'AuditCloudTrailBucketPrefix': None,
         'AuditCloudTrailBucketName': LOCAL_BUCKET_NAME,
+        'RemoteCloudTrailBucket': False,
         'CloudTrailSNSTopicArn': REMOTE_TOPIC_ARN,
+        'CloudTrailTrailArn': REMOTE_TRAIL_ARN,
         'IsAuditAccount': True,
         'IsCloudTrailOwnerAccount': False,
         'IsResourceOwnerAccount': True,
         'IsMasterPayerAccount': True,
         'MasterPayerBillingBucketName': LOCAL_BUCKET_NAME,
+        'MasterPayerBillingBucketPrefix': 'reports',
     }
 
 
@@ -294,13 +307,17 @@ def test_handler_non_master_payer_invalid(context, cfn_event, describe_trails_re
     ((_, _, status, output, _), kwargs) = context.mock_cfnresponse_send.call_args
     assert status == cfnresponse.SUCCESS
     assert output == {
+        'AuditCloudTrailBucketPrefix': 'trails',
         'AuditCloudTrailBucketName': LOCAL_BUCKET_NAME,
+        'RemoteCloudTrailBucket': False,
         'CloudTrailSNSTopicArn': LOCAL_TOPIC_ARN,
+        'CloudTrailTrailArn': LOCAL_TRAIL_ARN,
         'IsAuditAccount': True,
         'IsCloudTrailOwnerAccount': True,
         'IsResourceOwnerAccount': True,
         'IsMasterPayerAccount': False,
         'MasterPayerBillingBucketName': None,
+        'MasterPayerBillingBucketPrefix': None,
     }
 
 
@@ -315,18 +332,22 @@ def test_handler_non_master_payer_remote(context, cfn_event, describe_trails_res
     ((_, _, status, output, _), kwargs) = context.mock_cfnresponse_send.call_args
     assert status == cfnresponse.SUCCESS
     assert output == {
+        'AuditCloudTrailBucketPrefix': 'trails',
         'AuditCloudTrailBucketName': LOCAL_BUCKET_NAME,
+        'RemoteCloudTrailBucket': False,
         'CloudTrailSNSTopicArn': LOCAL_TOPIC_ARN,
+        'CloudTrailTrailArn': LOCAL_TRAIL_ARN,
         'IsAuditAccount': True,
         'IsCloudTrailOwnerAccount': True,
         'IsResourceOwnerAccount': True,
         'IsMasterPayerAccount': False,
         'MasterPayerBillingBucketName': REMOTE_BUCKET_NAME,
+        'MasterPayerBillingBucketPrefix': 'reports',
     }
 
 
 @pytest.mark.unit
-def test_handler_cannot_determine_audit_only(context, cfn_event, list_buckets_response):
+def test_handler_just_resource_owner(context, cfn_event, list_buckets_response):
     context.mock_ct.describe_trails.return_value = {'trailList': []}
     context.mock_cur.describe_report_definitions.return_value = {'ReportDefinitions': []}
     context.mock_s3.list_buckets.return_value = list_buckets_response
@@ -336,13 +357,17 @@ def test_handler_cannot_determine_audit_only(context, cfn_event, list_buckets_re
     ((_, _, status, output, _), kwargs) = context.mock_cfnresponse_send.call_args
     assert status == cfnresponse.SUCCESS
     assert output == {
+        'AuditCloudTrailBucketPrefix': None,
         'AuditCloudTrailBucketName': None,
+        'RemoteCloudTrailBucket': True,
         'CloudTrailSNSTopicArn': None,
+        'CloudTrailTrailArn': None,
         'IsAuditAccount': False,
         'IsCloudTrailOwnerAccount': False,
         'IsResourceOwnerAccount': True,
         'IsMasterPayerAccount': False,
         'MasterPayerBillingBucketName': None,
+        'MasterPayerBillingBucketPrefix': None,
     }
 
 

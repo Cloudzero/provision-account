@@ -4,9 +4,19 @@
   "RequestId": "Some Request Id",
   "RequestType": "Create",
   "ResourceProperties": {
-    "AccountId": "123456789012"
+    "ReactorSQSQueueUrl": "str",
+    "ExternalId": "str",
+    "ReactorSQSQueueUrl": "str",
+    "AccountName": "str",
+    "ReactorId": "str",
+    "Stacks": {
+      "AuditAccount": "arn:aws:cloudformation:us-east-1:461080371632:stack/cz-adam-provision-connected-account-AuditAccount-1WZKAX5PDTWMK/c6ccc180-aa3f-11e9-a766-0ad7f2019cc4",
+      "CloudTrailOwnerAccount": "arn:aws:cloudformation:us-east-1:461080371632:stack/cz-adam-provision-connected-account-CloudTrailOwnerAccount-C7KK4AWKCV35/c6d1f1a0-aa3f-11e9-8652-0eb49284c068",
+      "Discovery": "arn:aws:cloudformation:us-east-1:461080371632:stack/cz-adam-provision-connected-account-Discovery-10PMSYWJM2PX5/b071f270-aa3f-11e9-8a19-0e7698e0f2e8",
+      "MasterPayerAccount": "arn:aws:cloudformation:us-east-1:461080371632:stack/cz-adam-provision-connected-account-MasterPayerAccount-141S73RBTLDVR/c6964830-aa3f-11e9-8d0f-0eb08bdb4cec",
+      "ResourceOwnerAccount": "arn:aws:cloudformation:us-east-1:461080371632:stack/cz-adam-provision-connected-account-ResourceOwnerAccount-1M5D2VSVAEGAB/c6c372b0-aa3f-11e9-bc13-0aaa9d7b8aca"
+    }
   },
   "ResponseURL": "https://examplecallback",
   "StackId": "some stack id"
 }
-

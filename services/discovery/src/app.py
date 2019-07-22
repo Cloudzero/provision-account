@@ -19,13 +19,17 @@ cur = boto3.client('cur')
 s3 = boto3.client('s3')
 
 DEFAULT_OUTPUT = {
-    'IsAuditAccount': False,
+    'AuditCloudTrailBucketPrefix': None,
     'AuditCloudTrailBucketName': None,
-    'IsResourceOwnerAccount': False,
-    'IsCloudTrailOwnerAccount': False,
+    'RemoteCloudTrailBucket': True,
     'CloudTrailSNSTopicArn': None,
+    'CloudTrailTrailArn': None,
+    'IsAuditAccount': False,
+    'IsCloudTrailOwnerAccount': False,
+    'IsResourceOwnerAccount': False,
     'IsMasterPayerAccount': False,
     'MasterPayerBillingBucketName': None,
+    'MasterPayerBillingBucketPrefix': None,
 }
 
 
@@ -58,6 +62,7 @@ OUTPUT_SCHEMA = Schema({
 }, required=True, extra=ALLOW_EXTRA)
 
 event_account_id = get_in(['event', 'ResourceProperties', 'AccountId'])
+coeffects_traillist = get_in(['coeffects', 'cloudtrail', 'trailList'], default=[])
 
 
 #####################
@@ -108,21 +113,18 @@ def coeffects_cur(world):
 # Business Logic
 #
 #####################
-def discover_audit_account(world):
-    trail_bucket = get_in(['coeffects', 'cloudtrail', 'trailList', 0, 'S3BucketName'], world)
-    local_buckets = {x['Name'] for x in get_in(['coeffects', 's3', 'Buckets'], world, [])}
-    output = {
-        'IsAuditAccount': trail_bucket in local_buckets,
-        'AuditCloudTrailBucketName': trail_bucket,
-    }
-    return update_in(world, ['output'], lambda x: merge(x or {}, output))
+MINIMUM_CLOUDTRAIL_CONFIGURATION = Schema({
+    "S3BucketName": str,
+    "SnsTopicName": str,
+    "SnsTopicARN": str,
+    "IsMultiRegionTrail": True,
+    "TrailARN": str,
+}, extra=ALLOW_EXTRA, required=True)
 
 
-def discover_connected_account(world):
-    output = {
-        'IsResourceOwnerAccount': True,
-    }
-    return update_in(world, ['output'], lambda x: merge(x or {}, output))
+IDEAL_CLOUDTRAIL_CONFIGURATION = MINIMUM_CLOUDTRAIL_CONFIGURATION.extend({
+    "IsOrganizationTrail": True,
+}, extra=ALLOW_EXTRA, required=True)
 
 
 def safe_check(schema, data):
@@ -140,32 +142,42 @@ def keep_valid(schema, xs):
     ]
 
 
-MINIMUM_CLOUDTRAIL_CONFIGURATION = Schema({
-    "S3BucketName": str,
-    "SnsTopicName": str,
-    "SnsTopicARN": str,
-    "IsMultiRegionTrail": True,
-    "TrailARN": str,
-}, extra=ALLOW_EXTRA, required=True)
+def get_first_valid_trail(world):
+    trails = coeffects_traillist(world)
+    valid_trails = keep_valid(IDEAL_CLOUDTRAIL_CONFIGURATION, trails) or keep_valid(MINIMUM_CLOUDTRAIL_CONFIGURATION, trails)
+    return valid_trails[0] if valid_trails else {}
 
 
-IDEAL_CLOUDTRAIL_CONFIGURATION = MINIMUM_CLOUDTRAIL_CONFIGURATION.extend({
-    "IsOrganizationTrail": True,
-}, extra=ALLOW_EXTRA, required=True)
+def discover_audit_account(world):
+    trail = get_first_valid_trail(world)
+    trail_bucket = trail.get('S3BucketName')
+    local_buckets = {x['Name'] for x in get_in(['coeffects', 's3', 'Buckets'], world, [])}
+    output = {
+        'IsAuditAccount': trail_bucket in local_buckets,
+        'RemoteCloudTrailBucket': not (trail_bucket in local_buckets),
+        'AuditCloudTrailBucketName': trail_bucket,
+        'AuditCloudTrailBucketPrefix': trail.get('S3KeyPrefix'),
+    }
+    return update_in(world, ['output'], lambda x: merge(x or {}, output))
 
 
-def get_first_valid_trail(trails):
-    return trails[0]['SnsTopicARN'] if trails else None
+def discover_connected_account(world):
+    output = {
+        'IsResourceOwnerAccount': True,
+    }
+    return update_in(world, ['output'], lambda x: merge(x or {}, output))
 
 
 def discover_cloudtrail_account(world):
-    trails = get_in(['coeffects', 'cloudtrail', 'trailList'], world, [])
-    valid_trails = keep_valid(IDEAL_CLOUDTRAIL_CONFIGURATION, trails) or keep_valid(MINIMUM_CLOUDTRAIL_CONFIGURATION, trails)
-    trail_topic = get_first_valid_trail(valid_trails)
+    trail = get_first_valid_trail(world)
+    print('trail', trail)
+    trail_topic = trail.get('SnsTopicARN')
     account_id = trail_topic.split(':')[4] if trail_topic else None
+    print('WTF', trail_topic)
     output = {
         'IsCloudTrailOwnerAccount': account_id == event_account_id(world),
         'CloudTrailSNSTopicArn': trail_topic,
+        'CloudTrailTrailArn': trail.get('TrailARN'),
     }
     return update_in(world, ['output'], lambda x: merge(x or {}, output))
 
@@ -183,20 +195,22 @@ MINIMUM_BILLING_REPORT = Schema({
 }, extra=ALLOW_EXTRA, required=True)
 
 
-def get_first_valid_report_definition_s3_bucket(valid_report_definitions, default=None):
-    return valid_report_definitions[0]['S3Bucket'] if any(valid_report_definitions) else default
+def get_first_valid_report_definition(valid_report_definitions, default=None):
+    return valid_report_definitions[0] if any(valid_report_definitions) else default
 
 
 def discover_master_payer_account(world):
     report_definitions = get_in(['coeffects', 'cur', 'ReportDefinitions'], world, [])
     local_buckets = {x['Name'] for x in get_in(['coeffects', 's3', 'Buckets'], world, [])}
     valid_report_definitions = keep_valid(MINIMUM_BILLING_REPORT, report_definitions)
-    default_s3_bucket = get_first_valid_report_definition_s3_bucket(valid_report_definitions)
+    first_valid = get_first_valid_report_definition(valid_report_definitions, default={})
     valid_local_report_definitions = [x for x in valid_report_definitions if x['S3Bucket'] in local_buckets]
     local = any(valid_local_report_definitions)
+    first_valid_local = get_first_valid_report_definition(valid_local_report_definitions, default=first_valid)
     output = {
         'IsMasterPayerAccount': local,
-        'MasterPayerBillingBucketName': get_first_valid_report_definition_s3_bucket(valid_local_report_definitions, default=default_s3_bucket),
+        'MasterPayerBillingBucketName': first_valid_local.get('S3Bucket'),
+        'MasterPayerBillingBucketPrefix': first_valid_local.get('S3Prefix'),
     }
     return update_in(world, ['output'], lambda x: merge(x or {}, output))
 
@@ -218,16 +232,15 @@ def handler(event, context, **kwargs):
     status = cfnresponse.SUCCESS
     world = {}
     try:
-        logger.info(f'Processing event {pformat(event)}')
+        logger.info(f'Processing event {event}')
         world = pipe({'event': event, 'kwargs': kwargs},
                      INPUT_SCHEMA,
                      coeffects,
                      discover_account_types,
                      OUTPUT_SCHEMA)
-        logger.info(f'Finished Processing: {pformat(world)}')
     except Exception as err:
         logger.exception(err)
     finally:
         output = world.get('output', DEFAULT_OUTPUT)
-        logger.info(f'Sending output {pformat(output)}')
+        logger.info(f'Sending output {output}')
         cfnresponse.send(event, context, status, output, event.get('PhysicalResourceId'))

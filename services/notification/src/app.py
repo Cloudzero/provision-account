@@ -2,11 +2,10 @@
 # Copyright (c) 2016-present, CloudZero, Inc. All rights reserved.
 # Licensed under the BSD-style license. See LICENSE file in the project root for full license information.
 
-from pprint import pformat
 import boto3
 import cfnresponse
-from toolz.curried import assoc_in, get_in, keyfilter, merge, pipe, update_in
-from voluptuous import Any, ExactSequence, Schema, ALLOW_EXTRA, REMOVE_EXTRA
+from toolz.curried import assoc_in, get_in, merge, pipe, update_in
+from voluptuous import Any, Schema, ALLOW_EXTRA, REMOVE_EXTRA
 
 
 import logging
@@ -14,9 +13,29 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 
+cfn = boto3.resource('cloudformation')
 sqs = boto3.resource('sqs')
 
 DEFAULT_OUTPUT = {
+    'AuditAccount': {},
+    'CloudTrailOwnerAccount': {
+        'SQSQueueArn': 'arn:aws:sqs:us-east-1:461080371632:cz-adam-provision-connected-account-CloudTrailOwnerAccoun-SqsQueue-GNMFW27Q4TUQ',
+        'SNSTopicPolicyArn': 'cz-adam-provision-connected-account-CloudTrailOwner-SnsTopicPolicy-NHW0XLLATEGR',
+        'SQSQueuePolicyArn': 'cz-adam-provision-connected-account-CloudTrailOwnerAccou-SqsPolicy-3GVXKLNY0GPJ'
+    },
+    'Discovery': {
+        'AuditCloudTrailBucketName': 'cloudtrail-events-966895021400',
+        'MasterPayerBillingBucketName': 'null',
+        'CloudTrailSNSTopicArn': 'arn:aws:sns:us-east-1:461080371632:cloudtrail-events',
+        'IsCloudTrailOwnerAccount': 'true',
+        'IsMasterPayerAccount': 'false',
+        'IsAuditAccount': 'false',
+        'IsResourceOwnerAccount': 'true'
+    },
+    'MasterPayerAccount': {},
+    'ResourceOwnerAccount': {
+        'RoleArn': 'arn:aws:iam::461080371632:role/cloudzero/cz-adam-provision-connected-account-ResourceO-Role-1BKZNPQTUCGDN'
+    }
 }
 
 
@@ -28,7 +47,19 @@ DEFAULT_OUTPUT = {
 INPUT_SCHEMA = Schema({
     'event': {
         'RequestType': Any('Create', 'Update', 'Delete'),
-        'ResourceProperties': dict,
+        'ResourceProperties': {
+            'ExternalId': str,
+            'ReactorSQSQueueUrl': str,
+            'AccountName': str,
+            'ReactorId': str,
+            'Stacks': {
+                'Discovery': str,
+                'ResourceOwnerAccount': str,
+                'CloudTrailOwnerAccount': str,
+                'AuditAccount': str,
+                'MasterPayerAccount': str,
+            }
+        },
         'ResponseURL': str,
         'StackId': str
     }
@@ -38,7 +69,8 @@ OUTPUT_SCHEMA = Schema({
     'output': dict,
 }, required=True, extra=ALLOW_EXTRA)
 
-event_account_id = get_in(['event', 'ResourceProperties', 'AccountId'])
+
+stacks = get_in(['event', 'ResourceProperties', 'Stacks'])
 
 
 #####################
@@ -47,7 +79,8 @@ event_account_id = get_in(['event', 'ResourceProperties', 'AccountId'])
 #
 #####################
 def coeffects(world):
-    return pipe(world)
+    return pipe(world,
+                coeffects_cfn)
 
 
 def coeffect(name):
@@ -63,13 +96,34 @@ def coeffect(name):
     return d
 
 
+def outputs_to_dict(outputs):
+    return {
+        output['OutputKey']: output['OutputValue']
+        for output in outputs or []
+    }
+
+
+@coeffect('cloudformation')
+def coeffects_cfn(world):
+    return {
+        key: outputs_to_dict(cfn.Stack(name).outputs)
+        for key, name in stacks(world, default={}).items()
+    }
+
+
 #####################
 #
 # Business Logic
 #
 #####################
 def notify_cloudzero(world):
-    return pipe(world)
+    return pipe(world,
+                prepare_output)
+
+
+def prepare_output(world):
+    output = get_in(['coeffects', 'cloudformation'], world)
+    return update_in(world, ['output'], lambda x: merge(x or {}, output))
 
 
 #####################
@@ -102,18 +156,18 @@ def effect(name):
 def handler(event, context, **kwargs):
     status = cfnresponse.SUCCESS
     world = {}
+    logger.info('WTF')
     try:
-        logger.info(f'Processing event {pformat(event)}')
+        logger.info(f'Processing event {event}')
         world = pipe({'event': event, 'kwargs': kwargs},
                      INPUT_SCHEMA,
                      coeffects,
                      notify_cloudzero,
                      effects,
                      OUTPUT_SCHEMA)
-        logger.info(f'Finished Processing: {pformat(world)}')
     except Exception as err:
         logger.exception(err)
     finally:
         output = world.get('output', DEFAULT_OUTPUT)
-        logger.info(f'Sending output {pformat(output)}')
+        logger.info(f'Sending output {output}')
         cfnresponse.send(event, context, status, output, event.get('PhysicalResourceId'))

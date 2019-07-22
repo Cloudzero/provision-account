@@ -173,50 +173,46 @@ Resources:
       ReactorSQSQueueUrl: !Ref ReactorSQSQueueUrl
       AccountName: !Ref AccountName
       ReactorId: !Ref ReactorId
-       # Discovery Output
-      AuditCloudTrailBucketName: !GetAtt Discovery.Outputs.AuditCloudTrailBucketName
-      CloudTrailSNSTopicArn: !GetAtt Discovery.Outputs.CloudTrailSNSTopicArn
-      IsAuditAccount: !GetAtt Discovery.Outputs.IsAuditAccount
-      IsMasterPayerAccount: !GetAtt Discovery.Outputs.IsMasterPayerAccount
-      IsCloudTrailOwnerAccount: !GetAtt Discovery.Outputs.IsCloudTrailOwnerAccount
-      IsResourceOwnerAccount: !GetAtt Discovery.Outputs.IsResourceOwnerAccount
-      MasterPayerBillingBucketName: !GetAtt Discovery.Outputs.MasterPayerBillingBucketName
-      # Account Types Output
+      # References to other stacks; it's easier for _this_ Resource to simply grab the outputs
+      # programmatically b/c some of the outputs are conditional.
       Stacks:
-        - ResourceOwnerAccountStack: !Ref ResourceOwnerAccount
-        - CloudTrailOwnerAccountStack: !Ref CloudTrailOwnerAccount
-        - AuditAccountStack: !Ref AuditAccount
-        - MasterPayerAccountStack: !Ref MasterPayerAccount
+        Discovery: !Ref Discovery
+        ResourceOwnerAccount: !Ref ResourceOwnerAccount
+        CloudTrailOwnerAccount: !Ref CloudTrailOwnerAccount
+        AuditAccount: !Ref AuditAccount
+        MasterPayerAccount: !Ref MasterPayerAccount
 
 
 
 Outputs:
-  # Parameters
-  AccountName:
+  BillingBucket:
+    Value: !GetAtt Discovery.Outputs.MasterPayerBillingBucketName
+  # BillingPrefix:
+  #   Value: !GetAtt DiscoveryResource.MasterPayerBillingBucketPrefix
+  CloudTrailArn:
+    Value: !GetAtt Discovery.Outputs.CloudTrailTrailArn
+  CloudTrailBucketPrefix:
+    Value: !GetAtt Discovery.Outputs.AuditCloudTrailBucketPrefix
+  CloudTrailBucket:
+    Value: !GetAtt Discovery.Outputs.AuditCloudTrailBucketName
+  ConnectedAccountId:
+    Value: !Ref 'AWS::AccountId'
+  ConnectedAccountName:
     Value: !Ref AccountName
-    Description: The Account Name metadata to associated with this AccountId
   ExternalId:
     Value: !Ref ExternalId
-    Description: The External ID used for cross account roles
-  ReactorId:
-    Value: !Ref ReactorId
-    Description: The Reactor Id associated with this link
-  ReactorAccountId:
-    Value: !Ref ReactorAccountId
-    Description: The Reactor Account Id used for cross account roles
-  ReactorSQSQueueUrl:
-    Value: !Ref ReactorSQSQueueUrl
-    Description: The Reactor SQS Queue this template sends notifications to
-  # Discovery
-  IsAuditAccount:
-    Value: !GetAtt Discovery.Outputs.IsAuditAccount
-    Description: Does this Account have a CloudTrail Audit Bucket?
-  IsCloudTrailOwnerAccount:
-    Value: !GetAtt Discovery.Outputs.IsCloudTrailOwnerAccount
-    Description: Does this Account have a CloudTrail Trail?
-  IsMasterPayerAccount:
-    Value: !GetAtt Discovery.Outputs.IsMasterPayerAccount
-    Description: Does this Account have a Billing Report Bucket?
-  IsResourceOwnerAccount:
-    Value: !GetAtt Discovery.Outputs.IsResourceOwnerAccount
-    Description: Does this Account own AWS Resources?
+  Region:
+    Value: !Ref 'AWS::Region'
+  RemoteCloudTrailBucket:
+    Value: !GetAtt Discovery.Outputs.RemoteCloudTrailBucket
+  RemoteCloudTrailId:
+    Value: !Sub 'AccountId of the account that owns the ${Discovery.Outputs.AuditCloudTrailBucketName} bucket.'
+  RemoteCloudTrailRole:
+    Value: !Sub 'ClouZero RoleArn in the account that owns the ${Discovery.Outputs.AuditCloudTrailBucketName} bucket.'
+  RoleArn:
+    Value: !GetAtt ResourceOwnerAccount.Outputs.RoleArn
+  SnsArn:
+    Value: !GetAtt Discovery.Outputs.CloudTrailSNSTopicArn
+  SqsArn:
+    Value: !GetAtt CloudTrailOwnerAccount.Outputs.SQSQueueArn 
+

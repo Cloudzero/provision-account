@@ -24,20 +24,24 @@ Resources:
         - Billing
       Environment:
         Variables:
-          VERSION: '1'
+          VERSION: '2'
 
   DiscoveryResource:
     Type: Custom::Discovery
     Properties:
       ServiceToken: !GetAtt DiscoveryFunction.Arn
       AccountId: !Sub ${AWS::AccountId}
-      Version: '1'
+      Version: '2'
 
 Outputs:
   AuditCloudTrailBucketName:
     Value: !GetAtt DiscoveryResource.AuditCloudTrailBucketName
+  AuditCloudTrailBucketPrefix:
+    Value: !GetAtt DiscoveryResource.AuditCloudTrailBucketPrefix
   CloudTrailSNSTopicArn:
     Value: !GetAtt DiscoveryResource.CloudTrailSNSTopicArn
+  CloudTrailTrailArn:
+    Value: !GetAtt DiscoveryResource.CloudTrailTrailArn
   IsAuditAccount:
     Value: !GetAtt DiscoveryResource.IsAuditAccount
   IsMasterPayerAccount:
@@ -48,4 +52,8 @@ Outputs:
     Value: !GetAtt DiscoveryResource.IsResourceOwnerAccount
   MasterPayerBillingBucketName:
     Value: !GetAtt DiscoveryResource.MasterPayerBillingBucketName
+  MasterPayerBillingBucketPrefix:
+    Value: !GetAtt DiscoveryResource.MasterPayerBillingBucketPrefix
+  RemoteCloudTrailBucket:
+    Value: !GetAtt DiscoveryResource.RemoteCloudTrailBucket
 
