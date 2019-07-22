@@ -36,18 +36,12 @@ Resources:
         - Key: cloudzero-reactor-account-id
           Value: !Ref ReactorAccountId
 
-  SnsTopic:
-    Type: 'AWS::SNS::Topic'
-    Condition: CreateResources
-    Properties:
-      DisplayName: !Sub 'cloudtrail-events-${ReactorAccountId}'
-
   SnsTopicPolicy:
     Type: 'AWS::SNS::TopicPolicy'
     Condition: CreateResources
     Properties:
       Topics:
-        - !Ref SnsTopic
+        - !Ref CloudTrailSNSTopicArn
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -57,7 +51,7 @@ Resources:
               Service: cloudtrail.amazonaws.com
             Action:
               - 'sns:Publish'
-            Resource: !Ref SnsTopic
+            Resource: !Ref CloudTrailSNSTopicArn
           - Sid: AWSCloudTrailCrossAccountSNSPolicy20170207ForCloudZeroReactor
             Effect: Allow
             Principal:
@@ -66,7 +60,7 @@ Resources:
               - 'sns:Subscribe'
               - 'sns:Receive'
               - 'sns:ListSubscriptionsByTopic'
-            Resource: !Ref SnsTopic
+            Resource: !Ref CloudTrailSNSTopicArn
 
   SnsSubscription:
     Type: AWS::SNS::Subscription
@@ -75,7 +69,7 @@ Resources:
       Protocol: sqs
       Endpoint: !GetAtt SqsQueue.Arn
       Region: !Ref "AWS::Region"
-      TopicArn: !Ref SnsTopic
+      TopicArn: !Ref CloudTrailSNSTopicArn
 
   SqsPolicy:
     Type: 'AWS::SQS::QueuePolicy'
@@ -94,7 +88,7 @@ Resources:
             Resource: "*"
             Condition:
               ArnEquals:
-                'aws:SourceArn': !Ref SnsTopic
+                'aws:SourceArn': !Ref CloudTrailSNSTopicArn
 
 
 Outputs:
