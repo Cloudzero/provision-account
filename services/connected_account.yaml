@@ -83,6 +83,24 @@ Resources:
           Value: !Ref ReactorAccountId
       TemplateURL: https://s3.amazonaws.com/cz-provision-account/latest/services/discovery.yaml
 
+  LegacyAccount:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      Tags:
+        - Key: cloudzero-stack
+          Value: !Ref AWS::StackName
+        - Key: cloudzero-reactor-account-id
+          Value: !Ref ReactorAccountId
+      Parameters:
+        IsResourceOwnerAccount: !GetAtt Discovery.Outputs.IsResourceOwnerAccount
+        ExternalId: !Ref ExternalId
+        ReactorAccountId: !Ref ReactorAccountId
+        AuditCloudTrailBucketName: !GetAtt Discovery.Outputs.AuditCloudTrailBucketName
+        MasterPayerBillingBucketName: !GetAtt Discovery.Outputs.MasterPayerBillingBucketName
+        CloudTrailSQSQueueArn: !GetAtt CloudTrailOwnerAccount.Outputs.SQSQueueArn
+      TemplateURL: https://s3.amazonaws.com/cz-provision-account/latest/services/account_type/legacy.yaml
+
+
   ResourceOwnerAccount:
     Type: AWS::CloudFormation::Stack
     Properties:
@@ -210,9 +228,9 @@ Outputs:
   RemoteCloudTrailRole:
     Value: !Sub 'ClouZero RoleArn in the account that owns the ${Discovery.Outputs.AuditCloudTrailBucketName} bucket.'
   RoleArn:
-    Value: !GetAtt ResourceOwnerAccount.Outputs.RoleArn
+    Value: !GetAtt LegacyAccount.Outputs.RoleArn
   SnsArn:
     Value: !GetAtt Discovery.Outputs.CloudTrailSNSTopicArn
   SqsArn:
-    Value: !GetAtt CloudTrailOwnerAccount.Outputs.SQSQueueArn 
+    Value: !GetAtt CloudTrailOwnerAccount.Outputs.SQSQueueArn
 
