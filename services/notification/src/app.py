@@ -4,7 +4,8 @@
 
 import boto3
 import cfnresponse
-from toolz.curried import assoc_in, get_in, merge, pipe, update_in
+import requests
+from toolz.curried import assoc_in, get_in, keyfilter, merge, pipe, update_in
 from voluptuous import Any, Schema, ALLOW_EXTRA, REMOVE_EXTRA
 
 
@@ -12,9 +13,7 @@ import logging
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-
 cfn = boto3.resource('cloudformation')
-sqs = boto3.resource('sqs')
 
 DEFAULT_OUTPUT = {
     'AuditAccount': {},
@@ -49,7 +48,7 @@ INPUT_SCHEMA = Schema({
         'RequestType': Any('Create', 'Update', 'Delete'),
         'ResourceProperties': {
             'ExternalId': str,
-            'ReactorSQSQueueUrl': str,
+            'ReactorCallbackUrl': str,
             'AccountName': str,
             'ReactorId': str,
             'Stacks': {
@@ -70,8 +69,10 @@ OUTPUT_SCHEMA = Schema({
 }, required=True, extra=ALLOW_EXTRA)
 
 
+properties = get_in(['event', 'ResourceProperties'])
 stacks = get_in(['event', 'ResourceProperties', 'Stacks'])
-
+reactor_callback_url = get_in(['event', 'ResourceProperties', 'ReactorCallbackUrl'])
+callback_metadata = keyfilter(lambda x: x in {'ExternalId', 'AccountName', 'ReactorId'})
 
 #####################
 #
@@ -132,7 +133,8 @@ def prepare_output(world):
 #
 #####################
 def effects(world):
-    return pipe(world)
+    return pipe(world,
+                effects_reactor_callback)
 
 
 def effect(name):
@@ -146,6 +148,18 @@ def effect(name):
             return assoc_in(world, ['effects', name], data)
         return w
     return d
+
+
+@effect('reactor')
+def effects_reactor_callback(world):
+    url = reactor_callback_url(world)
+    data = {
+        **callback_metadata(properties(world)),
+        'links': world.get('output', DEFAULT_OUTPUT),
+    }
+    response = requests.post(url, data=data)
+    assert response.status_code == 200
+    return response.json()
 
 
 #####################
