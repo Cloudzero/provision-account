@@ -75,7 +75,7 @@ test: lint test-sam-apps
 .PHONY: %-sam-apps
 %-sam-apps:
 	for app in $(SAM_APPS) ; do \
-    pushd $${app} && $(MAKE) $* && popd &> /dev/null; \
+    cd $${app} ; $(MAKE) $* ; cd - &> /dev/null; \
   done
 
 .PHONY: clean                                                                           ## Cleans up everything that isn't source code (similar to re-cloning the repo)
