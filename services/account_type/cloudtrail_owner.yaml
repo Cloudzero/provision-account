@@ -93,9 +93,8 @@ Resources:
 
 Outputs:
   SQSQueueArn:
-    Condition: CreateResources
     Description: The CloudZero SQS queue
-    Value: !GetAtt SqsQueue.Arn
+    Value: !If [ CreateResources, !GetAtt SqsQueue.Arn, 'null' ]
   SQSQueuePolicyArn:
     Condition: CreateResources
     Description: The CloudZero SQS queue policy
