@@ -21,7 +21,7 @@ Metadata:
           default: CloudZero Callback Information
         Parameters:
           - ReactorId
-          - ReactorSQSQueueUrl
+          - ReactorCallbackUrl
     ParameterLabels:
       AccountName:
         default: |
@@ -35,7 +35,7 @@ Metadata:
       ReactorId:
         default: |
           CloudZero Reactor ID; Used to Uniquely ID the CloudZero System Ingesting your Data
-      ReactorSQSQueueUrl:
+      ReactorCallbackUrl:
         default: |
           CloudZero Reactor SQS Queue receives callbacks from this template
 
@@ -62,15 +62,15 @@ Parameters:
     Default: 'f7a07d02-d509-4e8d-9fb9-69c7985a6bd8'
     Description: |
       CloudZero Reactor ID; Used to Uniquely ID the CloudZero System Ingesting your Data
-  ReactorSQSQueueUrl:
+  ReactorCallbackUrl:
     Type: String
     Default: 'null'
     Description: |
       CloudZero Reactor Queue Url; receives callbacks from this template
 
 Conditions:
-  ValidReactorSQSQueueUrl: !Not
-    - !Equals [ !Ref ReactorSQSQueueUrl, 'null' ]
+  ValidReactorCallbackUrl: !Not
+    - !Equals [ !Ref ReactorCallbackUrl, 'null' ]
 
 Resources:
   Discovery:
@@ -166,7 +166,7 @@ Resources:
 
   NotificationFunctionStack:
     Type: AWS::CloudFormation::Stack
-    Condition: ValidReactorSQSQueueUrl
+    Condition: ValidReactorCallbackUrl
     Properties:
       Tags:
         - Key: cloudzero-stack
@@ -174,13 +174,13 @@ Resources:
         - Key: cloudzero-reactor-account-id
           Value: !Ref ReactorAccountId
       Parameters:
-        ReactorSQSQueueUrl: !Ref ReactorSQSQueueUrl
+        ReactorCallbackUrl: !Ref ReactorCallbackUrl
       TemplateURL: https://s3.amazonaws.com/cz-provision-account/latest/services/notification.yaml
 
 
   NotifyCloudZeroReactor:
     Type: Custom::NotifyCloudZero
-    Condition: ValidReactorSQSQueueUrl    
+    Condition: ValidReactorCallbackUrl    
     Properties:
       Tags:
         - Key: cloudzero-stack
@@ -192,7 +192,7 @@ Resources:
       Version: '1'
       # Parameters from Other Resources in this Stack
       ExternalId: !Ref ExternalId
-      ReactorSQSQueueUrl: !Ref ReactorSQSQueueUrl
+      ReactorCallbackUrl: !Ref ReactorCallbackUrl
       AccountName: !Ref AccountName
       ReactorId: !Ref ReactorId
       # References to other stacks; it's easier for _this_ Resource to simply grab the outputs
