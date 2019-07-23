@@ -38,7 +38,19 @@ Parameters:
   IsResourceOwnerAccount:
     Type: String
     Description: |
-      Should this template instantiate any resources?
+      Should this template create Resource Owner Policy?
+  IsAuditAccount:
+    Type: String
+    Description: |
+      Should this template create Audit Policy?
+  IsMasterPayerAccount:
+    Type: String
+    Description: |
+      Should this template create MasterPayer Policy?
+  IsCloudTrailOwnerAccount:
+    Type: String
+    Description: |
+      Should this template create CloudTrail Owner Policy?
   AuditCloudTrailBucketName:
     Description: The name of the S3 bucket responsible for CloudTrail event data
     Type: String
@@ -46,12 +58,21 @@ Parameters:
     Description: The name of the S3 bucket responsible for billing data
     Type: String
   CloudTrailSQSQueueArn:
-    Description: The SQS Queue receiving CloudTrail Events
+    Description: The CloudTrail Owner SQS Queue Arn
     Type: String
 
 
 Conditions:
   CreateResources: !Equals [ !Ref IsResourceOwnerAccount, 'true' ]
+  CreateCloudTrailPolicy: !And
+    - !Equals [ !Ref IsCloudTrailOwnerAccount, 'true' ]
+    - !Not [ !Equals [ !Ref CloudTrailSQSQueueArn, 'null' ] ]
+  CreateMasterPayerPolicy: !And
+    - !Equals [ !Ref IsMasterPayerAccount, 'true' ]
+    - !Not [ !Equals [ !Ref MasterPayerBillingBucketName, 'null' ] ]
+  CreateAuditPolicy: !And
+    - !Equals [ !Ref IsAuditAccount, 'true' ]
+    - !Not [ !Equals [ !Ref AuditCloudTrailBucketName, 'null' ] ]
 
 Resources:
   Role:
@@ -94,64 +115,82 @@ Resources:
         Version: 2012-10-17
         Statement:
           # CloudTrail Owner Account Permissions
-          - Sid: AccessCloudtrailQueue1
-            Effect: Allow
-            Action:
-            - 'sqs:*'
-            Resource:
-              - !Ref CloudTrailSQSQueueArn
+          - !If
+            - CreateCloudTrailPolicy
+            - Sid: AccessCloudtrailQueue1
+              Effect: Allow
+              Action:
+                - 'sqs:*'
+              Resource:
+                - !Ref CloudTrailSQSQueueArn
+            - !Ref AWS::NoValue
           # Audit Account Permissions
-          - Sid: AccessAuditCloudTrailBucket
-            Effect: Allow
-            Action:
-              - 's3:Get*'
-              - 's3:List*'
-            Resource:
-              - !Sub 'arn:aws:s3:::${AuditCloudTrailBucketName}'
-              - !Sub 'arn:aws:s3:::${AuditCloudTrailBucketName}/*'
+          - !If
+            - CreateAuditPolicy
+            - Sid: AccessAuditCloudTrailBucket
+              Effect: Allow
+              Action:
+                - 's3:Get*'
+                - 's3:List*'
+              Resource:
+                - !Sub 'arn:aws:s3:::${AuditCloudTrailBucketName}'
+                - !Sub 'arn:aws:s3:::${AuditCloudTrailBucketName}/*'
+            - !Ref AWS::NoValue
           # Master Payer Account Permissions
-          - Sid: ProtectAccountInfo1
-            Effect: Deny
-            Action: 'aws-portal:*Account'
-            Resource: '*'
-          - Sid: AccessMasterPayerBillingBucket
-            Effect: Allow
-            Action:
-              - 's3:Get*'
-              - 's3:List*'
-            Resource:
-              - !Sub 'arn:aws:s3:::${MasterPayerBillingBucketName}'
-              - !Sub 'arn:aws:s3:::${MasterPayerBillingBucketName}/*'
-          - Sid: ViewBilling1
-            Effect: Allow
-            Action:
-              - 'aws-portal:View*'
-              - 'budgets:*'
-              - 'cur:*'
-              - 'ce:*'
-            Resource: '*'
-          - Sid: ReservedCapacityServices
-            Effect: Allow
-            Action:
-              - 'cloudfront:Get*'
-              - 'cloudfront:List*'
-              - 'dynamodb:Describe*'
-              - 'dynamodb:Get*'
-              - 'dynamodb:List*'
-              - 'ec2:Describe*'
-              - 'ec2:Get*'
-              - 'ec2:Get*'
-              - 'elasticache:Describe*'
-              - 'elasticache:List*'
-              - 'elasticmapreduce:Describe*'
-              - 'elasticmapreduce:List*'
-              - 'es:Describe*'
-              - 'es:List*'
-              - 'es:Get*'
-              - 'rds:Describe*'
-              - 'redshift:Describe*'
-              - 'redshift:List*'
-            Resource: '*'
+          - !If
+            - CreateMasterPayerPolicy
+            - Sid: ProtectAccountInfo1
+              Effect: Deny
+              Action: 'aws-portal:*Account'
+              Resource: '*'
+            - !Ref AWS::NoValue
+          - !If
+            - CreateMasterPayerPolicy
+            - Sid: AccessMasterPayerBillingBucket
+              Effect: Allow
+              Action:
+                - 's3:Get*'
+                - 's3:List*'
+              Resource:
+                - !Sub 'arn:aws:s3:::${MasterPayerBillingBucketName}'
+                - !Sub 'arn:aws:s3:::${MasterPayerBillingBucketName}/*'
+            - !Ref AWS::NoValue
+          - !If
+            - CreateMasterPayerPolicy
+            - Sid: ViewBilling1
+              Effect: Allow
+              Action:
+                - 'aws-portal:View*'
+                - 'budgets:*'
+                - 'cur:*'
+                - 'ce:*'
+              Resource: '*'
+            - !Ref AWS::NoValue
+          - !If
+            - CreateMasterPayerPolicy
+            - Sid: ReservedCapacityServices
+              Effect: Allow
+              Action:
+                - 'cloudfront:Get*'
+                - 'cloudfront:List*'
+                - 'dynamodb:Describe*'
+                - 'dynamodb:Get*'
+                - 'dynamodb:List*'
+                - 'ec2:Describe*'
+                - 'ec2:Get*'
+                - 'ec2:Get*'
+                - 'elasticache:Describe*'
+                - 'elasticache:List*'
+                - 'elasticmapreduce:Describe*'
+                - 'elasticmapreduce:List*'
+                - 'es:Describe*'
+                - 'es:List*'
+                - 'es:Get*'
+                - 'rds:Describe*'
+                - 'redshift:Describe*'
+                - 'redshift:List*'
+              Resource: '*'
+            - !Ref AWS::NoValue
           # Resource Owner Account Permissions
           - Sid: AccessCZLogGroups1
             Effect: Allow
@@ -262,6 +301,8 @@ Resources:
 
 Outputs:
   RoleArn:
-    Condition: CreateResources
-    Value: !GetAtt Role.Arn
+    Value: !If
+      - CreateResources
+      - !GetAtt Role.Arn
+      - 'null'
     Description: Resource Owner Cross Account Role ARN

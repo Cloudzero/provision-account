@@ -83,6 +83,7 @@ Resources:
           Value: !Ref ReactorAccountId
       TemplateURL: https://s3.amazonaws.com/cz-provision-account/latest/services/discovery.yaml
 
+  # TODO: This Legacy Account supports older reactors that require all permissions in a single role
   LegacyAccount:
     Type: AWS::CloudFormation::Stack
     Properties:
@@ -93,6 +94,9 @@ Resources:
           Value: !Ref ReactorAccountId
       Parameters:
         IsResourceOwnerAccount: !GetAtt Discovery.Outputs.IsResourceOwnerAccount
+        IsAuditAccount: !GetAtt Discovery.Outputs.IsAuditAccount
+        IsMasterPayerAccount: !GetAtt Discovery.Outputs.IsMasterPayerAccount
+        IsCloudTrailOwnerAccount: !GetAtt Discovery.Outputs.IsCloudTrailOwnerAccount
         ExternalId: !Ref ExternalId
         ReactorAccountId: !Ref ReactorAccountId
         AuditCloudTrailBucketName: !GetAtt Discovery.Outputs.AuditCloudTrailBucketName
