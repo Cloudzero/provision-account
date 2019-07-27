@@ -16,8 +16,10 @@ Resources:
   DiscoveryFunction:
     Type: AWS::Serverless::Function 
     Properties:
-      CodeUri: src/
-      Handler: app.handler
+      CodeUri:
+        Bucket: !Sub 'cz-provision-account-${AWS::Region}'
+        Key: latest/services/discovery.zip
+      Handler: src.app.handler
       Policies:
         - AmazonS3ReadOnlyAccess
         - AWSCloudTrailReadOnlyAccess

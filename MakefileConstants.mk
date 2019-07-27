@@ -24,3 +24,4 @@ CFN_LINT_OUTPUT := cfn-lint.output
 # CFN Constants
 TEMPLATE_FILE := template.yaml
 PACKAGED_TEMPLATE_FILE := packaged-template.yaml
+APP_ZIP := app.zip

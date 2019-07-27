@@ -28,8 +28,10 @@ Resources:
     Type: AWS::Serverless::Function
     Condition: ValidReactorCallbackUrl
     Properties:
-      CodeUri: src/
-      Handler: app.handler
+      CodeUri:
+        Bucket: !Sub 'cz-provision-account-${AWS::Region}'
+        Key: latest/services/notification.zip
+      Handler: src.app.handler
       Policies:
         - SQSSendMessagePolicy:
             QueueName: !Select

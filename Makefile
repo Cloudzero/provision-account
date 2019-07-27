@@ -11,7 +11,7 @@ include MakefileConstants.mk
 #
 ####################
 ALL_CFN_TEMPLATES := $(shell find services -name "*.yaml" -a ! -name "packaged*.yaml" -a ! -path "*.aws-sam*")
-SAM_APPS := $(shell find services -name "tox.ini" | xargs -Ipath dirname path | uniq)
+SAM_APPS := $(shell find services -name "tox.ini" | grep -v '.aws-sam' | xargs -Ipath dirname path | uniq)
 SAM_TEMPLATES := $(shell find $(SAM_APPS) -name "template.yaml" -maxdepth 1)
 CFN_TEMPLATES := $(filter-out $(SAM_TEMPLATES), $(ALL_CFN_TEMPLATES))
 
@@ -93,14 +93,14 @@ clean: clean-sam-apps
 #
 ###################
 
-cfn-deploy: guard-stack_name guard-template_file
+cfn-deploy: guard-stack_name guard-template_file guard-bucket
 	@aws cloudformation deploy \
 		--template-file $${template_file} \
 		--stack-name $${stack_name} \
 		--capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
 		--no-fail-on-empty-changeset \
 		--parameter-overrides \
-			BucketName=$(BUCKET) \
+			BucketName=$(bucket) \
 		--tags "cz:feature=$(FEATURE_NAME)" "cz:team=$(TEAM_NAME)"
 
 
@@ -123,7 +123,7 @@ cfn-describe: guard-stack_name
 		--stack-name $${stack_name}
 
 
-cfn-dryrun: guard-stack_name guard-template_file
+cfn-dryrun: guard-stack_name guard-template_file guard-bucket
 	@aws cloudformation deploy \
 		--template-file $${template_file} \
 		--stack-name $${stack_name} \
@@ -131,7 +131,7 @@ cfn-dryrun: guard-stack_name guard-template_file
 		--no-fail-on-empty-changeset \
 		--no-execute-changeset \
 		--parameter-overrides \
-			BucketName=$(BUCKET) \
+			BucketName=$(bucket) \
 		--tags "cz:feature=$(FEATURE_NAME)" "cz:team=$(TEAM_NAME)"
 
 
@@ -149,20 +149,39 @@ deploy-dry-run: $(VIRTUAL_ENV) $(PACKAGED_TEMPLATE_FILE)
 	@$(MAKE) cfn-dryrun stack_name=cz-$(FEATURE_NAME) template_file=$(PACKAGED_TEMPLATE_FILE)
 
 
+.PHONY: deploy-once
+deploy-once:
+	@. ./project.sh && cz_assert_profile && \
+	regions=`aws ec2 describe-regions | jq -r -e '.Regions[].RegionName'` && \
+	$(MAKE) $(PACKAGED_TEMPLATE_FILE) && \
+	printf "$(INFO_COLOR)Deploying regionless $(WARN_COLOR)$(BUCKET)$(NO_COLOR) to us-east-1.\n" && \
+	$(MAKE) cfn-deploy stack_name=cz-$(FEATURE_NAME) template_file=$(PACKAGED_TEMPLATE_FILE) bucket=$(BUCKET) && \
+	for r in $${regions} ; do\
+		printf "$(INFO_COLOR)Deploying to $(WARN_COLOR)$${r}$(NO_COLOR).\n" && \
+		export AWS_DEFAULT_REGION="$${r}" && \
+		$(MAKE) cfn-deploy stack_name="cz-$(FEATURE_NAME)-$${r}" template_file=$(PACKAGED_TEMPLATE_FILE) bucket="$(BUCKET)-$${r}" ; \
+	done
+
+
 .PHONY: deploy                                                                          ## Deploys Artifacts to S3 Bucket
 deploy:
 	@. ./project.sh && cz_assert_profile && \
-	$(MAKE) $(PACKAGED_TEMPLATE_FILE) && \
+	regions=`aws ec2 describe-regions | jq -r -e '.Regions[].RegionName'` && \
 	$(MAKE) package-sam-apps && \
-	$(MAKE) cfn-deploy stack_name=cz-$(FEATURE_NAME) template_file=$(PACKAGED_TEMPLATE_FILE)
 	version=`git rev-list --count HEAD` && \
 	for cfn in $(CFN_TEMPLATES) ; do \
 		aws s3 cp $${cfn} s3://$(BUCKET)/v$(SEMVER_MAJ_MIN).$${version}/$${cfn} && \
 		aws s3 cp $${cfn} s3://$(BUCKET)/latest/$${cfn} ; \
 	done && \
 	for app in $(SAM_APPS) ; do \
-		aws s3 cp $${app}/$(PACKAGED_TEMPLATE_FILE) s3://$(BUCKET)/v$(SEMVER_MAJ_MIN).$${version}/$${app}.yaml && \
-		aws s3 cp $${app}/$(PACKAGED_TEMPLATE_FILE) s3://$(BUCKET)/latest/$${app}.yaml ; \
+		aws s3 cp $${app}/$(TEMPLATE_FILE) s3://$(BUCKET)/v$(SEMVER_MAJ_MIN).$${version}/$${app}.yaml && \
+		aws s3 cp $${app}/$(TEMPLATE_FILE) s3://$(BUCKET)/latest/$${app}.yaml && \
+		aws s3 cp $${app}/$(APP_ZIP) s3://$(BUCKET)/v$(SEMVER_MAJ_MIN).$${version}/$${app}.zip && \
+		aws s3 cp $${app}/$(APP_ZIP) s3://$(BUCKET)/latest/$${app}.zip && \
+		for r in $${regions} ; do \
+			aws s3 cp $${app}/$(APP_ZIP) s3://$(BUCKET)-$${r}/v$(SEMVER_MAJ_MIN).$${version}/$${app}.zip && \
+			aws s3 cp $${app}/$(APP_ZIP) s3://$(BUCKET)-$${r}/latest/$${app}.zip ; \
+		done ; \
 	done
 
 

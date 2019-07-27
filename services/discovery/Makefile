@@ -104,12 +104,9 @@ $(BUILD_DIR): $(SRC_FILES) $(TEMPLATE_FILE)
 	sam build
 
 .PHONY: package
-package: $(PACKAGED_TEMPLATE_FILE)
-$(PACKAGED_TEMPLATE_FILE): $(BUILD_DIR)
-	@. ../../project.sh && cz_assert_profile && \
-	sam package \
-		--s3-bucket $(bucket) \
-		--output-template-file $@
+package: $(APP_ZIP)
+$(APP_ZIP): $(BUILD_DIR)
+	cd .aws-sam/build/DiscoveryFunction ; zip -rq ../../../$@ .
 
 
 .PHONY: deploy
