@@ -33,10 +33,7 @@ Resources:
         Key: latest/services/notification.zip
       Handler: src.app.handler
       Policies:
-        - SQSSendMessagePolicy:
-            QueueName: !Select
-              - 4
-              - !Split [ '/', !Ref ReactorCallbackUrl ]
+        - AWSCloudFormationReadOnlyAccess
       Environment:
         Variables:
           VERSION: '1'

@@ -23,6 +23,8 @@ def cfn_event():
         'RequestId': 'some request id',
         'RequestType': 'Create',
         'ResourceProperties': {
+            'AccountId': 'str',
+            'Region': 'str',
             'ExternalId': 'str',
             'ReactorCallbackUrl': 'str',
             'AccountName': 'str',
@@ -70,7 +72,7 @@ def context(mocker):
 @pytest.mark.unit
 def test_handler_no_cfn_coeffects(context, cfn_event):
     response = Response(200, json=json.dumps({}))
-    context.mock_requests_post.resturn_value = response
+    context.mock_requests_post.return_value = response
     ret = app.handler(cfn_event, None)
     assert ret is None
     assert context.mock_cfnresponse_send.call_count == 1
@@ -86,10 +88,13 @@ def test_handler_no_cfn_coeffects(context, cfn_event):
     assert status == cfnresponse.SUCCESS
     assert output == expected
     (_, kwargs) = context.mock_requests_post.call_args
-    assert 'data' in kwargs
-    assert kwargs['data'] == {
-        'ExternalId': 'str',
+    assert 'json' in kwargs
+    assert kwargs['json'] == {
+        'Region': 'str',
         'AccountName': 'str',
+        'AccountId': 'str',
+        'ReactorCallbackUrl': 'str',
+        'ExternalId': 'str',
         'ReactorId': 'str',
         'links': expected,
     }
