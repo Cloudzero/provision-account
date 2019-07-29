@@ -53,11 +53,6 @@ Resources:
             Condition:
               StringEquals:
                 'sts:ExternalId': !Ref ExternalId
-      Tags:
-        - Key: cloudzero-stack
-          Value: !Ref AWS::StackName
-        - Key: cloudzero-reactor-account-id
-          Value: !Ref ReactorAccountId
 
 
   CrossAccountRoleAccessPolicyPayer:

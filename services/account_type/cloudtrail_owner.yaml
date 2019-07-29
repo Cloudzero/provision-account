@@ -42,7 +42,9 @@ Resources:
     Properties:
       Protocol: sqs
       Endpoint: !GetAtt SqsQueue.Arn
-      Region: !Ref "AWS::Region"
+      Region: !Select
+        - 3
+        - !Split [ ':', !Ref CloudTrailSNSTopicArn ]
       TopicArn: !Ref CloudTrailSNSTopicArn
 
   SqsPolicy:
