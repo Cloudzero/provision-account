@@ -36,32 +36,6 @@ Resources:
         - Key: cloudzero-reactor-account-id
           Value: !Ref ReactorAccountId
 
-  SnsTopicPolicy:
-    Type: 'AWS::SNS::TopicPolicy'
-    Condition: CreateResources
-    Properties:
-      Topics:
-        - !Ref CloudTrailSNSTopicArn
-      PolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Sid: AWSCloudTrailSNSPolicyCloudZeroReactor20170207
-            Effect: Allow
-            Principal:
-              Service: cloudtrail.amazonaws.com
-            Action:
-              - 'sns:Publish'
-            Resource: !Ref CloudTrailSNSTopicArn
-          - Sid: AWSCloudTrailCrossAccountSNSPolicy20170207ForCloudZeroReactor
-            Effect: Allow
-            Principal:
-              AWS: !Sub 'arn:aws:iam::${ReactorAccountId}:root'
-            Action:
-              - 'sns:Subscribe'
-              - 'sns:Receive'
-              - 'sns:ListSubscriptionsByTopic'
-            Resource: !Ref CloudTrailSNSTopicArn
-
   SnsSubscription:
     Type: AWS::SNS::Subscription
     Condition: CreateResources
@@ -99,7 +73,3 @@ Outputs:
     Condition: CreateResources
     Description: The CloudZero SQS queue policy
     Value: !Ref SqsPolicy
-  SNSTopicPolicyArn:
-    Condition: CreateResources
-    Description: The ARN of the cloudtrail SNS topic
-    Value: !Ref SnsTopicPolicy

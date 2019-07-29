@@ -19,7 +19,6 @@ DEFAULT_OUTPUT = {
     'AuditAccount': {},
     'CloudTrailOwnerAccount': {
         'SQSQueueArn': 'arn:aws:sqs:us-east-1:461080371632:cz-adam-provision-connected-account-CloudTrailOwnerAccoun-SqsQueue-GNMFW27Q4TUQ',
-        'SNSTopicPolicyArn': 'cz-adam-provision-connected-account-CloudTrailOwner-SnsTopicPolicy-NHW0XLLATEGR',
         'SQSQueuePolicyArn': 'cz-adam-provision-connected-account-CloudTrailOwnerAccou-SqsPolicy-3GVXKLNY0GPJ'
     },
     'Discovery': {
