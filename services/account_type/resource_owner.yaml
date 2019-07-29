@@ -49,12 +49,7 @@ Resources:
     Type: AWS::IAM::Role
     Condition: CreateResources
     Properties:
-      Tags:
-        - Key: cloudzero-stack
-          Value: !Ref AWS::StackName
-        - Key: cloudzero-reactor-account-id
-          Value: !Ref ReactorAccountId
-      Path: /cloudzero/
+      Path: '/cloudzero/'
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement: 

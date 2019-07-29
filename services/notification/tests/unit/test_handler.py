@@ -7,6 +7,7 @@ import os
 import attrdict
 import cfnresponse
 import pytest
+import simplejson as json
 # from voluptuous import All, Schema, ALLOW_EXTRA
 # from toolz.curried import assoc_in
 
@@ -22,9 +23,8 @@ def cfn_event():
         'RequestId': 'some request id',
         'RequestType': 'Create',
         'ResourceProperties': {
-            'ReactorSQSQueueUrl': 'str',
             'ExternalId': 'str',
-            'ReactorSQSQueueUrl': 'str',
+            'ReactorCallbackUrl': 'str',
             'AccountName': 'str',
             'ReactorId': 'str',
             'Stacks': {
@@ -40,6 +40,19 @@ def cfn_event():
     }
 
 
+class Response:
+    def __init__(self, status_code, json={}, data={}):
+        self.status_code = status_code
+        self.json = {}
+        self.data = {}
+
+    def json(self):
+        return self.json
+
+    def data(self):
+        return self.data
+
+
 @pytest.fixture(scope='function')
 def context(mocker):
     context = attrdict.AttrMap()
@@ -47,7 +60,7 @@ def context(mocker):
     context.os = {'environ': os.environ}
     context.prefix = app.__name__
     context.mock_cfnresponse_send = mocker.patch(f'{context.prefix}.cfnresponse.send', autospec=True)
-    context.mock_sqs = mocker.patch(f'{context.prefix}.sqs', autospec=True)
+    context.mock_requests_post = mocker.patch(f'{context.prefix}.requests.post', autospec=True)
     context.mock_cfn = mocker.patch(f'{context.prefix}.cfn', autospec=True)
     yield context
     os.environ = orig_env
@@ -56,15 +69,27 @@ def context(mocker):
 
 @pytest.mark.unit
 def test_handler_no_cfn_coeffects(context, cfn_event):
+    response = Response(200, json=json.dumps({}))
+    context.mock_requests_post.resturn_value = response
     ret = app.handler(cfn_event, None)
     assert ret is None
     assert context.mock_cfnresponse_send.call_count == 1
-    ((_, _, status, output, _), kwargs) = context.mock_cfnresponse_send.call_args
-    assert status == cfnresponse.SUCCESS
-    assert output == {
+    assert context.mock_requests_post.call_count == 1
+    ((_, _, status, output, _), _) = context.mock_cfnresponse_send.call_args
+    expected = {
         'AuditAccount': {},
         'CloudTrailOwnerAccount': {},
         'Discovery': {},
         'MasterPayerAccount': {},
         'ResourceOwnerAccount': {},
+    }
+    assert status == cfnresponse.SUCCESS
+    assert output == expected
+    (_, kwargs) = context.mock_requests_post.call_args
+    assert 'data' in kwargs
+    assert kwargs['data'] == {
+        'ExternalId': 'str',
+        'AccountName': 'str',
+        'ReactorId': 'str',
+        'links': expected,
     }

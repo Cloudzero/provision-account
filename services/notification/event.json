@@ -4,9 +4,9 @@
   "RequestId": "Some Request Id",
   "RequestType": "Create",
   "ResourceProperties": {
-    "ReactorSQSQueueUrl": "str",
+    "ReactorCallbackUrl": "str",
     "ExternalId": "str",
-    "ReactorSQSQueueUrl": "str",
+    "ReactorCallbackUrl": "str",
     "AccountName": "str",
     "ReactorId": "str",
     "Stacks": {

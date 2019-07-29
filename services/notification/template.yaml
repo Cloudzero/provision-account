@@ -7,15 +7,15 @@ Description: >
   SAM Template for notification
 
 Parameters:
-  ReactorSQSQueueUrl:
+  ReactorCallbackUrl:
     Type: String
     Default: 'null'
     Description: |
       CloudZero Reactor Queue Url; receives callbacks from this template
 
 Conditions:
-  ValidReactorSQSQueueUrl: !Not
-    - !Equals [ !Ref ReactorSQSQueueUrl, 'null' ]
+  ValidReactorCallbackUrl: !Not
+    - !Equals [ !Ref ReactorCallbackUrl, 'null' ]
 
 Globals:
   Function:
@@ -26,21 +26,23 @@ Globals:
 Resources:
   NotificationFunction:
     Type: AWS::Serverless::Function
-    Condition: ValidReactorSQSQueueUrl
+    Condition: ValidReactorCallbackUrl
     Properties:
-      CodeUri: src/
-      Handler: app.handler
+      CodeUri:
+        Bucket: !Sub 'cz-provision-account-${AWS::Region}'
+        Key: latest/services/notification.zip
+      Handler: src.app.handler
       Policies:
         - SQSSendMessagePolicy:
             QueueName: !Select
               - 4
-              - !Split [ '/', !Ref ReactorSQSQueueUrl ]
+              - !Split [ '/', !Ref ReactorCallbackUrl ]
       Environment:
         Variables:
           VERSION: '1'
 
 Outputs:
   Arn:
-    Condition: ValidReactorSQSQueueUrl
+    Condition: ValidReactorCallbackUrl
     Value: !GetAtt NotificationFunction.Arn
     Description: Notification Function ARN 
