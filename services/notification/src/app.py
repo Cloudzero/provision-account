@@ -74,6 +74,7 @@ stacks = get_in(['event', 'ResourceProperties', 'Stacks'])
 reactor_callback_url = get_in(['event', 'ResourceProperties', 'ReactorCallbackUrl'])
 callback_metadata = keyfilter(lambda x: x in {'ExternalId', 'AccountName', 'ReactorId'})
 
+
 #####################
 #
 # Coeffects, i.e. from the outside world
