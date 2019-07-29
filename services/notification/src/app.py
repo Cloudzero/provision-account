@@ -19,21 +19,24 @@ cfn = boto3.resource('cloudformation')
 DEFAULT_OUTPUT = {
     'AuditAccount': {},
     'CloudTrailOwnerAccount': {
-        'SQSQueueArn': 'arn:aws:sqs:us-east-1:461080371632:cz-adam-provision-connected-account-CloudTrailOwnerAccoun-SqsQueue-GNMFW27Q4TUQ',
-        'SQSQueuePolicyArn': 'cz-adam-provision-connected-account-CloudTrailOwnerAccou-SqsPolicy-3GVXKLNY0GPJ'
+        'SQSQueueArn': 'null',
+        'SQSQueuePolicyArn': 'null'
     },
     'Discovery': {
-        'AuditCloudTrailBucketName': 'cloudtrail-events-966895021400',
+        'AuditCloudTrailBucketName': 'null',
         'MasterPayerBillingBucketName': 'null',
-        'CloudTrailSNSTopicArn': 'arn:aws:sns:us-east-1:461080371632:cloudtrail-events',
-        'IsCloudTrailOwnerAccount': 'true',
+        'CloudTrailSNSTopicArn': 'null',
+        'IsCloudTrailOwnerAccount': 'false',
         'IsMasterPayerAccount': 'false',
         'IsAuditAccount': 'false',
-        'IsResourceOwnerAccount': 'true'
+        'IsResourceOwnerAccount': 'false'
     },
     'MasterPayerAccount': {},
     'ResourceOwnerAccount': {
-        'RoleArn': 'arn:aws:iam::461080371632:role/cloudzero/cz-adam-provision-connected-account-ResourceO-Role-1BKZNPQTUCGDN'
+        'RoleArn': 'null'
+    },
+    'LegacyAccount': {
+        'RoleArn': 'null'
     }
 }
 
@@ -59,6 +62,7 @@ INPUT_SCHEMA = Schema({
                 'CloudTrailOwnerAccount': str,
                 'AuditAccount': str,
                 'MasterPayerAccount': str,
+                'LegacyAccount': str,
             }
         },
         'ResponseURL': str,
