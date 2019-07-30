@@ -63,7 +63,8 @@ Parameters:
 
 
 Conditions:
-  CreateResources: !Equals [ !Ref IsResourceOwnerAccount, 'true' ]
+  # TODO: Temporarily, during beta, always apply CreateResources
+  CreateResources: !Equals [ 'true', 'true' ]
   CreateCloudTrailPolicy: !And
     - !Equals [ !Ref IsCloudTrailOwnerAccount, 'true' ]
     - !Not [ !Equals [ !Ref CloudTrailSQSQueueArn, 'null' ] ]
@@ -134,13 +135,6 @@ Resources:
           # Master Payer Account Permissions
           - !If
             - CreateMasterPayerPolicy
-            - Sid: ProtectAccountInfo1
-              Effect: Deny
-              Action: 'aws-portal:*Account'
-              Resource: '*'
-            - !Ref AWS::NoValue
-          - !If
-            - CreateMasterPayerPolicy
             - Sid: AccessMasterPayerBillingBucket
               Effect: Allow
               Action:
@@ -150,43 +144,38 @@ Resources:
                 - !Sub 'arn:aws:s3:::${MasterPayerBillingBucketName}'
                 - !Sub 'arn:aws:s3:::${MasterPayerBillingBucketName}/*'
             - !Ref AWS::NoValue
-          - !If
-            - CreateMasterPayerPolicy
-            - Sid: ViewBilling1
-              Effect: Allow
-              Action:
-                - 'aws-portal:View*'
-                - 'budgets:*'
-                - 'cur:*'
-                - 'ce:*'
-              Resource: '*'
-            - !Ref AWS::NoValue
-          - !If
-            - CreateMasterPayerPolicy
-            - Sid: ReservedCapacityServices
-              Effect: Allow
-              Action:
-                - 'cloudfront:Get*'
-                - 'cloudfront:List*'
-                - 'dynamodb:Describe*'
-                - 'dynamodb:Get*'
-                - 'dynamodb:List*'
-                - 'ec2:Describe*'
-                - 'ec2:Get*'
-                - 'ec2:Get*'
-                - 'elasticache:Describe*'
-                - 'elasticache:List*'
-                - 'elasticmapreduce:Describe*'
-                - 'elasticmapreduce:List*'
-                - 'es:Describe*'
-                - 'es:List*'
-                - 'es:Get*'
-                - 'rds:Describe*'
-                - 'redshift:Describe*'
-                - 'redshift:List*'
-              Resource: '*'
-            - !Ref AWS::NoValue
           # Resource Owner Account Permissions
+          # TODO: Moved Billing access here for now
+          - Sid: ViewBilling1
+            Effect: Allow
+            Action:
+              - 'aws-portal:View*'
+              - 'budgets:*'
+              - 'cur:*'
+              - 'ce:*'
+            Resource: '*'
+          - Sid: ReservedCapacityServices
+            Effect: Allow
+            Action:
+              - 'cloudfront:Get*'
+              - 'cloudfront:List*'
+              - 'dynamodb:Describe*'
+              - 'dynamodb:Get*'
+              - 'dynamodb:List*'
+              - 'ec2:Describe*'
+              - 'ec2:Get*'
+              - 'ec2:Get*'
+              - 'elasticache:Describe*'
+              - 'elasticache:List*'
+              - 'elasticmapreduce:Describe*'
+              - 'elasticmapreduce:List*'
+              - 'es:Describe*'
+              - 'es:List*'
+              - 'es:Get*'
+              - 'rds:Describe*'
+              - 'redshift:Describe*'
+              - 'redshift:List*'
+            Resource: '*'
           - Sid: AccessCZLogGroups1
             Effect: Allow
             Action: logs:*
@@ -265,6 +254,7 @@ Resources:
               - machinelearning:Describe*
               - opsworks:Describe*
               - opsworks-cm:Describe*
+              - organizations:Describe*
               - organizations:List*
               - redshift:View*
               - redshift:Describe*
@@ -295,6 +285,8 @@ Resources:
         - !Ref Role
 
 Outputs:
+  IsResourceOwnerAccount:
+    Value: !Ref IsResourceOwnerAccount
   RoleArn:
     Value: !If
       - CreateResources

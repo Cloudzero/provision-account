@@ -34,7 +34,8 @@ def cfn_event():
                 'CloudTrailOwnerAccount': 'stack-arn',
                 'Discovery': 'stack-arn',
                 'MasterPayerAccount': 'stack-arn',
-                'ResourceOwnerAccount': 'stack-arn'
+                'ResourceOwnerAccount': 'stack-arn',
+                'LegacyAccount': 'stack-arn',
             }
         },
         'ResponseURL': 'https://cfn.amazonaws.com/callback',
@@ -84,6 +85,7 @@ def test_handler_no_cfn_coeffects(context, cfn_event):
         'Discovery': {},
         'MasterPayerAccount': {},
         'ResourceOwnerAccount': {},
+        'LegacyAccount': {},
     }
     assert status == cfnresponse.SUCCESS
     assert output == expected

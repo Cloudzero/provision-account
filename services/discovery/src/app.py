@@ -15,7 +15,7 @@ logger.setLevel(logging.INFO)
 
 
 ct = boto3.client('cloudtrail')
-cur = boto3.client('cur')
+cur = boto3.client('cur', region_name='us-east-1')  # cur is only in us-east-1
 s3 = boto3.client('s3')
 
 DEFAULT_OUTPUT = {
