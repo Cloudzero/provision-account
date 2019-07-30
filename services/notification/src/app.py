@@ -5,6 +5,7 @@
 import boto3
 import cfnresponse
 import requests
+import simplejson as json
 from toolz.curried import assoc_in, get_in, keyfilter, merge, pipe, update_in
 from voluptuous import Any, Schema, ALLOW_EXTRA, REMOVE_EXTRA
 
@@ -18,21 +19,24 @@ cfn = boto3.resource('cloudformation')
 DEFAULT_OUTPUT = {
     'AuditAccount': {},
     'CloudTrailOwnerAccount': {
-        'SQSQueueArn': 'arn:aws:sqs:us-east-1:461080371632:cz-adam-provision-connected-account-CloudTrailOwnerAccoun-SqsQueue-GNMFW27Q4TUQ',
-        'SQSQueuePolicyArn': 'cz-adam-provision-connected-account-CloudTrailOwnerAccou-SqsPolicy-3GVXKLNY0GPJ'
+        'SQSQueueArn': 'null',
+        'SQSQueuePolicyArn': 'null'
     },
     'Discovery': {
-        'AuditCloudTrailBucketName': 'cloudtrail-events-966895021400',
+        'AuditCloudTrailBucketName': 'null',
         'MasterPayerBillingBucketName': 'null',
-        'CloudTrailSNSTopicArn': 'arn:aws:sns:us-east-1:461080371632:cloudtrail-events',
-        'IsCloudTrailOwnerAccount': 'true',
+        'CloudTrailSNSTopicArn': 'null',
+        'IsCloudTrailOwnerAccount': 'false',
         'IsMasterPayerAccount': 'false',
         'IsAuditAccount': 'false',
-        'IsResourceOwnerAccount': 'true'
+        'IsResourceOwnerAccount': 'false'
     },
     'MasterPayerAccount': {},
     'ResourceOwnerAccount': {
-        'RoleArn': 'arn:aws:iam::461080371632:role/cloudzero/cz-adam-provision-connected-account-ResourceO-Role-1BKZNPQTUCGDN'
+        'RoleArn': 'null'
+    },
+    'LegacyAccount': {
+        'RoleArn': 'null'
     }
 }
 
@@ -50,12 +54,15 @@ INPUT_SCHEMA = Schema({
             'ReactorCallbackUrl': str,
             'AccountName': str,
             'ReactorId': str,
+            'AccountId': str,
+            'Region': str,
             'Stacks': {
                 'Discovery': str,
                 'ResourceOwnerAccount': str,
                 'CloudTrailOwnerAccount': str,
                 'AuditAccount': str,
                 'MasterPayerAccount': str,
+                'LegacyAccount': str,
             }
         },
         'ResponseURL': str,
@@ -71,7 +78,8 @@ OUTPUT_SCHEMA = Schema({
 properties = get_in(['event', 'ResourceProperties'])
 stacks = get_in(['event', 'ResourceProperties', 'Stacks'])
 reactor_callback_url = get_in(['event', 'ResourceProperties', 'ReactorCallbackUrl'])
-callback_metadata = keyfilter(lambda x: x in {'ExternalId', 'AccountName', 'ReactorId'})
+supported_metadata = {'Region', 'ExternalId', 'AccountId', 'AccountName', 'ReactorId', 'ReactorCallbackUrl'}
+callback_metadata = keyfilter(lambda x: x in supported_metadata)
 
 
 #####################
@@ -157,9 +165,11 @@ def effects_reactor_callback(world):
         **callback_metadata(properties(world)),
         'links': world.get('output', DEFAULT_OUTPUT),
     }
-    response = requests.post(url, data=data)
+    logger.info(f'Posting to {url} this data: {json.dumps(data)}')
+    response = requests.post(url, json=data)
+    logger.info(f'response {response.status_code}; text {response.text}')
     assert response.status_code == 200
-    return response.json()
+    return response.text
 
 
 #####################
@@ -170,9 +180,8 @@ def effects_reactor_callback(world):
 def handler(event, context, **kwargs):
     status = cfnresponse.SUCCESS
     world = {}
-    logger.info('WTF')
     try:
-        logger.info(f'Processing event {event}')
+        logger.info(f'Processing event {json.dumps(event)}')
         world = pipe({'event': event, 'kwargs': kwargs},
                      INPUT_SCHEMA,
                      coeffects,

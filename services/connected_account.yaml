@@ -172,12 +172,13 @@ Resources:
         - Key: cloudzero-reactor-account-id
           Value: !FindInMap [ CallbackConfiguration, prod, ReactorAccountId ]
       ServiceToken: !GetAtt NotificationFunctionStack.Outputs.Arn
-      AccountId: !Sub ${AWS::AccountId}
+      AccountId: !Ref AWS::AccountId
       Version: '1'
       # Parameters from Other Resources in this Stack
       ExternalId: !Ref ExternalId
       ReactorCallbackUrl: !FindInMap [ CallbackConfiguration, prod, ReactorCallbackUrl ]
       AccountName: !Ref AccountName
+      Region: !Ref AWS::Region
       ReactorId: !FindInMap [ CallbackConfiguration, prod, ReactorId ]
       # References to other stacks; it's easier for _this_ Resource to simply grab the outputs
       # programmatically b/c some of the outputs are conditional.
@@ -187,6 +188,7 @@ Resources:
         CloudTrailOwnerAccount: !Ref CloudTrailOwnerAccount
         AuditAccount: !Ref AuditAccount
         MasterPayerAccount: !Ref MasterPayerAccount
+        LegacyAccount: !Ref LegacyAccount
 
 
 

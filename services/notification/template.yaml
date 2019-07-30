@@ -20,8 +20,8 @@ Conditions:
 Globals:
   Function:
     Runtime: python3.7
-    MemorySize: 256
-    Timeout: 10
+    MemorySize: 512
+    Timeout: 30
 
 Resources:
   NotificationFunction:
@@ -33,10 +33,7 @@ Resources:
         Key: latest/services/notification.zip
       Handler: src.app.handler
       Policies:
-        - SQSSendMessagePolicy:
-            QueueName: !Select
-              - 4
-              - !Split [ '/', !Ref ReactorCallbackUrl ]
+        - AWSCloudFormationReadOnlyAccess
       Environment:
         Variables:
           VERSION: '1'

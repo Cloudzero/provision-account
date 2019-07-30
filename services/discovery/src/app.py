@@ -144,7 +144,9 @@ def keep_valid(schema, xs):
 
 def get_first_valid_trail(world):
     trails = coeffects_traillist(world)
+    logger.info(f'Found these CloudTrails: {trails}')
     valid_trails = keep_valid(IDEAL_CLOUDTRAIL_CONFIGURATION, trails) or keep_valid(MINIMUM_CLOUDTRAIL_CONFIGURATION, trails)
+    logger.info(f'Found these _valid_ CloudTrails: {valid_trails}')
     return valid_trails[0] if valid_trails else {}
 
 
@@ -170,10 +172,8 @@ def discover_connected_account(world):
 
 def discover_cloudtrail_account(world):
     trail = get_first_valid_trail(world)
-    print('trail', trail)
     trail_topic = trail.get('SnsTopicARN')
     account_id = trail_topic.split(':')[4] if trail_topic else None
-    print('WTF', trail_topic)
     output = {
         'IsCloudTrailOwnerAccount': account_id == event_account_id(world),
         'CloudTrailSNSTopicArn': trail_topic,
@@ -201,10 +201,13 @@ def get_first_valid_report_definition(valid_report_definitions, default=None):
 
 def discover_master_payer_account(world):
     report_definitions = get_in(['coeffects', 'cur', 'ReportDefinitions'], world, [])
+    logger.info(f'Found these ReportDefinitions: {report_definitions}')
     local_buckets = {x['Name'] for x in get_in(['coeffects', 's3', 'Buckets'], world, [])}
     valid_report_definitions = keep_valid(MINIMUM_BILLING_REPORT, report_definitions)
+    logger.info(f'Found these _valid_ ReportDefinitions: {valid_report_definitions}')
     first_valid = get_first_valid_report_definition(valid_report_definitions, default={})
     valid_local_report_definitions = [x for x in valid_report_definitions if x['S3Bucket'] in local_buckets]
+    logger.info(f'Found these _valid local_ ReportDefinitions: {valid_local_report_definitions}')
     local = any(valid_local_report_definitions)
     first_valid_local = get_first_valid_report_definition(valid_local_report_definitions, default=first_valid)
     output = {
