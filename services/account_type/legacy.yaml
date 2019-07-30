@@ -66,10 +66,10 @@ Conditions:
   # TODO: During beta while we're testing Discovery:
     # Always apply this template
     # Always grant CloudTrail, MasterPayer, and Audit permissions
-  CreateResources: !Equals [ !Ref 'true', 'true' ]
-  CreateCloudTrailPolicy: !Equals [ !Ref 'true', 'true' ]
-  CreateMasterPayerPolicy: !Equals [ !Ref 'true', 'true' ]
-  CreateAuditPolicy: !Equals [ !Ref 'true', 'true' ]
+  CreateResources: !Equals [ 'true', 'true' ]
+  CreateCloudTrailPolicy: !Equals [ 'true', 'true' ]
+  CreateMasterPayerPolicy: !Equals [ 'true', 'true' ]
+  CreateAuditPolicy: !Equals [ 'true', 'true' ]
 
 Resources:
   Role:
