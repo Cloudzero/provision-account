@@ -63,16 +63,13 @@ Parameters:
 
 
 Conditions:
-  CreateResources: !Equals [ !Ref IsResourceOwnerAccount, 'true' ]
-  CreateCloudTrailPolicy: !And
-    - !Equals [ !Ref IsCloudTrailOwnerAccount, 'true' ]
-    - !Not [ !Equals [ !Ref CloudTrailSQSQueueArn, 'null' ] ]
-  CreateMasterPayerPolicy: !And
-    - !Equals [ !Ref IsMasterPayerAccount, 'true' ]
-    - !Not [ !Equals [ !Ref MasterPayerBillingBucketName, 'null' ] ]
-  CreateAuditPolicy: !And
-    - !Equals [ !Ref IsAuditAccount, 'true' ]
-    - !Not [ !Equals [ !Ref AuditCloudTrailBucketName, 'null' ] ]
+  # TODO: During beta while we're testing Discovery:
+    # Always apply this template
+    # Always grant CloudTrail, MasterPayer, and Audit permissions
+  CreateResources: !Equals [ !Ref 'true', 'true' ]
+  CreateCloudTrailPolicy: !Equals [ !Ref 'true', 'true' ]
+  CreateMasterPayerPolicy: !Equals [ !Ref 'true', 'true' ]
+  CreateAuditPolicy: !Equals [ !Ref 'true', 'true' ]
 
 Resources:
   Role:
@@ -117,7 +114,7 @@ Resources:
               Action:
                 - 'sqs:*'
               Resource:
-                - !Ref CloudTrailSQSQueueArn
+                - '*'
             - !Ref AWS::NoValue
           # Audit Account Permissions
           - !If
@@ -128,8 +125,8 @@ Resources:
                 - 's3:Get*'
                 - 's3:List*'
               Resource:
-                - !Sub 'arn:aws:s3:::${AuditCloudTrailBucketName}'
-                - !Sub 'arn:aws:s3:::${AuditCloudTrailBucketName}/*'
+                - !Sub 'arn:aws:s3:::*'
+                - !Sub 'arn:aws:s3:::*/*'
             - !Ref AWS::NoValue
           # Master Payer Account Permissions
           - !If
@@ -147,8 +144,8 @@ Resources:
                 - 's3:Get*'
                 - 's3:List*'
               Resource:
-                - !Sub 'arn:aws:s3:::${MasterPayerBillingBucketName}'
-                - !Sub 'arn:aws:s3:::${MasterPayerBillingBucketName}/*'
+                - !Sub 'arn:aws:s3:::*'
+                - !Sub 'arn:aws:s3:::*/*'
             - !Ref AWS::NoValue
           - !If
             - CreateMasterPayerPolicy
@@ -265,6 +262,7 @@ Resources:
               - machinelearning:Describe*
               - opsworks:Describe*
               - opsworks-cm:Describe*
+              - organizations:Describe*
               - organizations:List*
               - redshift:View*
               - redshift:Describe*
