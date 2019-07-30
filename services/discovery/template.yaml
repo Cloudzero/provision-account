@@ -9,8 +9,8 @@ Description: >
 Globals:
   Function:
     Runtime: python3.7
-    MemorySize: 256
-    Timeout: 10
+    MemorySize: 512
+    Timeout: 30
 
 Resources:
   DiscoveryFunction:
