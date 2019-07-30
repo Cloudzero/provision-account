@@ -170,10 +170,8 @@ def discover_connected_account(world):
 
 def discover_cloudtrail_account(world):
     trail = get_first_valid_trail(world)
-    print('trail', trail)
     trail_topic = trail.get('SnsTopicARN')
     account_id = trail_topic.split(':')[4] if trail_topic else None
-    print('WTF', trail_topic)
     output = {
         'IsCloudTrailOwnerAccount': account_id == event_account_id(world),
         'CloudTrailSNSTopicArn': trail_topic,
