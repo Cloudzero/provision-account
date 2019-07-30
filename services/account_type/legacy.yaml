@@ -285,6 +285,8 @@ Resources:
         - !Ref Role
 
 Outputs:
+  IsResourceOwnerAccount:
+    Value: !Ref IsResourceOwnerAccount
   RoleArn:
     Value: !If
       - CreateResources
