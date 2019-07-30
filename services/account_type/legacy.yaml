@@ -63,13 +63,17 @@ Parameters:
 
 
 Conditions:
-  # TODO: During beta while we're testing Discovery:
-    # Always apply this template
-    # Always grant CloudTrail, MasterPayer, and Audit permissions
+  # TODO: Temporarily, during beta, always apply CreateResources
   CreateResources: !Equals [ 'true', 'true' ]
-  CreateCloudTrailPolicy: !Equals [ 'true', 'true' ]
-  CreateMasterPayerPolicy: !Equals [ 'true', 'true' ]
-  CreateAuditPolicy: !Equals [ 'true', 'true' ]
+  CreateCloudTrailPolicy: !And
+    - !Equals [ !Ref IsCloudTrailOwnerAccount, 'true' ]
+    - !Not [ !Equals [ !Ref CloudTrailSQSQueueArn, 'null' ] ]
+  CreateMasterPayerPolicy: !And
+    - !Equals [ !Ref IsMasterPayerAccount, 'true' ]
+    - !Not [ !Equals [ !Ref MasterPayerBillingBucketName, 'null' ] ]
+  CreateAuditPolicy: !And
+    - !Equals [ !Ref IsAuditAccount, 'true' ]
+    - !Not [ !Equals [ !Ref AuditCloudTrailBucketName, 'null' ] ]
 
 Resources:
   Role:
@@ -114,7 +118,7 @@ Resources:
               Action:
                 - 'sqs:*'
               Resource:
-                - '*'
+                - !Ref CloudTrailSQSQueueArn
             - !Ref AWS::NoValue
           # Audit Account Permissions
           - !If
@@ -125,17 +129,10 @@ Resources:
                 - 's3:Get*'
                 - 's3:List*'
               Resource:
-                - !Sub 'arn:aws:s3:::*'
-                - !Sub 'arn:aws:s3:::*/*'
+                - !Sub 'arn:aws:s3:::${AuditCloudTrailBucketName}'
+                - !Sub 'arn:aws:s3:::${AuditCloudTrailBucketName}/*'
             - !Ref AWS::NoValue
           # Master Payer Account Permissions
-          - !If
-            - CreateMasterPayerPolicy
-            - Sid: ProtectAccountInfo1
-              Effect: Deny
-              Action: 'aws-portal:*Account'
-              Resource: '*'
-            - !Ref AWS::NoValue
           - !If
             - CreateMasterPayerPolicy
             - Sid: AccessMasterPayerBillingBucket
@@ -144,46 +141,41 @@ Resources:
                 - 's3:Get*'
                 - 's3:List*'
               Resource:
-                - !Sub 'arn:aws:s3:::*'
-                - !Sub 'arn:aws:s3:::*/*'
-            - !Ref AWS::NoValue
-          - !If
-            - CreateMasterPayerPolicy
-            - Sid: ViewBilling1
-              Effect: Allow
-              Action:
-                - 'aws-portal:View*'
-                - 'budgets:*'
-                - 'cur:*'
-                - 'ce:*'
-              Resource: '*'
-            - !Ref AWS::NoValue
-          - !If
-            - CreateMasterPayerPolicy
-            - Sid: ReservedCapacityServices
-              Effect: Allow
-              Action:
-                - 'cloudfront:Get*'
-                - 'cloudfront:List*'
-                - 'dynamodb:Describe*'
-                - 'dynamodb:Get*'
-                - 'dynamodb:List*'
-                - 'ec2:Describe*'
-                - 'ec2:Get*'
-                - 'ec2:Get*'
-                - 'elasticache:Describe*'
-                - 'elasticache:List*'
-                - 'elasticmapreduce:Describe*'
-                - 'elasticmapreduce:List*'
-                - 'es:Describe*'
-                - 'es:List*'
-                - 'es:Get*'
-                - 'rds:Describe*'
-                - 'redshift:Describe*'
-                - 'redshift:List*'
-              Resource: '*'
+                - !Sub 'arn:aws:s3:::${MasterPayerBillingBucketName}'
+                - !Sub 'arn:aws:s3:::${MasterPayerBillingBucketName}/*'
             - !Ref AWS::NoValue
           # Resource Owner Account Permissions
+          # TODO: Moved Billing access here for now
+          - Sid: ViewBilling1
+            Effect: Allow
+            Action:
+              - 'aws-portal:View*'
+              - 'budgets:*'
+              - 'cur:*'
+              - 'ce:*'
+            Resource: '*'
+          - Sid: ReservedCapacityServices
+            Effect: Allow
+            Action:
+              - 'cloudfront:Get*'
+              - 'cloudfront:List*'
+              - 'dynamodb:Describe*'
+              - 'dynamodb:Get*'
+              - 'dynamodb:List*'
+              - 'ec2:Describe*'
+              - 'ec2:Get*'
+              - 'ec2:Get*'
+              - 'elasticache:Describe*'
+              - 'elasticache:List*'
+              - 'elasticmapreduce:Describe*'
+              - 'elasticmapreduce:List*'
+              - 'es:Describe*'
+              - 'es:List*'
+              - 'es:Get*'
+              - 'rds:Describe*'
+              - 'redshift:Describe*'
+              - 'redshift:List*'
+            Resource: '*'
           - Sid: AccessCZLogGroups1
             Effect: Allow
             Action: logs:*
