@@ -92,6 +92,10 @@ def test_handler_no_cfn_coeffects(context, cfn_event):
     (_, kwargs) = context.mock_requests_post.call_args
     assert 'json' in kwargs
     assert kwargs['json'] == {
+        'version': '1',
+        'message_source': 'cfn',
+        'message_type': 'incoming_account_link',
+        'metadata': {},
         'Region': 'str',
         'AccountName': 'str',
         'AccountId': 'str',

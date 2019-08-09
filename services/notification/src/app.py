@@ -80,6 +80,12 @@ stacks = get_in(['event', 'ResourceProperties', 'Stacks'])
 reactor_callback_url = get_in(['event', 'ResourceProperties', 'ReactorCallbackUrl'])
 supported_metadata = {'Region', 'ExternalId', 'AccountId', 'AccountName', 'ReactorId', 'ReactorCallbackUrl'}
 callback_metadata = keyfilter(lambda x: x in supported_metadata)
+default_metadata = {
+    'version': '1',
+    'message_source': 'cfn',
+    'message_type': 'incoming_account_link',
+    'metadata': {},
+}
 
 
 #####################
@@ -162,6 +168,7 @@ def effect(name):
 def effects_reactor_callback(world):
     url = reactor_callback_url(world)
     data = {
+        **default_metadata,
         **callback_metadata(properties(world)),
         'links': world.get('output', DEFAULT_OUTPUT),
     }
