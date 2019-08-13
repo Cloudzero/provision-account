@@ -83,7 +83,7 @@ callback_metadata = keyfilter(lambda x: x in supported_metadata)
 default_metadata = {
     'version': '1',
     'message_source': 'cfn',
-    'message_type': 'incoming_account_link',
+    'message_type': 'account-link-provisioned',
 }
 
 
@@ -168,8 +168,10 @@ def effects_reactor_callback(world):
     url = reactor_callback_url(world)
     data = {
         **default_metadata,
-        'metadata': callback_metadata(properties(world)),
-        'links': world.get('output', DEFAULT_OUTPUT),
+        'data': {
+            'metadata': callback_metadata(properties(world)),
+            'links': world.get('output', DEFAULT_OUTPUT),
+        }
     }
     logger.info(f'Posting to {url} this data: {json.dumps(data)}')
     response = requests.post(url, json=data)

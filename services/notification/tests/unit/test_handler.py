@@ -94,14 +94,16 @@ def test_handler_no_cfn_coeffects(context, cfn_event):
     assert kwargs['json'] == {
         'version': '1',
         'message_source': 'cfn',
-        'message_type': 'incoming_account_link',
-        'metadata': {
-            'Region': 'str',
-            'AccountName': 'str',
-            'AccountId': 'str',
-            'ReactorCallbackUrl': 'str',
-            'ExternalId': 'str',
-            'ReactorId': 'str',
-        },
-        'links': expected,
+        'message_type': 'account-link-provisioned',
+        'data': {
+            'metadata': {
+                'Region': 'str',
+                'AccountName': 'str',
+                'AccountId': 'str',
+                'ReactorCallbackUrl': 'str',
+                'ExternalId': 'str',
+                'ReactorId': 'str',
+            },
+            'links': expected,
+        }
     }
