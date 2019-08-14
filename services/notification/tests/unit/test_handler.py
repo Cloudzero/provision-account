@@ -44,10 +44,11 @@ def cfn_event():
 
 
 class Response:
-    def __init__(self, status_code, json={}, data={}):
+    def __init__(self, status_code, json_data={}, data={}):
         self.status_code = status_code
-        self.json = {}
+        self.json = json_data
         self.data = {}
+        self.text = json.dumps(self.json)
 
     def json(self):
         return self.json
@@ -72,7 +73,7 @@ def context(mocker):
 
 @pytest.mark.unit
 def test_handler_no_cfn_coeffects(context, cfn_event):
-    response = Response(200, json=json.dumps({}))
+    response = Response(200)
     context.mock_requests_post.return_value = response
     ret = app.handler(cfn_event, None)
     assert ret is None
@@ -80,30 +81,41 @@ def test_handler_no_cfn_coeffects(context, cfn_event):
     assert context.mock_requests_post.call_count == 1
     ((_, _, status, output, _), _) = context.mock_cfnresponse_send.call_args
     expected = {
-        'AuditAccount': {},
-        'CloudTrailOwnerAccount': {},
-        'Discovery': {},
-        'MasterPayerAccount': {},
-        'ResourceOwnerAccount': {},
-        'LegacyAccount': {},
+        'version': '1',
+        'message_source': 'cfn',
+        'message_type': 'account-link-provisioned',
+        'data': {
+            'discovery': {
+                'audit_cloudtrail_bucket_name': None,
+                'cloudtrail_sns_topic_arn': None,
+                'is_audit_account': False,
+                'is_cloudtrail_owner_account': False,
+                'is_master_payer_account': False,
+                'is_resource_owner_account': False,
+                'master_payer_billing_bucket_name': None,
+            },
+            'metadata': {
+                'cloud_region': 'str',
+                'cz_account_name': 'str',
+                'cloud_account_id': 'str',
+                'reactor_callback_url': 'str',
+                'external_id': 'str',
+                'reactor_id': 'str',
+            },
+            'links': {
+                'audit': {'role_arn': None},
+                'legacy': {'role_arn': None},
+                'master_payer': {'role_arn': None},
+                'resource_owner': {'role_arn': None},
+                'cloudtrail_owner': {
+                    'sqs_queue_arn': None,
+                    'sqs_queue_policy_arn': None,
+                },
+            }
+        }
     }
     assert status == cfnresponse.SUCCESS
     assert output == expected
     (_, kwargs) = context.mock_requests_post.call_args
     assert 'json' in kwargs
-    assert kwargs['json'] == {
-        'version': '1',
-        'message_source': 'cfn',
-        'message_type': 'account-link-provisioned',
-        'data': {
-            'metadata': {
-                'Region': 'str',
-                'AccountName': 'str',
-                'AccountId': 'str',
-                'ReactorCallbackUrl': 'str',
-                'ExternalId': 'str',
-                'ReactorId': 'str',
-            },
-            'links': expected,
-        }
-    }
+    assert kwargs['json'] == expected
