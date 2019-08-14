@@ -7,7 +7,7 @@ import cfnresponse
 import requests
 import simplejson as json
 from toolz.curried import assoc_in, get_in, keyfilter, merge, pipe, update_in
-from voluptuous import Any, Invalid, Match, Optional, Schema, ALLOW_EXTRA, REMOVE_EXTRA
+from voluptuous import Any, Invalid, Match, Schema, ALLOW_EXTRA, REMOVE_EXTRA
 
 
 import logging
@@ -78,6 +78,7 @@ STRING_TRUE_FALSE = Schema(Any('true', 'false'))
 ARN = Schema(Match(r'^arn:(?:aws|aws-cn|aws-us-gov):([a-z0-9-]+):'
                    r'((?:[a-z0-9-]*)|global):(\d{12}|aws)*:(.+$)$'))
 NULLABLE_ARN = Schema(Any('null', ARN))
+NULLABLE_STRING = Schema(Any('null', str))
 
 CFN_COEFFECT_SCHEMA = Schema({
     'AuditAccount': {
@@ -88,8 +89,8 @@ CFN_COEFFECT_SCHEMA = Schema({
         'SQSQueuePolicyArn': NULLABLE_ARN,
     },
     'Discovery': {
-        'AuditCloudTrailBucketName': NULLABLE_ARN,
-        'MasterPayerBillingBucketName': NULLABLE_ARN,
+        'AuditCloudTrailBucketName': NULLABLE_STRING,
+        'MasterPayerBillingBucketName': NULLABLE_STRING,
         'CloudTrailSNSTopicArn': NULLABLE_ARN,
         'IsCloudTrailOwnerAccount': STRING_TRUE_FALSE,
         'IsMasterPayerAccount': STRING_TRUE_FALSE,
@@ -105,7 +106,7 @@ CFN_COEFFECT_SCHEMA = Schema({
     'LegacyAccount': {
         'RoleArn': NULLABLE_ARN,
     }
-})
+}, required=True, extra=ALLOW_EXTRA)
 
 
 NONEABLE_ARN = Schema(Any(None, ARN))
@@ -214,7 +215,8 @@ def validate_cfn_coeffect(world):
         return update_in(world, ['valid_cfn'],
                          lambda x: merge(x or {}, CFN_COEFFECT_SCHEMA(cfn_coeffect)))
     except Invalid:
-        logger.warning('CloudFormation Coeffects are not valid; using defaults')
+        logger.warning(cfn_coeffect)
+        logger.warning('CloudFormation Coeffects are not valid; using defaults', exc_info=True)
         return update_in(world, ['valid_cfn'],
                          lambda x: merge(x or {}, DEFAULT_CFN_COEFFECT))
 
