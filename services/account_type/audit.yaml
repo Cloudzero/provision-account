@@ -74,6 +74,5 @@ Resources:
 
 Outputs:
   RoleArn:
-    Condition: CreateResources
     Description: The cloudzero cross account role ARN
-    Value: !GetAtt Role.Arn
+    Value: !If [ CreateResources, !GetAtt Role.Arn, 'null' ]
