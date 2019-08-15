@@ -113,7 +113,7 @@ def test_handler_no_cfn_coeffects(context, cfn_event):
                 'resource_owner': {'role_arn': None},
                 'cloudtrail_owner': {
                     'sqs_queue_arn': None,
-                    'sqs_queue_policy_arn': None,
+                    'sqs_queue_policy_name': None,
                 },
             }
         }

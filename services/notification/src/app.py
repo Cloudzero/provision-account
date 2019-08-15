@@ -22,7 +22,7 @@ DEFAULT_CFN_COEFFECT = {
     },
     'CloudTrailOwnerAccount': {
         'SQSQueueArn': 'null',
-        'SQSQueuePolicyArn': 'null'
+        'SQSQueuePolicyName': 'null'
     },
     'Discovery': {
         'AuditCloudTrailBucketName': 'null',
@@ -90,7 +90,7 @@ CFN_COEFFECT_SCHEMA = Schema({
     },
     'CloudTrailOwnerAccount': {
         'SQSQueueArn': NULLABLE_ARN,
-        'SQSQueuePolicyArn': NULLABLE_ARN,
+        'SQSQueuePolicyName': NULLABLE_STRING,
     },
     'Discovery': {
         'AuditCloudTrailBucketName': NULLABLE_STRING,
@@ -134,7 +134,7 @@ ACCOUNT_LINK_PROVISIONED = Schema({
             'audit': LINK_ROLE,
             'cloudtrail_owner': {
                 'sqs_queue_arn': NONEABLE_ARN,
-                'sqs_queue_policy_arn': NONEABLE_ARN,
+                'sqs_queue_policy_name': NONEABLE_ARN,
             },
             'master_payer': LINK_ROLE,
             'resource_owner': LINK_ROLE,
@@ -262,7 +262,7 @@ def prepare_output(world):
                 'audit': {'role_arn': null_to_none(get_in(['AuditAccount', 'RoleArn'], valid_cfn))},
                 'cloudtrail_owner': {
                     'sqs_queue_arn': null_to_none(get_in(['CloudTrailOwnerAccount', 'SQSQueueArn'], valid_cfn)),
-                    'sqs_queue_policy_arn': null_to_none(get_in(['CloudTrailOwnerAccount', 'SQSQueuePolicyArn'], valid_cfn)),
+                    'sqs_queue_policy_name': null_to_none(get_in(['CloudTrailOwnerAccount', 'SQSQueuePolicyName'], valid_cfn)),
                 },
                 'master_payer': {'role_arn': null_to_none(get_in(['MasterPayerAccount', 'RoleArn'], valid_cfn))},
                 'resource_owner': {'role_arn': null_to_none(get_in(['ResourceOwnerAccount', 'RoleArn'], valid_cfn))},
