@@ -56,7 +56,7 @@ DEFAULT_CFN_COEFFECT = {
 #####################
 INPUT_SCHEMA = Schema({
     'event': {
-        'RequestType': Any('Create', 'Update', 'Delete'),
+        'RequestType': Any('Create', 'Update'),  # TODO: Handle Delete separately
         'ResourceProperties': {
             'ExternalId': str,
             'ReactorCallbackUrl': str,
