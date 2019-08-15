@@ -56,7 +56,7 @@ DEFAULT_CFN_COEFFECT = {
 #####################
 INPUT_SCHEMA = Schema({
     'event': {
-        'RequestType': Any('Create', 'Update'),  # TODO: Handle Delete separately
+        'RequestType': Any('Create', 'Delete', 'Update'),
         'ResourceProperties': {
             'ExternalId': str,
             'ReactorCallbackUrl': str,
@@ -161,6 +161,7 @@ OUTPUT_SCHEMA = Schema({
 }, required=True, extra=ALLOW_EXTRA)
 
 
+request_type = get_in(['event', 'RequestType'])
 properties = get_in(['event', 'ResourceProperties'])
 stacks = get_in(['event', 'ResourceProperties', 'Stacks'])
 reactor_callback_url = get_in(['event', 'ResourceProperties', 'ReactorCallbackUrl'])
@@ -311,11 +312,14 @@ def effect(name):
 def effects_reactor_callback(world):
     url = reactor_callback_url(world)
     data = get_in(['output'], world)
-    logger.info(f'Posting to {url} this data: {json.dumps(data)}')
-    response = requests.post(url, json=data)
-    logger.info(f'response {response.status_code}; text {response.text}')
-    assert response.status_code == 200
-    return response.text
+    if (request_type(world) == 'Delete'):
+        logger.info(f'Stack Deleting; TODO send message to unlink')
+    else:
+        logger.info(f'Posting to {url} this data: {json.dumps(data)}')
+        response = requests.post(url, json=data)
+        logger.info(f'response {response.status_code}; text {response.text}')
+        assert response.status_code == 200
+        return response.text
 
 
 #####################
