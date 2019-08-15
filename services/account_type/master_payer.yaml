@@ -47,7 +47,7 @@ Resources:
           - Sid: czServiceAccount01
             Effect: Allow
             Principal:
-              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+              AWS: !Sub 'arn:aws:iam::${ReactorAccountId}:root'
             Action:
               - 'sts:AssumeRole'
             Condition:
