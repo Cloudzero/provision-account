@@ -170,7 +170,6 @@ callback_metadata = keyfilter(lambda x: x in supported_metadata)
 default_metadata = {
     'version': '1',
     'message_source': 'cfn',
-    'message_type': 'account-link-provisioned',
 }
 
 
@@ -246,8 +245,10 @@ def string_to_bool(s):
 def prepare_output(world):
     valid_cfn = get_in(['valid_cfn'], world)
     metadata = callback_metadata(properties(world))
+    message_type = 'account-link-provisioned' if request_type(world) in {'Create', 'Update'} else 'account-link-deprovisioned'
     output = {
         **default_metadata,
+        'message_type': message_type,
         'data': {
             'metadata': {
                 'cloud_region': metadata['Region'],
@@ -312,14 +313,11 @@ def effect(name):
 def effects_reactor_callback(world):
     url = reactor_callback_url(world)
     data = get_in(['output'], world)
-    if (request_type(world) == 'Delete'):
-        logger.info(f'Stack Deleting; TODO send message to unlink')
-    else:
-        logger.info(f'Posting to {url} this data: {json.dumps(data)}')
-        response = requests.post(url, json=data)
-        logger.info(f'response {response.status_code}; text {response.text}')
-        assert response.status_code == 200
-        return response.text
+    logger.info(f'Posting to {url} this data: {json.dumps(data)}')
+    response = requests.post(url, json=data)
+    logger.info(f'response {response.status_code}; text {response.text}')
+    assert response.status_code == 200
+    return response.text
 
 
 #####################
