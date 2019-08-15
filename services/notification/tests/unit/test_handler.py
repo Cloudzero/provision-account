@@ -87,12 +87,16 @@ def test_handler_no_cfn_coeffects(context, cfn_event):
         'data': {
             'discovery': {
                 'audit_cloudtrail_bucket_name': None,
+                'audit_cloudtrail_bucket_prefix': None,
                 'cloudtrail_sns_topic_arn': None,
+                'cloudtrail_trail_arn': None,
                 'is_audit_account': False,
                 'is_cloudtrail_owner_account': False,
                 'is_master_payer_account': False,
                 'is_resource_owner_account': False,
                 'master_payer_billing_bucket_name': None,
+                'master_payer_billing_bucket_prefix': None,
+                'remote_cloudtrail_bucket': True,
             },
             'metadata': {
                 'cloud_region': 'str',

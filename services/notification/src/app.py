@@ -26,12 +26,16 @@ DEFAULT_CFN_COEFFECT = {
     },
     'Discovery': {
         'AuditCloudTrailBucketName': 'null',
-        'MasterPayerBillingBucketName': 'null',
+        'AuditCloudTrailBucketPrefix': 'null',
         'CloudTrailSNSTopicArn': 'null',
+        'CloudTrailTrailArn': 'null',
+        'IsAuditAccount': 'false',
         'IsCloudTrailOwnerAccount': 'false',
         'IsMasterPayerAccount': 'false',
-        'IsAuditAccount': 'false',
-        'IsResourceOwnerAccount': 'false'
+        'IsResourceOwnerAccount': 'false',
+        'MasterPayerBillingBucketName': 'null',
+        'MasterPayerBillingBucketPrefix': 'null',
+        'RemoteCloudTrailBucket': 'true',
     },
     'MasterPayerAccount': {
         'RoleArn': 'null',
@@ -74,7 +78,7 @@ INPUT_SCHEMA = Schema({
     }
 }, required=True, extra=REMOVE_EXTRA)
 
-STRING_TRUE_FALSE = Schema(Any('true', 'false'))
+BOOLEAN_STRING = Schema(Any('true', 'false'))
 ARN = Schema(Match(r'^arn:(?:aws|aws-cn|aws-us-gov):([a-z0-9-]+):'
                    r'((?:[a-z0-9-]*)|global):(\d{12}|aws)*:(.+$)$'))
 NULLABLE_ARN = Schema(Any('null', ARN))
@@ -90,12 +94,16 @@ CFN_COEFFECT_SCHEMA = Schema({
     },
     'Discovery': {
         'AuditCloudTrailBucketName': NULLABLE_STRING,
-        'MasterPayerBillingBucketName': NULLABLE_STRING,
+        'AuditCloudTrailBucketPrefix': NULLABLE_STRING,
         'CloudTrailSNSTopicArn': NULLABLE_ARN,
-        'IsCloudTrailOwnerAccount': STRING_TRUE_FALSE,
-        'IsMasterPayerAccount': STRING_TRUE_FALSE,
-        'IsAuditAccount': STRING_TRUE_FALSE,
-        'IsResourceOwnerAccount': STRING_TRUE_FALSE,
+        'CloudTrailTrailArn': NULLABLE_ARN,
+        'IsAuditAccount': BOOLEAN_STRING,
+        'IsCloudTrailOwnerAccount': BOOLEAN_STRING,
+        'IsMasterPayerAccount': BOOLEAN_STRING,
+        'IsResourceOwnerAccount': BOOLEAN_STRING,
+        'MasterPayerBillingBucketName': NULLABLE_STRING,
+        'MasterPayerBillingBucketPrefix': NULLABLE_STRING,
+        'RemoteCloudTrailBucket': BOOLEAN_STRING,
     },
     'MasterPayerAccount': {
         'RoleArn': NULLABLE_ARN,
@@ -110,6 +118,7 @@ CFN_COEFFECT_SCHEMA = Schema({
 
 
 NONEABLE_ARN = Schema(Any(None, ARN))
+NONEABLE_STRING = Schema(Any(None, str))
 LINK_ROLE = Schema({'role_arn': NONEABLE_ARN})
 ACCOUNT_LINK_PROVISIONED = Schema({
     'data': {
@@ -132,13 +141,17 @@ ACCOUNT_LINK_PROVISIONED = Schema({
             'legacy': LINK_ROLE,
         },
         'discovery': {
-            'audit_cloudtrail_bucket_name': Any(None, str),
+            'audit_cloudtrail_bucket_name': NONEABLE_STRING,
+            'audit_cloudtrail_bucket_prefix': NONEABLE_STRING,
             'cloudtrail_sns_topic_arn': NONEABLE_ARN,
-            'master_payer_billing_bucket_name': Any(None, str),
+            'cloudtrail_trail_arn': NONEABLE_ARN,
             'is_audit_account': bool,
             'is_cloudtrail_owner_account': bool,
             'is_master_payer_account': bool,
             'is_resource_owner_account': bool,
+            'master_payer_billing_bucket_name': NONEABLE_STRING,
+            'master_payer_billing_bucket_prefix': NONEABLE_STRING,
+            'remote_cloudtrail_bucket': bool,
         }
     }
 }, required=True, extra=ALLOW_EXTRA)
@@ -255,12 +268,16 @@ def prepare_output(world):
             },
             'discovery': {
                 'audit_cloudtrail_bucket_name': null_to_none(get_in(['Discovery', 'AuditCloudTrailBucketName'], valid_cfn)),
+                'audit_cloudtrail_bucket_prefix': null_to_none(get_in(['Discovery', 'AuditCloudTrailBucketPrefix'], valid_cfn)),
                 'cloudtrail_sns_topic_arn': null_to_none(get_in(['Discovery', 'CloudTrailSNSTopicArn'], valid_cfn)),
-                'master_payer_billing_bucket_name': null_to_none(get_in(['Discovery', 'MasterPayerBillingBucketName'], valid_cfn)),
+                'cloudtrail_trail_arn': null_to_none(get_in(['Discovery', 'CloudTrailTrailArn'], valid_cfn)),
                 'is_audit_account': string_to_bool(get_in(['Discovery', 'IsAuditAccount'], valid_cfn)),
                 'is_cloudtrail_owner_account': string_to_bool(get_in(['Discovery', 'IsCloudTrailOwnerAccount'], valid_cfn)),
                 'is_master_payer_account': string_to_bool(get_in(['Discovery', 'IsMasterPayerAccount'], valid_cfn)),
                 'is_resource_owner_account': string_to_bool(get_in(['Discovery', 'IsResourceOwnerAccount'], valid_cfn)),
+                'master_payer_billing_bucket_name': null_to_none(get_in(['Discovery', 'MasterPayerBillingBucketName'], valid_cfn)),
+                'master_payer_billing_bucket_prefix': null_to_none(get_in(['Discovery', 'MasterPayerBillingBucketPrefix'], valid_cfn)),
+                'remote_cloudtrail_bucket': string_to_bool(get_in(['Discovery', 'RemoteCloudTrailBucket'], valid_cfn)),
             }
         }
     }
