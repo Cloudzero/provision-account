@@ -134,7 +134,7 @@ ACCOUNT_LINK_PROVISIONED = Schema({
             'audit': LINK_ROLE,
             'cloudtrail_owner': {
                 'sqs_queue_arn': NONEABLE_ARN,
-                'sqs_queue_policy_name': NONEABLE_ARN,
+                'sqs_queue_policy_name': NONEABLE_STRING,
             },
             'master_payer': LINK_ROLE,
             'resource_owner': LINK_ROLE,
