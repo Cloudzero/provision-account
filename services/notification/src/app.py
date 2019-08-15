@@ -34,7 +34,7 @@ DEFAULT_CFN_COEFFECT = {
         'IsMasterPayerAccount': 'false',
         'IsResourceOwnerAccount': 'false',
         'MasterPayerBillingBucketName': 'null',
-        'MasterPayerBillingBucketPrefix': 'null',
+        'MasterPayerBillingBucketPath': 'null',
         'RemoteCloudTrailBucket': 'true',
     },
     'MasterPayerAccount': {
@@ -102,7 +102,7 @@ CFN_COEFFECT_SCHEMA = Schema({
         'IsMasterPayerAccount': BOOLEAN_STRING,
         'IsResourceOwnerAccount': BOOLEAN_STRING,
         'MasterPayerBillingBucketName': NULLABLE_STRING,
-        'MasterPayerBillingBucketPrefix': NULLABLE_STRING,
+        'MasterPayerBillingBucketPath': NULLABLE_STRING,
         'RemoteCloudTrailBucket': BOOLEAN_STRING,
     },
     'MasterPayerAccount': {
@@ -150,7 +150,7 @@ ACCOUNT_LINK_PROVISIONED = Schema({
             'is_master_payer_account': bool,
             'is_resource_owner_account': bool,
             'master_payer_billing_bucket_name': NONEABLE_STRING,
-            'master_payer_billing_bucket_prefix': NONEABLE_STRING,
+            'master_payer_billing_bucket_path': NONEABLE_STRING,
             'remote_cloudtrail_bucket': bool,
         }
     }
@@ -276,7 +276,7 @@ def prepare_output(world):
                 'is_master_payer_account': string_to_bool(get_in(['Discovery', 'IsMasterPayerAccount'], valid_cfn)),
                 'is_resource_owner_account': string_to_bool(get_in(['Discovery', 'IsResourceOwnerAccount'], valid_cfn)),
                 'master_payer_billing_bucket_name': null_to_none(get_in(['Discovery', 'MasterPayerBillingBucketName'], valid_cfn)),
-                'master_payer_billing_bucket_prefix': null_to_none(get_in(['Discovery', 'MasterPayerBillingBucketPrefix'], valid_cfn)),
+                'master_payer_billing_bucket_path': null_to_none(get_in(['Discovery', 'MasterPayerBillingBucketPath'], valid_cfn)),
                 'remote_cloudtrail_bucket': string_to_bool(get_in(['Discovery', 'RemoteCloudTrailBucket'], valid_cfn)),
             }
         }

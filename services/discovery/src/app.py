@@ -29,7 +29,7 @@ DEFAULT_OUTPUT = {
     'IsResourceOwnerAccount': False,
     'IsMasterPayerAccount': False,
     'MasterPayerBillingBucketName': None,
-    'MasterPayerBillingBucketPrefix': None,
+    'MasterPayerBillingBucketPath': None,
 }
 
 
@@ -213,7 +213,7 @@ def discover_master_payer_account(world):
     output = {
         'IsMasterPayerAccount': local,
         'MasterPayerBillingBucketName': first_valid_local.get('S3Bucket'),
-        'MasterPayerBillingBucketPrefix': first_valid_local.get('S3Prefix'),
+        'MasterPayerBillingBucketPath': f"first_valid_local.get('S3Prefix', '')/first_valid_local.get('ReportName', '')",
     }
     return update_in(world, ['output'], lambda x: merge(x or {}, output))
 
