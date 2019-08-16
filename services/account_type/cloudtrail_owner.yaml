@@ -54,9 +54,11 @@ Resources:
       Queues:
         - !Ref SqsQueue
       PolicyDocument:
+        Id: 'CloudZeroReactorQueuePolicy20190816'
         Version: '2012-10-17'
         Statement:
-          - Effect: Allow
+          - Sid: 'SNSTopicAccess20190816'
+            Effect: Allow
             Action:
               - 'sqs:SendMessage'
             Principal:
@@ -65,6 +67,13 @@ Resources:
             Condition:
               ArnEquals:
                 'aws:SourceArn': !Ref CloudTrailSNSTopicArn
+          - Sid: 'ReactorAccess20190816'
+            Effect: Allow
+            Action:
+              - 'sqs:*'
+            Principal:
+              AWS: !Sub 'arn:aws:iam::${ReactorAccountId}:root'
+            Resource: !GetAtt SqsQueue.Arn
 
 
 Outputs:
