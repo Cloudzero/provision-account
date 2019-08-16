@@ -241,7 +241,7 @@ def test_handler_all_local(context, cfn_event, describe_trails_response_local, l
         'IsResourceOwnerAccount': True,
         'IsMasterPayerAccount': True,
         'MasterPayerBillingBucketName': LOCAL_BUCKET_NAME,
-        'MasterPayerBillingBucketPrefix': 'reports',
+        'MasterPayerBillingBucketPath': 'reports/valid-local-report',
         'RemoteCloudTrailBucket': False,
     }
 
@@ -267,7 +267,7 @@ def test_handler_non_audit(context, cfn_event, describe_trails_response_remote_b
         'IsResourceOwnerAccount': True,
         'IsMasterPayerAccount': True,
         'MasterPayerBillingBucketName': LOCAL_BUCKET_NAME,
-        'MasterPayerBillingBucketPrefix': 'reports',
+        'MasterPayerBillingBucketPath': 'reports/valid-local-report',
     }
 
 
@@ -292,7 +292,7 @@ def test_handler_non_cloudtrail_owner(context, cfn_event, describe_trails_respon
         'IsResourceOwnerAccount': True,
         'IsMasterPayerAccount': True,
         'MasterPayerBillingBucketName': LOCAL_BUCKET_NAME,
-        'MasterPayerBillingBucketPrefix': 'reports',
+        'MasterPayerBillingBucketPath': 'reports/valid-local-report',
     }
 
 
@@ -317,7 +317,7 @@ def test_handler_non_master_payer_invalid(context, cfn_event, describe_trails_re
         'IsResourceOwnerAccount': True,
         'IsMasterPayerAccount': False,
         'MasterPayerBillingBucketName': None,
-        'MasterPayerBillingBucketPrefix': None,
+        'MasterPayerBillingBucketPath': '/',
     }
 
 
@@ -342,7 +342,7 @@ def test_handler_non_master_payer_remote(context, cfn_event, describe_trails_res
         'IsResourceOwnerAccount': True,
         'IsMasterPayerAccount': False,
         'MasterPayerBillingBucketName': REMOTE_BUCKET_NAME,
-        'MasterPayerBillingBucketPrefix': 'reports',
+        'MasterPayerBillingBucketPath': 'reports/valid-local-report',
     }
 
 
@@ -367,7 +367,7 @@ def test_handler_just_resource_owner(context, cfn_event, list_buckets_response):
         'IsResourceOwnerAccount': True,
         'IsMasterPayerAccount': False,
         'MasterPayerBillingBucketName': None,
-        'MasterPayerBillingBucketPrefix': None,
+        'MasterPayerBillingBucketPath': '/',
     }
 
 

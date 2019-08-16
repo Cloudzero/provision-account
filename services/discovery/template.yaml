@@ -54,8 +54,8 @@ Outputs:
     Value: !GetAtt DiscoveryResource.IsResourceOwnerAccount
   MasterPayerBillingBucketName:
     Value: !GetAtt DiscoveryResource.MasterPayerBillingBucketName
-  MasterPayerBillingBucketPrefix:
-    Value: !GetAtt DiscoveryResource.MasterPayerBillingBucketPrefix
+  MasterPayerBillingBucketPath:
+    Value: !GetAtt DiscoveryResource.MasterPayerBillingBucketPath
   RemoteCloudTrailBucket:
     Value: !GetAtt DiscoveryResource.RemoteCloudTrailBucket
 

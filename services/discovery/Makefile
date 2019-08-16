@@ -106,7 +106,7 @@ $(BUILD_DIR): $(SRC_FILES) $(TEMPLATE_FILE)
 .PHONY: package
 package: $(APP_ZIP)
 $(APP_ZIP): $(BUILD_DIR)
-	cd .aws-sam/build/DiscoveryFunction ; zip -rq ../../../$@ .
+	rm -f $@ ; cd .aws-sam/build/DiscoveryFunction ; zip -rq ../../../$@ .
 
 
 .PHONY: deploy

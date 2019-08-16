@@ -35,7 +35,7 @@ Conditions:
 
 Resources:
 
-  CrossAccountRole:
+  Role:
     Condition: CreateResources
     Type: 'AWS::IAM::Role'
     Properties:
@@ -47,7 +47,7 @@ Resources:
           - Sid: czServiceAccount01
             Effect: Allow
             Principal:
-              AWS: !Sub 'arn:aws:iam::${AWS::AccountId}:root'
+              AWS: !Sub 'arn:aws:iam::${ReactorAccountId}:root'
             Action:
               - 'sts:AssumeRole'
             Condition:
@@ -55,13 +55,13 @@ Resources:
                 'sts:ExternalId': !Ref ExternalId
 
 
-  CrossAccountRoleAccessPolicyPayer:
+  RolePolicy:
     Condition: CreateResources
     Type: 'AWS::IAM::Policy'
     Properties:
       PolicyName: !Sub 'cloudzero-master-payer-policy-${ReactorAccountId}'
       Roles:
-        - !Ref CrossAccountRole
+        - !Ref Role
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -110,6 +110,5 @@ Resources:
 
 Outputs:
   RoleArn:
-    Condition: CreateResources
     Description: The cloudzero cross account role ARN
-    Value: !GetAtt CrossAccountRole.Arn
+    Value: !If [ CreateResources, !GetAtt Role.Arn, 'null' ]
