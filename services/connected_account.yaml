@@ -41,11 +41,6 @@ Parameters:
 
 Mappings:
   CallbackConfiguration:
-    dev:
-      # TODO: Get dynamically for namespaces
-      ReactorAccountId: '998146006915'
-      ReactorId: '67ad3e83-1ec5-4f4f-b505-c27e2758b990'
-      ReactorCallbackUrl: 'null'
     prod:
       # TODO: Get dynamically for namespaces
       ReactorAccountId: '061190967865'
