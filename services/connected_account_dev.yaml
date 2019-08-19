@@ -41,15 +41,15 @@ Parameters:
 
 Mappings:
   CallbackConfiguration:
-    prod:
+    dev:
       # TODO: Get dynamically for namespaces
-      ReactorAccountId: '061190967865'
-      ReactorId: 'f7a07d02-d509-4e8d-9fb9-69c7985a6bd8'
-      ReactorCallbackUrl: 'https://api.cloudzero.com/accounts/v1/link'
+      ReactorAccountId: '998146006915'
+      ReactorId: '67ad3e83-1ec5-4f4f-b505-c27e2758b990'
+      ReactorCallbackUrl: 'https://qc8rbx9mcg.execute-api.us-east-1.amazonaws.com/alfa/v1/link'
 
 Conditions:
   ValidReactorCallbackUrl: !Not
-    - !Equals [ !FindInMap [ CallbackConfiguration, prod, ReactorCallbackUrl ], 'null' ]
+    - !Equals [ !FindInMap [ CallbackConfiguration, dev, ReactorCallbackUrl ], 'null' ]
 
 Resources:
   Discovery:
@@ -59,7 +59,7 @@ Resources:
         - Key: cloudzero-stack
           Value: !Ref AWS::StackName
         - Key: cloudzero-reactor-account-id
-          Value: !FindInMap [ CallbackConfiguration, prod, ReactorAccountId ]
+          Value: !FindInMap [ CallbackConfiguration, dev, ReactorAccountId ]
       TemplateURL: https://s3.amazonaws.com/cz-provision-account/latest/services/discovery.yaml
 
   # TODO: This Legacy Account supports older reactors that require all permissions in a single role
@@ -70,14 +70,14 @@ Resources:
         - Key: cloudzero-stack
           Value: !Ref AWS::StackName
         - Key: cloudzero-reactor-account-id
-          Value: !FindInMap [ CallbackConfiguration, prod, ReactorAccountId ]
+          Value: !FindInMap [ CallbackConfiguration, dev, ReactorAccountId ]
       Parameters:
         IsResourceOwnerAccount: !GetAtt Discovery.Outputs.IsResourceOwnerAccount
         IsAuditAccount: !GetAtt Discovery.Outputs.IsAuditAccount
         IsMasterPayerAccount: !GetAtt Discovery.Outputs.IsMasterPayerAccount
         IsCloudTrailOwnerAccount: !GetAtt Discovery.Outputs.IsCloudTrailOwnerAccount
         ExternalId: !Ref ExternalId
-        ReactorAccountId: !FindInMap [ CallbackConfiguration, prod, ReactorAccountId ]
+        ReactorAccountId: !FindInMap [ CallbackConfiguration, dev, ReactorAccountId ]
         AuditCloudTrailBucketName: !GetAtt Discovery.Outputs.AuditCloudTrailBucketName
         MasterPayerBillingBucketName: !GetAtt Discovery.Outputs.MasterPayerBillingBucketName
         CloudTrailSQSQueueArn: !GetAtt CloudTrailOwnerAccount.Outputs.SQSQueueArn
@@ -91,11 +91,11 @@ Resources:
         - Key: cloudzero-stack
           Value: !Ref AWS::StackName
         - Key: cloudzero-reactor-account-id
-          Value: !FindInMap [ CallbackConfiguration, prod, ReactorAccountId ]
+          Value: !FindInMap [ CallbackConfiguration, dev, ReactorAccountId ]
       Parameters:
         IsResourceOwnerAccount: !GetAtt Discovery.Outputs.IsResourceOwnerAccount
         ExternalId: !Ref ExternalId
-        ReactorAccountId: !FindInMap [ CallbackConfiguration, prod, ReactorAccountId ]
+        ReactorAccountId: !FindInMap [ CallbackConfiguration, dev, ReactorAccountId ]
       TemplateURL: https://s3.amazonaws.com/cz-provision-account/latest/services/account_type/resource_owner.yaml
 
   CloudTrailOwnerAccount:
@@ -105,11 +105,11 @@ Resources:
         - Key: cloudzero-stack
           Value: !Ref AWS::StackName
         - Key: cloudzero-reactor-account-id
-          Value: !FindInMap [ CallbackConfiguration, prod, ReactorAccountId ]
+          Value: !FindInMap [ CallbackConfiguration, dev, ReactorAccountId ]
       Parameters:
         IsCloudTrailOwnerAccount: !GetAtt Discovery.Outputs.IsCloudTrailOwnerAccount
         CloudTrailSNSTopicArn: !GetAtt Discovery.Outputs.CloudTrailSNSTopicArn
-        ReactorAccountId: !FindInMap [ CallbackConfiguration, prod, ReactorAccountId ]
+        ReactorAccountId: !FindInMap [ CallbackConfiguration, dev, ReactorAccountId ]
       TemplateURL: https://s3.amazonaws.com/cz-provision-account/latest/services/account_type/cloudtrail_owner.yaml
 
   AuditAccount:
@@ -119,12 +119,12 @@ Resources:
         - Key: cloudzero-stack
           Value: !Ref AWS::StackName
         - Key: cloudzero-reactor-account-id
-          Value: !FindInMap [ CallbackConfiguration, prod, ReactorAccountId ]
+          Value: !FindInMap [ CallbackConfiguration, dev, ReactorAccountId ]
       Parameters:
         IsAuditAccount: !GetAtt Discovery.Outputs.IsAuditAccount
         AuditCloudTrailBucketName: !GetAtt Discovery.Outputs.AuditCloudTrailBucketName
         ExternalId: !Ref ExternalId
-        ReactorAccountId: !FindInMap [ CallbackConfiguration, prod, ReactorAccountId ]
+        ReactorAccountId: !FindInMap [ CallbackConfiguration, dev, ReactorAccountId ]
       TemplateURL: https://s3.amazonaws.com/cz-provision-account/latest/services/account_type/audit.yaml
 
   MasterPayerAccount:
@@ -134,12 +134,12 @@ Resources:
         - Key: cloudzero-stack
           Value: !Ref AWS::StackName
         - Key: cloudzero-reactor-account-id
-          Value: !FindInMap [ CallbackConfiguration, prod, ReactorAccountId ]
+          Value: !FindInMap [ CallbackConfiguration, dev, ReactorAccountId ]
       Parameters:
         IsMasterPayerAccount: !GetAtt Discovery.Outputs.IsMasterPayerAccount
         MasterPayerBillingBucketName: !GetAtt Discovery.Outputs.MasterPayerBillingBucketName
         ExternalId: !Ref ExternalId
-        ReactorAccountId: !FindInMap [ CallbackConfiguration, prod, ReactorAccountId ]
+        ReactorAccountId: !FindInMap [ CallbackConfiguration, dev, ReactorAccountId ]
       TemplateURL: https://s3.amazonaws.com/cz-provision-account/latest/services/account_type/master_payer.yaml
 
 
@@ -151,9 +151,9 @@ Resources:
         - Key: cloudzero-stack
           Value: !Ref AWS::StackName
         - Key: cloudzero-reactor-account-id
-          Value: !FindInMap [ CallbackConfiguration, prod, ReactorAccountId ]
+          Value: !FindInMap [ CallbackConfiguration, dev, ReactorAccountId ]
       Parameters:
-        ReactorCallbackUrl: !FindInMap [ CallbackConfiguration, prod, ReactorCallbackUrl ]
+        ReactorCallbackUrl: !FindInMap [ CallbackConfiguration, dev, ReactorCallbackUrl ]
       TemplateURL: https://s3.amazonaws.com/cz-provision-account/latest/services/notification.yaml
 
 
@@ -165,16 +165,16 @@ Resources:
         - Key: cloudzero-stack
           Value: !Ref AWS::StackName
         - Key: cloudzero-reactor-account-id
-          Value: !FindInMap [ CallbackConfiguration, prod, ReactorAccountId ]
+          Value: !FindInMap [ CallbackConfiguration, dev, ReactorAccountId ]
       ServiceToken: !GetAtt NotificationFunctionStack.Outputs.Arn
       AccountId: !Ref AWS::AccountId
       Version: '1'
       # Parameters from Other Resources in this Stack
       ExternalId: !Ref ExternalId
-      ReactorCallbackUrl: !FindInMap [ CallbackConfiguration, prod, ReactorCallbackUrl ]
+      ReactorCallbackUrl: !FindInMap [ CallbackConfiguration, dev, ReactorCallbackUrl ]
       AccountName: !Ref AccountName
       Region: !Ref AWS::Region
-      ReactorId: !FindInMap [ CallbackConfiguration, prod, ReactorId ]
+      ReactorId: !FindInMap [ CallbackConfiguration, dev, ReactorId ]
       # References to other stacks; it's easier for _this_ Resource to simply grab the outputs
       # programmatically b/c some of the outputs are conditional.
       Stacks:
@@ -190,8 +190,8 @@ Resources:
 Outputs:
   BillingBucket:
     Value: !GetAtt Discovery.Outputs.MasterPayerBillingBucketName
-  # BillingPrefix:
-  #   Value: !GetAtt DiscoveryResource.MasterPayerBillingBucketPrefix
+  BillingPrefix:
+    Value: !GetAtt Discovery.Outputs.MasterPayerBillingBucketPath
   CloudTrailArn:
     Value: !GetAtt Discovery.Outputs.CloudTrailTrailArn
   CloudTrailBucketPrefix:
