@@ -317,7 +317,7 @@ def test_handler_non_master_payer_invalid(context, cfn_event, describe_trails_re
         'IsResourceOwnerAccount': True,
         'IsMasterPayerAccount': False,
         'MasterPayerBillingBucketName': None,
-        'MasterPayerBillingBucketPath': '/',
+        'MasterPayerBillingBucketPath': None,
     }
 
 
@@ -367,7 +367,7 @@ def test_handler_just_resource_owner(context, cfn_event, list_buckets_response):
         'IsResourceOwnerAccount': True,
         'IsMasterPayerAccount': False,
         'MasterPayerBillingBucketName': None,
-        'MasterPayerBillingBucketPath': '/',
+        'MasterPayerBillingBucketPath': None,
     }
 
 
