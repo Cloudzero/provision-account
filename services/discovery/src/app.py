@@ -24,6 +24,7 @@ DEFAULT_OUTPUT = {
     'RemoteCloudTrailBucket': True,
     'CloudTrailSNSTopicArn': None,
     'CloudTrailTrailArn': None,
+    'VisibleCloudTrailArns': None,
     'IsAuditAccount': False,
     'IsCloudTrailOwnerAccount': False,
     'IsResourceOwnerAccount': False,
@@ -170,7 +171,14 @@ def discover_connected_account(world):
     return update_in(world, ['output'], lambda x: merge(x or {}, output))
 
 
+def get_visible_cloudtrail_arns(world):
+    visible_trail_arns = [x.get('TrailARN')
+                          for x in coeffects_traillist(world)]
+    return ','.join(visible_trail_arns) if visible_trail_arns else None
+
+
 def discover_cloudtrail_account(world):
+    visible_trails = get_visible_cloudtrail_arns(world)
     trail = get_first_valid_trail(world)
     trail_topic = trail.get('SnsTopicARN')
     account_id = trail_topic.split(':')[4] if trail_topic else None
@@ -178,6 +186,7 @@ def discover_cloudtrail_account(world):
         'IsCloudTrailOwnerAccount': account_id == event_account_id(world),
         'CloudTrailSNSTopicArn': trail_topic,
         'CloudTrailTrailArn': trail.get('TrailARN'),
+        'VisibleCloudTrailArns': visible_trails,
     }
     return update_in(world, ['output'], lambda x: merge(x or {}, output))
 
