@@ -29,6 +29,7 @@ DEFAULT_CFN_COEFFECT = {
         'AuditCloudTrailBucketPrefix': 'null',
         'CloudTrailSNSTopicArn': 'null',
         'CloudTrailTrailArn': 'null',
+        'VisibleCloudTrailArns': 'null',
         'IsAuditAccount': 'false',
         'IsCloudTrailOwnerAccount': 'false',
         'IsMasterPayerAccount': 'false',
@@ -97,6 +98,7 @@ CFN_COEFFECT_SCHEMA = Schema({
         'AuditCloudTrailBucketPrefix': NULLABLE_STRING,
         'CloudTrailSNSTopicArn': NULLABLE_ARN,
         'CloudTrailTrailArn': NULLABLE_ARN,
+        'VisibleCloudTrailArns': NULLABLE_STRING,
         'IsAuditAccount': BOOLEAN_STRING,
         'IsCloudTrailOwnerAccount': BOOLEAN_STRING,
         'IsMasterPayerAccount': BOOLEAN_STRING,
@@ -246,6 +248,8 @@ def prepare_output(world):
     valid_cfn = get_in(['valid_cfn'], world)
     metadata = callback_metadata(properties(world))
     message_type = 'account-link-provisioned' if request_type(world) in {'Create', 'Update'} else 'account-link-deprovisioned'
+    visible_cloudtrail_arns_string = null_to_none(get_in(['Discovery', 'VisibleCloudTrailArns'], valid_cfn))
+    visible_cloudtrail_arns = visible_cloudtrail_arns_string.split(',') if visible_cloudtrail_arns_string else None
     output = {
         **default_metadata,
         'message_type': message_type,
@@ -273,6 +277,7 @@ def prepare_output(world):
                 'audit_cloudtrail_bucket_prefix': null_to_none(get_in(['Discovery', 'AuditCloudTrailBucketPrefix'], valid_cfn)),
                 'cloudtrail_sns_topic_arn': null_to_none(get_in(['Discovery', 'CloudTrailSNSTopicArn'], valid_cfn)),
                 'cloudtrail_trail_arn': null_to_none(get_in(['Discovery', 'CloudTrailTrailArn'], valid_cfn)),
+
                 'is_audit_account': string_to_bool(get_in(['Discovery', 'IsAuditAccount'], valid_cfn)),
                 'is_cloudtrail_owner_account': string_to_bool(get_in(['Discovery', 'IsCloudTrailOwnerAccount'], valid_cfn)),
                 'is_master_payer_account': string_to_bool(get_in(['Discovery', 'IsMasterPayerAccount'], valid_cfn)),
@@ -280,6 +285,7 @@ def prepare_output(world):
                 'master_payer_billing_bucket_name': null_to_none(get_in(['Discovery', 'MasterPayerBillingBucketName'], valid_cfn)),
                 'master_payer_billing_bucket_path': null_to_none(get_in(['Discovery', 'MasterPayerBillingBucketPath'], valid_cfn)),
                 'remote_cloudtrail_bucket': string_to_bool(get_in(['Discovery', 'RemoteCloudTrailBucket'], valid_cfn)),
+                'visible_cloudtrail_arns': visible_cloudtrail_arns,
             }
         }
     }

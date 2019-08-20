@@ -97,6 +97,7 @@ def test_handler_no_cfn_coeffects(context, cfn_event):
                 'master_payer_billing_bucket_name': None,
                 'master_payer_billing_bucket_path': None,
                 'remote_cloudtrail_bucket': True,
+                'visible_cloudtrail_arns': None,
             },
             'metadata': {
                 'cloud_region': 'str',
