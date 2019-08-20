@@ -24,12 +24,13 @@ DEFAULT_OUTPUT = {
     'RemoteCloudTrailBucket': True,
     'CloudTrailSNSTopicArn': None,
     'CloudTrailTrailArn': None,
+    'VisibleCloudTrailArns': None,
     'IsAuditAccount': False,
     'IsCloudTrailOwnerAccount': False,
     'IsResourceOwnerAccount': False,
     'IsMasterPayerAccount': False,
     'MasterPayerBillingBucketName': None,
-    'MasterPayerBillingBucketPath': '/',
+    'MasterPayerBillingBucketPath': None,
 }
 
 
@@ -170,7 +171,14 @@ def discover_connected_account(world):
     return update_in(world, ['output'], lambda x: merge(x or {}, output))
 
 
+def get_visible_cloudtrail_arns(world):
+    visible_trail_arns = [x.get('TrailARN')
+                          for x in coeffects_traillist(world)]
+    return ','.join(visible_trail_arns) if visible_trail_arns else None
+
+
 def discover_cloudtrail_account(world):
+    visible_trails = get_visible_cloudtrail_arns(world)
     trail = get_first_valid_trail(world)
     trail_topic = trail.get('SnsTopicARN')
     account_id = trail_topic.split(':')[4] if trail_topic else None
@@ -178,6 +186,7 @@ def discover_cloudtrail_account(world):
         'IsCloudTrailOwnerAccount': account_id == event_account_id(world),
         'CloudTrailSNSTopicArn': trail_topic,
         'CloudTrailTrailArn': trail.get('TrailARN'),
+        'VisibleCloudTrailArns': visible_trails,
     }
     return update_in(world, ['output'], lambda x: merge(x or {}, output))
 
@@ -210,10 +219,12 @@ def discover_master_payer_account(world):
     logger.info(f'Found these _valid local_ ReportDefinitions: {valid_local_report_definitions}')
     local = any(valid_local_report_definitions)
     first_valid_local = get_first_valid_report_definition(valid_local_report_definitions, default=first_valid)
+    bucket_name = first_valid_local.get('S3Bucket')
+    bucket_path = f"{first_valid_local.get('S3Prefix', '')}/{first_valid_local.get('ReportName', '')}" if bucket_name else None
     output = {
         'IsMasterPayerAccount': local,
-        'MasterPayerBillingBucketName': first_valid_local.get('S3Bucket'),
-        'MasterPayerBillingBucketPath': f"{first_valid_local.get('S3Prefix', '')}/{first_valid_local.get('ReportName', '')}",
+        'MasterPayerBillingBucketName': bucket_name,
+        'MasterPayerBillingBucketPath': bucket_path,
     }
     return update_in(world, ['output'], lambda x: merge(x or {}, output))
 

@@ -58,4 +58,6 @@ Outputs:
     Value: !GetAtt DiscoveryResource.MasterPayerBillingBucketPath
   RemoteCloudTrailBucket:
     Value: !GetAtt DiscoveryResource.RemoteCloudTrailBucket
+  VisibleCloudTrailArns:
+    Value: !GetAtt DiscoveryResource.VisibleCloudTrailArns
 
