@@ -33,6 +33,7 @@ DEFAULT_CFN_COEFFECT = {
         'IsAuditAccount': 'false',
         'IsCloudTrailOwnerAccount': 'false',
         'IsMasterPayerAccount': 'false',
+        'IsOrganizationTrail': 'null',
         'IsResourceOwnerAccount': 'false',
         'MasterPayerBillingBucketName': 'null',
         'MasterPayerBillingBucketPath': 'null',
@@ -79,7 +80,7 @@ INPUT_SCHEMA = Schema({
     }
 }, required=True, extra=REMOVE_EXTRA)
 
-BOOLEAN_STRING = Schema(Any('true', 'false'))
+BOOLEAN_STRING = Schema(Any('null', 'true', 'false'))
 ARN = Schema(Match(r'^arn:(?:aws|aws-cn|aws-us-gov):([a-z0-9-]+):'
                    r'((?:[a-z0-9-]*)|global):(\d{12}|aws)*:(.+$)$'))
 NULLABLE_ARN = Schema(Any('null', ARN))
@@ -102,6 +103,7 @@ CFN_COEFFECT_SCHEMA = Schema({
         'IsAuditAccount': BOOLEAN_STRING,
         'IsCloudTrailOwnerAccount': BOOLEAN_STRING,
         'IsMasterPayerAccount': BOOLEAN_STRING,
+        'IsOrganizationTrail': BOOLEAN_STRING,
         'IsResourceOwnerAccount': BOOLEAN_STRING,
         'MasterPayerBillingBucketName': NULLABLE_STRING,
         'MasterPayerBillingBucketPath': NULLABLE_STRING,
@@ -120,6 +122,7 @@ CFN_COEFFECT_SCHEMA = Schema({
 
 
 NONEABLE_ARN = Schema(Any(None, ARN))
+NONEABLE_BOOL = Schema(Any(None, bool))
 NONEABLE_STRING = Schema(Any(None, str))
 LINK_ROLE = Schema({'role_arn': NONEABLE_ARN})
 ACCOUNT_LINK_PROVISIONED = Schema({
@@ -149,6 +152,7 @@ ACCOUNT_LINK_PROVISIONED = Schema({
             'cloudtrail_trail_arn': NONEABLE_ARN,
             'is_audit_account': bool,
             'is_cloudtrail_owner_account': bool,
+            'is_organization_trail': NONEABLE_BOOL,
             'is_master_payer_account': bool,
             'is_resource_owner_account': bool,
             'master_payer_billing_bucket_name': NONEABLE_STRING,
@@ -241,7 +245,7 @@ def null_to_none(s):
 
 
 def string_to_bool(s):
-    return s == 'true'
+    return None if s == 'null' else s == 'true'
 
 
 def prepare_output(world):
@@ -281,6 +285,7 @@ def prepare_output(world):
                 'is_audit_account': string_to_bool(get_in(['Discovery', 'IsAuditAccount'], valid_cfn)),
                 'is_cloudtrail_owner_account': string_to_bool(get_in(['Discovery', 'IsCloudTrailOwnerAccount'], valid_cfn)),
                 'is_master_payer_account': string_to_bool(get_in(['Discovery', 'IsMasterPayerAccount'], valid_cfn)),
+                'is_organization_trail': string_to_bool(get_in(['Discovery', 'IsOrganizationTrail'], valid_cfn)),
                 'is_resource_owner_account': string_to_bool(get_in(['Discovery', 'IsResourceOwnerAccount'], valid_cfn)),
                 'master_payer_billing_bucket_name': null_to_none(get_in(['Discovery', 'MasterPayerBillingBucketName'], valid_cfn)),
                 'master_payer_billing_bucket_path': null_to_none(get_in(['Discovery', 'MasterPayerBillingBucketPath'], valid_cfn)),

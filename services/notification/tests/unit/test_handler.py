@@ -93,6 +93,7 @@ def test_handler_no_cfn_coeffects(context, cfn_event):
                 'is_audit_account': False,
                 'is_cloudtrail_owner_account': False,
                 'is_master_payer_account': False,
+                'is_organization_trail': None,
                 'is_resource_owner_account': False,
                 'master_payer_billing_bucket_name': None,
                 'master_payer_billing_bucket_path': None,
