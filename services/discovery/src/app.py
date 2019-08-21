@@ -24,6 +24,7 @@ DEFAULT_OUTPUT = {
     'RemoteCloudTrailBucket': True,
     'CloudTrailSNSTopicArn': None,
     'CloudTrailTrailArn': None,
+    'IsOrganizationTrail': None,
     'VisibleCloudTrailArns': None,
     'IsAuditAccount': False,
     'IsCloudTrailOwnerAccount': False,
@@ -184,6 +185,7 @@ def discover_cloudtrail_account(world):
     account_id = trail_topic.split(':')[4] if trail_topic else None
     output = {
         'IsCloudTrailOwnerAccount': account_id == event_account_id(world),
+        'IsOrganizationTrail': trail.get('IsOrganizationTrail'),
         'CloudTrailSNSTopicArn': trail_topic,
         'CloudTrailTrailArn': trail.get('TrailARN'),
         'VisibleCloudTrailArns': visible_trails,

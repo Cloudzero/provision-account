@@ -60,4 +60,6 @@ Outputs:
     Value: !GetAtt DiscoveryResource.RemoteCloudTrailBucket
   VisibleCloudTrailArns:
     Value: !GetAtt DiscoveryResource.VisibleCloudTrailArns
+  IsOrganizationTrail:
+    Value: !GetAtt DiscoveryResource.IsOrganizationTrail
 

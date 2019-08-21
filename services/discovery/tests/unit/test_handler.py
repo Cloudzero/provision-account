@@ -73,7 +73,7 @@ def describe_trails_response_remote():
                 'HomeRegion': 'us-east-1',
                 'IncludeGlobalServiceEvents': True,
                 'IsMultiRegionTrail': True,
-                'IsOrganizationTrail': False,
+                'IsOrganizationTrail': True,
                 'LogFileValidationEnabled': True,
                 'Name': 'my-local-trail',
                 'S3BucketName': LOCAL_BUCKET_NAME,
@@ -237,6 +237,7 @@ def test_handler_all_local(context, cfn_event, describe_trails_response_local, l
         'CloudTrailSNSTopicArn': LOCAL_TOPIC_ARN,
         'CloudTrailTrailArn': LOCAL_TRAIL_ARN,
         'VisibleCloudTrailArns': LOCAL_TRAIL_ARN,
+        'IsOrganizationTrail': False,
         'IsAuditAccount': True,
         'IsCloudTrailOwnerAccount': True,
         'IsResourceOwnerAccount': True,
@@ -264,6 +265,7 @@ def test_handler_non_audit(context, cfn_event, describe_trails_response_remote_b
         'CloudTrailSNSTopicArn': LOCAL_TOPIC_ARN,
         'CloudTrailTrailArn': LOCAL_TRAIL_ARN,
         'VisibleCloudTrailArns': LOCAL_TRAIL_ARN,
+        'IsOrganizationTrail': False,
         'IsAuditAccount': False,
         'IsCloudTrailOwnerAccount': True,
         'IsResourceOwnerAccount': True,
@@ -274,7 +276,7 @@ def test_handler_non_audit(context, cfn_event, describe_trails_response_remote_b
 
 
 @pytest.mark.unit
-def test_handler_non_cloudtrail_owner(context, cfn_event, describe_trails_response_remote, list_buckets_response, describe_report_definitions_response_local):
+def test_handler_remote_organization_trail(context, cfn_event, describe_trails_response_remote, list_buckets_response, describe_report_definitions_response_local):
     context.mock_ct.describe_trails.return_value = describe_trails_response_remote
     context.mock_cur.describe_report_definitions.return_value = describe_report_definitions_response_local
     context.mock_s3.list_buckets.return_value = list_buckets_response
@@ -290,6 +292,7 @@ def test_handler_non_cloudtrail_owner(context, cfn_event, describe_trails_respon
         'CloudTrailSNSTopicArn': REMOTE_TOPIC_ARN,
         'CloudTrailTrailArn': REMOTE_TRAIL_ARN,
         'VisibleCloudTrailArns': REMOTE_TRAIL_ARN,
+        'IsOrganizationTrail': True,
         'IsAuditAccount': True,
         'IsCloudTrailOwnerAccount': False,
         'IsResourceOwnerAccount': True,
@@ -316,6 +319,7 @@ def test_handler_non_master_payer_invalid(context, cfn_event, describe_trails_re
         'CloudTrailSNSTopicArn': LOCAL_TOPIC_ARN,
         'CloudTrailTrailArn': LOCAL_TRAIL_ARN,
         'VisibleCloudTrailArns': LOCAL_TRAIL_ARN,
+        'IsOrganizationTrail': False,
         'IsAuditAccount': True,
         'IsCloudTrailOwnerAccount': True,
         'IsResourceOwnerAccount': True,
@@ -342,6 +346,7 @@ def test_handler_non_master_payer_remote(context, cfn_event, describe_trails_res
         'CloudTrailSNSTopicArn': LOCAL_TOPIC_ARN,
         'CloudTrailTrailArn': LOCAL_TRAIL_ARN,
         'VisibleCloudTrailArns': LOCAL_TRAIL_ARN,
+        'IsOrganizationTrail': False,
         'IsAuditAccount': True,
         'IsCloudTrailOwnerAccount': True,
         'IsResourceOwnerAccount': True,
@@ -368,6 +373,7 @@ def test_handler_just_resource_owner(context, cfn_event, list_buckets_response):
         'CloudTrailSNSTopicArn': None,
         'CloudTrailTrailArn': None,
         'VisibleCloudTrailArns': None,
+        'IsOrganizationTrail': None,
         'IsAuditAccount': False,
         'IsCloudTrailOwnerAccount': False,
         'IsResourceOwnerAccount': True,
