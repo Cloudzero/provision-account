@@ -65,7 +65,8 @@ OUTPUT_SCHEMA = Schema({
 
 event_account_id = get_in(['event', 'ResourceProperties', 'AccountId'])
 coeffects_traillist = get_in(['coeffects', 'cloudtrail', 'trailList'], default=[])
-
+coeffects_buckets = get_in(['coeffects', 's3', 'Buckets'], default=[])
+coeffects_report_definitions = get_in(['coeffects', 'cur', 'ReportDefinitions'], default=[])
 
 #####################
 #
@@ -155,7 +156,7 @@ def get_first_valid_trail(world):
 def discover_audit_account(world):
     trail = get_first_valid_trail(world)
     trail_bucket = trail.get('S3BucketName')
-    local_buckets = {x['Name'] for x in get_in(['coeffects', 's3', 'Buckets'], world, [])}
+    local_buckets = {x['Name'] for x in coeffects_buckets(world)}
     output = {
         'IsAuditAccount': trail_bucket in local_buckets,
         'RemoteCloudTrailBucket': not (trail_bucket in local_buckets),
@@ -211,9 +212,9 @@ def get_first_valid_report_definition(valid_report_definitions, default=None):
 
 
 def discover_master_payer_account(world):
-    report_definitions = get_in(['coeffects', 'cur', 'ReportDefinitions'], world, [])
+    report_definitions = coeffects_report_definitions(world)
     logger.info(f'Found these ReportDefinitions: {report_definitions}')
-    local_buckets = {x['Name'] for x in get_in(['coeffects', 's3', 'Buckets'], world, [])}
+    local_buckets = {x['Name'] for x in coeffects_buckets(world)}
     valid_report_definitions = keep_valid(MINIMUM_BILLING_REPORT, report_definitions)
     logger.info(f'Found these _valid_ ReportDefinitions: {valid_report_definitions}')
     first_valid = get_first_valid_report_definition(valid_report_definitions, default={})
