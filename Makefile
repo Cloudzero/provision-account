@@ -123,6 +123,13 @@ cfn-describe: guard-stack_name
 		--stack-name $${stack_name}
 
 
+cfn-protect: guard-stack_name
+	@printf "$(INFO_COLOR)Enabling Termination Protection on $(WARN_COLOR)$(stack_name)$(NO_COLOR).\n"
+	@aws cloudformation update-termination-protection \
+		--enable-termination-protection \
+		--stack-name $${stack_name}
+
+
 cfn-dryrun: guard-stack_name guard-template_file guard-bucket
 	@aws cloudformation deploy \
 		--template-file $${template_file} \
@@ -156,10 +163,12 @@ deploy-once:
 	$(MAKE) $(PACKAGED_TEMPLATE_FILE) && \
 	printf "$(INFO_COLOR)Deploying regionless $(WARN_COLOR)$(BUCKET)$(NO_COLOR) to us-east-1.\n" && \
 	$(MAKE) cfn-deploy stack_name=cz-$(FEATURE_NAME) template_file=$(PACKAGED_TEMPLATE_FILE) bucket=$(BUCKET) && \
+	$(MAKE) cfn-protect stack_name=cz-$(FEATURE_NAME) && \
 	for r in $${regions} ; do\
 		printf "$(INFO_COLOR)Deploying to $(WARN_COLOR)$${r}$(NO_COLOR).\n" && \
 		export AWS_DEFAULT_REGION="$${r}" && \
 		$(MAKE) cfn-deploy stack_name="cz-$(FEATURE_NAME)-$${r}" template_file=$(PACKAGED_TEMPLATE_FILE) bucket="$(BUCKET)-$${r}" ; \
+		$(MAKE) cfn-protect stack_name="cz-$(FEATURE_NAME)-$${r}" ; \
 	done
 
 
