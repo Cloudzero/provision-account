@@ -136,6 +136,7 @@ Resources:
         - Key: cloudzero-reactor-account-id
           Value: !FindInMap [ CallbackConfiguration, prod, ReactorAccountId ]
       Parameters:
+        IsOrganizationMasterAccount: !GetAtt Discovery.Outputs.IsOrganizationMasterAccount
         IsMasterPayerAccount: !GetAtt Discovery.Outputs.IsMasterPayerAccount
         MasterPayerBillingBucketName: !GetAtt Discovery.Outputs.MasterPayerBillingBucketName
         ExternalId: !Ref ExternalId
