@@ -23,6 +23,7 @@ Resources:
       Policies:
         - AmazonS3ReadOnlyAccess
         - AWSCloudTrailReadOnlyAccess
+        - AWSOrganizationsReadOnlyAccess
         - Billing
       Environment:
         Variables:
@@ -62,4 +63,5 @@ Outputs:
     Value: !GetAtt DiscoveryResource.VisibleCloudTrailArns
   IsOrganizationTrail:
     Value: !GetAtt DiscoveryResource.IsOrganizationTrail
-
+  IsOrganizationMasterAccount:
+    Value: !GetAtt DiscoveryResource.IsOrganizationMasterAccount
