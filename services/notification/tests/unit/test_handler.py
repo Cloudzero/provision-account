@@ -2,14 +2,13 @@
 # Copyright (c) 2016-present, CloudZero, Inc. All rights reserved.
 # Licensed under the BSD-style license. See LICENSE file in the project root for full license information.
 
+import random
 import os
 
 import attrdict
 import cfnresponse
 import pytest
 import simplejson as json
-# from voluptuous import All, Schema, ALLOW_EXTRA
-# from toolz.curried import assoc_in
 
 import src.app as app
 
@@ -40,6 +39,62 @@ def cfn_event():
         },
         'ResponseURL': 'https://cfn.amazonaws.com/callback',
         'StackId': 'some-cfn-stack-id',
+    }
+
+
+def random_bool():
+    return bool(random.getrandbits(1))
+
+
+def nullable_arn():
+    return 'arn:aws:lambda:us-east-1:999999999999:function:name' if random_bool() else 'null'
+
+
+def nullable_string():
+    return 'foo' if random_bool() else 'null'
+
+
+def boolean_string():
+    return 'True' if random_bool() else 'False'
+
+
+@pytest.fixture()
+def cfn_coeffect():
+    return {
+        'AuditAccount': {
+            'RoleArn': nullable_arn()
+        },
+        'CloudTrailOwnerAccount': {
+            'SQSQueueArn': nullable_arn(),
+            'SQSQueuePolicyName': nullable_string(),
+        },
+        'Discovery': {
+            'AuditCloudTrailBucketName': nullable_string(),
+            'AuditCloudTrailBucketPrefix': nullable_string(),
+            'CloudTrailSNSTopicArn': nullable_arn(),
+            'CloudTrailTrailArn': nullable_arn(),
+            'VisibleCloudTrailArns': nullable_string(),
+            'IsAuditAccount': boolean_string(),
+            'IsCloudTrailOwnerAccount': boolean_string(),
+            'IsMasterPayerAccount': boolean_string(),
+            'IsOrganizationMasterAccount': boolean_string(),
+            'IsOrganizationTrail': boolean_string(),
+            'IsResourceOwnerAccount': boolean_string(),
+            'MasterPayerBillingBucketName': nullable_string(),
+            'MasterPayerBillingBucketPath': nullable_string(),
+            'RemoteCloudTrailBucket': boolean_string(),
+        },
+        'MasterPayerAccount': {
+            'RoleArn': nullable_arn(),
+            'ReportS3Bucket': nullable_string(),
+            'ReportS3Prefix': nullable_string(),
+        },
+        'ResourceOwnerAccount': {
+            'RoleArn': nullable_arn(),
+        },
+        'LegacyAccount': {
+            'RoleArn': nullable_arn(),
+        }
     }
 
 
@@ -94,6 +149,7 @@ def test_handler_no_cfn_coeffects(context, cfn_event):
                 'is_cloudtrail_owner_account': False,
                 'is_master_payer_account': False,
                 'is_organization_trail': None,
+                'is_organization_master_account': False,
                 'is_resource_owner_account': False,
                 'master_payer_billing_bucket_name': None,
                 'master_payer_billing_bucket_path': None,
@@ -125,3 +181,15 @@ def test_handler_no_cfn_coeffects(context, cfn_event):
     (_, kwargs) = context.mock_requests_post.call_args
     assert 'json' in kwargs
     assert kwargs['json'] == expected
+
+
+@pytest.mark.unit
+def test_prepare_output(context, cfn_event, cfn_coeffect):
+    world = {
+        'event': cfn_event,
+        'valid_cfn': cfn_coeffect,
+    }
+    new_world = app.prepare_output(world)
+    is_master_payer_account = bool(cfn_coeffect['Discovery']['IsMasterPayerAccount'] == 'True' or
+                                   cfn_coeffect['MasterPayerAccount']['ReportS3Bucket'] != 'null')
+    assert new_world['output']['data']['discovery']['is_master_payer_account'] == is_master_payer_account

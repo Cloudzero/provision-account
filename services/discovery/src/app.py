@@ -26,6 +26,7 @@ DEFAULT_OUTPUT = {
     'CloudTrailSNSTopicArn': None,
     'CloudTrailTrailArn': None,
     'IsOrganizationTrail': None,
+    'IsOrganizationMasterAccount': False,
     'VisibleCloudTrailArns': None,
     'IsAuditAccount': False,
     'IsCloudTrailOwnerAccount': False,
