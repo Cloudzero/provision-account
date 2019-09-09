@@ -14,7 +14,7 @@ Globals:
 
 Resources:
   DiscoveryFunction:
-    Type: AWS::Serverless::Function 
+    Type: AWS::Serverless::Function
     Properties:
       CodeUri:
         Bucket: !Sub 'cz-provision-account-${AWS::Region}'
@@ -23,7 +23,7 @@ Resources:
       Policies:
         - AmazonS3ReadOnlyAccess
         - AWSCloudTrailReadOnlyAccess
-        - AWSOrganizationsReadOnlyAccess
+        - arn:aws:iam::aws:policy/AWSOrganizationsReadOnlyAccess
         - Billing
       Environment:
         Variables:
