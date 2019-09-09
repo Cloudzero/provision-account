@@ -21,7 +21,7 @@ CFN_TEMPLATES := $(filter-out $(SAM_TEMPLATES), $(ALL_CFN_TEMPLATES))
 # Guard Defaults
 #
 ####################
-
+regions = $(shell aws ec2 describe-regions | jq -r -e '.Regions[].RegionName')
 
 ####################
 #
@@ -175,7 +175,7 @@ deploy-once:
 .PHONY: deploy                                                                          ## Deploys Artifacts to S3 Bucket
 deploy:
 	@. ./project.sh && cz_assert_profile && \
-	regions=`aws ec2 describe-regions | jq -r -e '.Regions[].RegionName'` && \
+	find . -name $(APP_ZIP) -exec rm -rf {} \; && \
 	$(MAKE) package-sam-apps && \
 	version=`git rev-list --count HEAD` && \
 	for cfn in $(CFN_TEMPLATES) ; do \
@@ -187,7 +187,7 @@ deploy:
 		aws s3 cp $${app}/$(TEMPLATE_FILE) s3://$(BUCKET)/latest/$${app}.yaml && \
 		aws s3 cp $${app}/$(APP_ZIP) s3://$(BUCKET)/v$(SEMVER_MAJ_MIN).$${version}/$${app}.zip && \
 		aws s3 cp $${app}/$(APP_ZIP) s3://$(BUCKET)/latest/$${app}.zip && \
-		for r in $${regions} ; do \
+		for r in $(regions) ; do \
 			aws s3 cp $${app}/$(APP_ZIP) s3://$(BUCKET)-$${r}/v$(SEMVER_MAJ_MIN).$${version}/$${app}.zip && \
 			aws s3 cp $${app}/$(APP_ZIP) s3://$(BUCKET)-$${r}/latest/$${app}.zip ; \
 		done ; \
