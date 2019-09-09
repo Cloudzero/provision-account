@@ -67,41 +67,11 @@ Resources:
               StringEquals:
                 'sts:ExternalId': !Ref ExternalId
 
-  Bucket:
-    Condition: CreateCurAndBucketAndPolicy
-    Type: 'AWS::S3::Bucket'
-
-  BucketPolicy:
-    Condition: CreateCurAndBucketAndPolicy
-    Type: 'AWS::S3::BucketPolicy'
-    Properties: 
-      Bucket: !Ref Bucket
-      PolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Sid: Stmt1335892150622
-            Effect: Allow
-            Principal:
-              Service: billingreports.amazonaws.com
-            Action:
-              - s3:GetBucketAcl
-              - s3:GetBucketPolicy
-            Resource: !Sub 'arn:aws:s3:::${Bucket}'
-          - Sid: Stmt1335892526596
-            Effect: Allow
-            Principal:
-              Service: billingreports.amazonaws.com
-            Action:
-              - s3:PutObject
-            Resource: !Sub 'arn:aws:s3:::${Bucket}/*'
-         
-
   CostAndUsageReportResource:
     Condition: CreateCurAndBucketAndPolicy
     Type: 'Custom::CostAndUsageReport'
     Properties:
       ServiceToken: !GetAtt CostAndUsageReportLambda.Arn
-      BucketName: !Ref Bucket
       Region: !Ref AWS::Region
 
   CostAndUsageReportRole:
@@ -137,8 +107,8 @@ Resources:
               Action:
                 - 's3:*'
               Resource:
-                - !Sub 'arn:aws:s3:::${Bucket}'
-                - !Sub 'arn:aws:s3:::${Bucket}/*'
+                - !Sub 'arn:aws:s3:::cloudzero-cur-hourly-csv'
+                - !Sub 'arn:aws:s3:::cloudzero-cur-hourly-csv/*'
 
   # NOTE: This is an inline lambda function b/c we want it to be easy for you
   # to see the resource we're creating, in this case a Cost and Usage report.
@@ -160,8 +130,9 @@ Resources:
         - !Sub 'arn:aws:lambda:${AWS::Region}:113088814899:layer:Klayers-python37-boto3:7'
       Code:
         ZipFile: |
-          import cfnresponse
           import boto3
+          import cfnresponse
+          import json
           import logging
 
           cur = boto3.client('cur', region_name='us-east-1')  # cur is only in us-east-1
@@ -172,12 +143,46 @@ Resources:
           def handler(event, context):
               result = cfnresponse.SUCCESS
               report_name = 'cloudzero-cur-hourly-csv'
+              bucket_name = 'cloudzero-cur-hourly-csv'
               try:
                   logger.info(f'Received event: {event}')
-                  bucket_name = event['ResourceProperties']['BucketName']
-                  region = event['ResourceProperties']['Region']
+                  current_region = event['ResourceProperties']['Region']
+                  valid_regions = {'us-west-1', 'us-west-2', 'ap-northeast-1', 'ap-northeast-3', 'eu-north-1', 'ap-southeast-1',
+                                   'eu-west-1', 'us-east-1', 'ap-southeast-2', 'eu-central-1', 'ap-east-1'}
+                  region = current_region if current_region in valid_regions else 'us-east-1'
+                  s3 = boto3.resource('s3', region_name=region)
+                  bucket = s3.Bucket(bucket_name)
 
                   if event['RequestType'] == 'Create':
+                      bucket.create()
+                      policy = {
+                          'Version': '2012-10-17',
+                          'Statement': [
+                              {
+                                  'Sid': 'AddBillReportsGet',
+                                  'Effect': 'Allow',
+                                  'Principal': {
+                                      'Service': 'billingreports.amazonaws.com'
+                                  },
+                                  'Action': [
+                                      's3:GetBucketAcl',
+                                      's3:GetBucketPolicy'
+                                  ],
+                                  'Resource': f'arn:aws:s3:::{bucket_name}'
+                              },
+                              {
+                                  'Sid': 'AddBillReportsPut',
+                                  'Effect': 'Allow',
+                                  'Principal': {
+                                      'Service': 'billingreports.amazonaws.com'
+                                  },
+                                  'Action': 's3:PutObject',
+                                  'Resource': f'arn:aws:s3:::{bucket_name}/*'
+                              }
+                          ]
+                      }
+                      bucket.Policy().put(Policy=json.dumps(policy))
+
                       logger.info(f'Creating {report_name}')
                       cur.put_report_definition(
                           ReportDefinition={
@@ -194,12 +199,15 @@ Resources:
                       logger.warning(f'Update is unsupported')
                   elif event['RequestType'] == 'Delete':
                       logger.info(f'Deleting {report_name}')
+                      bucket.objects.all().delete()
+                      bucket.delete()
                       cur.delete_report_definition(ReportName=report_name)
               except Exception:
                   logger.error('Failed to Update Cur Resource', exc_info=True)
                   result = cfnresponse.FAILED
               finally:
-                  cfnresponse.send(event, context, result, {'ReportName': report_name})
+                  cfnresponse.send(event, context, result, {'ReportS3Bucket': bucket_name, 'ReportS3Prefix': 'cloudzero'})
+
 
               
   RolePolicy:
@@ -227,8 +235,8 @@ Resources:
                 - !Sub 'arn:aws:s3:::${MasterPayerBillingBucketName}'
                 - !Sub 'arn:aws:s3:::${MasterPayerBillingBucketName}/*'
               - 
-                - !Sub 'arn:aws:s3:::${Bucket}'
-                - !Sub 'arn:aws:s3:::${Bucket}/*'
+                - !Sub 'arn:aws:s3:::cloudzero-cur-hourly-csv'
+                - !Sub 'arn:aws:s3:::cloudzero-cur-hourly-csv/*'
           - Sid: ViewBilling1
             Effect: Allow
             Action:
@@ -266,7 +274,7 @@ Outputs:
     Value: !If [ CreateRoleAndPolicy, !GetAtt Role.Arn, 'null' ]
   ReportS3Bucket:
     Description: The CUR bucket if it was created
-    Value: !If [ CreateCurAndBucketAndPolicy, !Ref Bucket, 'null' ]
+    Value: !If [ CreateCurAndBucketAndPolicy, !GetAtt CostAndUsageReportResource.ReportS3Bucket, 'null' ]
   ReportS3Prefix:
     Description: The CUR bucket prefix if it was created
-    Value: !If [ CreateCurAndBucketAndPolicy, 'cloudzero', 'null' ]
+    Value: !If [ CreateCurAndBucketAndPolicy, !GetAtt CostAndUsageReportResource.ReportS3Prefix, 'null' ]
