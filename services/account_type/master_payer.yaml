@@ -161,14 +161,17 @@ Resources:
                   logger.info(f'Received event: {event}')
                   bucket_name = event['ResourceProperties']['BucketName']
                   current_region = event['ResourceProperties']['Region']
-                  valid_regions = {'us-west-1', 'us-west-2', 'ap-northeast-1', 'ap-northeast-3', 'eu-north-1', 'ap-southeast-1',
-                                   'eu-west-1', 'us-east-1', 'ap-southeast-2', 'eu-central-1', 'ap-east-1'}
+                  # valid regions are an intersection of supported S3 region affinity and CUR Report
+                  valid_regions = {'us-west-1', 'us-west-2', 'ap-northeast-1','ap-southeast-1',
+                                   'eu-west-1', 'us-east-1', 'ap-southeast-2', 'eu-central-1'}
                   region = current_region if current_region in valid_regions else 'us-east-1'
                   s3 = boto3.resource('s3', region_name=region)
                   bucket = s3.Bucket(bucket_name)
 
                   if event['RequestType'] == 'Create':
-                      bucket.create()
+                      bucket.create(
+                        CreateBucketConfiguration={'LocationConstraint': region},
+                      )
                       policy = {
                           'Version': '2012-10-17',
                           'Statement': [
