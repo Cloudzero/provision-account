@@ -76,7 +76,7 @@ test: lint test-sam-apps
 # Generic Sam Apps Target, loop through SAM_APPS calling make with stem
 .PHONY: %-sam-apps
 %-sam-apps:
-  cwd=`pwd` ; \
+	@cwd=`pwd` ; \
 	for app in $(SAM_APPS) ; do \
     cd $${app} ; $(MAKE) $* ; cd $${cwd} ; \
   done
