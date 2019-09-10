@@ -76,8 +76,9 @@ test: lint test-sam-apps
 # Generic Sam Apps Target, loop through SAM_APPS calling make with stem
 .PHONY: %-sam-apps
 %-sam-apps:
+  cwd=`pwd` ; \
 	for app in $(SAM_APPS) ; do \
-    cd $${app} ; $(MAKE) $* ; cd - &> /dev/null; \
+    cd $${app} ; $(MAKE) $* ; cd $${cwd} ; \
   done
 
 .PHONY: clean                                                                           ## Cleans up everything that isn't source code (similar to re-cloning the repo)
