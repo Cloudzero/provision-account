@@ -12,7 +12,7 @@ include MakefileConstants.mk
 ####################
 ALL_CFN_TEMPLATES := $(shell find services -name "*.yaml" -a ! -name "packaged*.yaml" -a ! -path "*.aws-sam*")
 SAM_APPS := $(shell find services -name "tox.ini" | grep -v '.aws-sam' | xargs -Ipath dirname path | uniq)
-SAM_TEMPLATES := $(shell find $(SAM_APPS) -name "template.yaml" -maxdepth 1)
+SAM_TEMPLATES := $(shell find $(SAM_APPS) -maxdepth 1 -name "template.yaml")
 CFN_TEMPLATES := $(filter-out $(SAM_TEMPLATES), $(ALL_CFN_TEMPLATES))
 
 
@@ -76,8 +76,9 @@ test: lint test-sam-apps
 # Generic Sam Apps Target, loop through SAM_APPS calling make with stem
 .PHONY: %-sam-apps
 %-sam-apps:
+	@cwd=`pwd` ; \
 	for app in $(SAM_APPS) ; do \
-    cd $${app} ; $(MAKE) $* ; cd - &> /dev/null; \
+    cd $${app} ; $(MAKE) $* ; cd $${cwd} ; \
   done
 
 .PHONY: clean                                                                           ## Cleans up everything that isn't source code (similar to re-cloning the repo)
