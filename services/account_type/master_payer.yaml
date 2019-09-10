@@ -34,7 +34,6 @@ Parameters:
       associating this template with a Customer Organization
     Type: String
 
-
 Conditions:
   ValidExistingBucketName: !Not [ !Equals [ !Ref MasterPayerBillingBucketName, 'null' ] ]
   CreateCurAndBucketAndPolicy: !And
@@ -47,6 +46,11 @@ Conditions:
   CreateRoleAndPolicy: !Or
     - Condition: CreatePolicyForExistingCur
     - Condition: CreateCurAndBucketAndPolicy
+
+Mappings:
+  Defaults:
+    Cur:
+      BucketName: 'cz-cur-hourly-csv'
 
 Resources:
   Role:
@@ -73,6 +77,10 @@ Resources:
     Properties:
       ServiceToken: !GetAtt CostAndUsageReportLambda.Arn
       Region: !Ref AWS::Region
+      BucketName: !Sub
+        - '${BucketName}-${Id}'
+        - { BucketName: !FindInMap [ Defaults, Cur, BucketName ],
+            Id: !Select [ 2, !Split [ '/', !Ref 'AWS::StackId' ] ] }
 
   CostAndUsageReportRole:
     Condition: CreateCurAndBucketAndPolicy
@@ -107,8 +115,14 @@ Resources:
               Action:
                 - 's3:*'
               Resource:
-                - !Sub 'arn:aws:s3:::cloudzero-cur-hourly-csv'
-                - !Sub 'arn:aws:s3:::cloudzero-cur-hourly-csv/*'
+                - !Sub
+                  - 'arn:aws:s3:::${BucketName}-${Id}'
+                  - { BucketName: !FindInMap [ Defaults, Cur, BucketName ],
+                      Id: !Select [ 2, !Split [ '/', !Ref 'AWS::StackId' ] ] }
+                - !Sub
+                  - 'arn:aws:s3:::${BucketName}-${Id}/*'
+                  - { BucketName: !FindInMap [ Defaults, Cur, BucketName ],
+                      Id: !Select [ 2, !Split [ '/', !Ref 'AWS::StackId' ] ] }
 
   # NOTE: This is an inline lambda function b/c we want it to be easy for you
   # to see the resource we're creating, in this case a Cost and Usage report.
@@ -143,9 +157,9 @@ Resources:
           def handler(event, context):
               result = cfnresponse.SUCCESS
               report_name = 'cloudzero-cur-hourly-csv'
-              bucket_name = 'cloudzero-cur-hourly-csv'
               try:
                   logger.info(f'Received event: {event}')
+                  bucket_name = event['ResourceProperties']['BucketName']
                   current_region = event['ResourceProperties']['Region']
                   valid_regions = {'us-west-1', 'us-west-2', 'ap-northeast-1', 'ap-northeast-3', 'eu-north-1', 'ap-southeast-1',
                                    'eu-west-1', 'us-east-1', 'ap-southeast-2', 'eu-central-1', 'ap-east-1'}
@@ -235,8 +249,14 @@ Resources:
                 - !Sub 'arn:aws:s3:::${MasterPayerBillingBucketName}'
                 - !Sub 'arn:aws:s3:::${MasterPayerBillingBucketName}/*'
               - 
-                - !Sub 'arn:aws:s3:::cloudzero-cur-hourly-csv'
-                - !Sub 'arn:aws:s3:::cloudzero-cur-hourly-csv/*'
+                - !Sub
+                  - 'arn:aws:s3:::${BucketName}-${Id}'
+                  - { BucketName: !FindInMap [ Defaults, Cur, BucketName ],
+                      Id: !Select [ 2, !Split [ '/', !Ref 'AWS::StackId' ] ] }
+                - !Sub
+                  - 'arn:aws:s3:::${BucketName}-${Id}/*'
+                  - { BucketName: !FindInMap [ Defaults, Cur, BucketName ],
+                      Id: !Select [ 2, !Split [ '/', !Ref 'AWS::StackId' ] ] }
           - Sid: ViewBilling1
             Effect: Allow
             Action:
