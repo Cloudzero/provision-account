@@ -38,7 +38,6 @@ Parameters:
       Unique ExternalId for Customer Organization; for cross-account Role Access and
       associating this template with a Customer Organization
 
-
 Mappings:
   CallbackConfiguration:
     dev:
@@ -79,7 +78,8 @@ Resources:
         ExternalId: !Ref ExternalId
         ReactorAccountId: !FindInMap [ CallbackConfiguration, dev, ReactorAccountId ]
         AuditCloudTrailBucketName: !GetAtt Discovery.Outputs.AuditCloudTrailBucketName
-        MasterPayerBillingBucketName: !GetAtt Discovery.Outputs.MasterPayerBillingBucketName
+        MasterPayerDiscoveredBucketName: !GetAtt Discovery.Outputs.MasterPayerBillingBucketName
+        MasterPayerCreatedBucketName: !GetAtt MasterPayerAccount.Outputs.ReportS3Bucket
         CloudTrailSQSQueueArn: !GetAtt CloudTrailOwnerAccount.Outputs.SQSQueueArn
       TemplateURL: https://s3.amazonaws.com/cz-provision-account/latest/services/account_type/legacy.yaml
 
@@ -186,37 +186,26 @@ Resources:
         MasterPayerAccount: !Ref MasterPayerAccount
         LegacyAccount: !Ref LegacyAccount
 
-
-
 Outputs:
-  BillingBucket:
-    Value: !GetAtt Discovery.Outputs.MasterPayerBillingBucketName
-  BillingPrefix:
-    Value: !GetAtt Discovery.Outputs.MasterPayerBillingBucketPath
-  CloudTrailArn:
-    Value: !GetAtt Discovery.Outputs.CloudTrailTrailArn
-  CloudTrailBucketPrefix:
-    Value: !GetAtt Discovery.Outputs.AuditCloudTrailBucketPrefix
-  CloudTrailBucket:
-    Value: !GetAtt Discovery.Outputs.AuditCloudTrailBucketName
-  ConnectedAccountId:
-    Value: !Ref 'AWS::AccountId'
-  ConnectedAccountName:
-    Value: !Ref AccountName
-  ExternalId:
-    Value: !Ref ExternalId
-  Region:
-    Value: !Ref 'AWS::Region'
-  RemoteCloudTrailBucket:
-    Value: !GetAtt Discovery.Outputs.RemoteCloudTrailBucket
-  RemoteCloudTrailId:
-    Value: !Sub 'AccountId of the account that owns the ${Discovery.Outputs.AuditCloudTrailBucketName} bucket.'
-  RemoteCloudTrailRole:
-    Value: !Sub 'ClouZero RoleArn in the account that owns the ${Discovery.Outputs.AuditCloudTrailBucketName} bucket.'
-  RoleArn:
-    Value: !GetAtt LegacyAccount.Outputs.RoleArn
-  SnsArn:
-    Value: !GetAtt Discovery.Outputs.CloudTrailSNSTopicArn
-  SqsArn:
-    Value: !GetAtt CloudTrailOwnerAccount.Outputs.SQSQueueArn
-
+  AuditAccount:
+    Value: !Ref AuditAccount
+  CloudTrailOwnerAccount:
+    Value: !Ref CloudTrailOwnerAccount
+  Discovery:
+    Value: !Ref Discovery
+  LegacyAccount:
+    Value: !Ref LegacyAccount
+  MasterPayerAccount:
+    Value: !Ref MasterPayerAccount
+  NotificationFunctionStack:
+    Value: !If
+      - ValidReactorCallbackUrl
+      - !Ref NotificationFunctionStack
+      - !Ref AWS::NoValue
+  NotifyCloudZeroReactor:
+    Value: !If
+      - ValidReactorCallbackUrl
+      - !Ref NotifyCloudZeroReactor
+      - !Ref AWS::NoValue
+  ResourceOwnerAccount:
+    Value: !Ref ResourceOwnerAccount
