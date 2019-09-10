@@ -22,6 +22,8 @@ CFN_TEMPLATES := $(filter-out $(SAM_TEMPLATES), $(ALL_CFN_TEMPLATES))
 #
 ####################
 regions = $(shell aws ec2 describe-regions | jq -r -e '.Regions[].RegionName')
+version = $(shell git rev-list --count HEAD)
+
 
 ####################
 #
@@ -177,18 +179,17 @@ deploy:
 	@. ./project.sh && cz_assert_profile && \
 	find . -name $(APP_ZIP) -exec rm -rf {} \; && \
 	$(MAKE) package-sam-apps && \
-	version=`git rev-list --count HEAD` && \
 	for cfn in $(CFN_TEMPLATES) ; do \
-		aws s3 cp $${cfn} s3://$(BUCKET)/v$(SEMVER_MAJ_MIN).$${version}/$${cfn} && \
+		aws s3 cp $${cfn} s3://$(BUCKET)/v$(SEMVER_MAJ_MIN).$(version)/$${cfn} && \
 		aws s3 cp $${cfn} s3://$(BUCKET)/latest/$${cfn} ; \
 	done && \
 	for app in $(SAM_APPS) ; do \
-		aws s3 cp $${app}/$(TEMPLATE_FILE) s3://$(BUCKET)/v$(SEMVER_MAJ_MIN).$${version}/$${app}.yaml && \
+		aws s3 cp $${app}/$(TEMPLATE_FILE) s3://$(BUCKET)/v$(SEMVER_MAJ_MIN).$(version)/$${app}.yaml && \
 		aws s3 cp $${app}/$(TEMPLATE_FILE) s3://$(BUCKET)/latest/$${app}.yaml && \
-		aws s3 cp $${app}/$(APP_ZIP) s3://$(BUCKET)/v$(SEMVER_MAJ_MIN).$${version}/$${app}.zip && \
+		aws s3 cp $${app}/$(APP_ZIP) s3://$(BUCKET)/v$(SEMVER_MAJ_MIN).$(version)/$${app}.zip && \
 		aws s3 cp $${app}/$(APP_ZIP) s3://$(BUCKET)/latest/$${app}.zip && \
 		for r in $(regions) ; do \
-			aws s3 cp $${app}/$(APP_ZIP) s3://$(BUCKET)-$${r}/v$(SEMVER_MAJ_MIN).$${version}/$${app}.zip && \
+			aws s3 cp $${app}/$(APP_ZIP) s3://$(BUCKET)-$${r}/v$(SEMVER_MAJ_MIN).$(version)/$${app}.zip && \
 			aws s3 cp $${app}/$(APP_ZIP) s3://$(BUCKET)-$${r}/latest/$${app}.zip ; \
 		done ; \
 	done
