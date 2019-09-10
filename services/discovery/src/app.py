@@ -16,6 +16,7 @@ logger.setLevel(logging.INFO)
 
 ct = boto3.client('cloudtrail')
 cur = boto3.client('cur', region_name='us-east-1')  # cur is only in us-east-1
+orgs = boto3.client('organizations')
 s3 = boto3.client('s3')
 
 DEFAULT_OUTPUT = {
@@ -25,6 +26,7 @@ DEFAULT_OUTPUT = {
     'CloudTrailSNSTopicArn': None,
     'CloudTrailTrailArn': None,
     'IsOrganizationTrail': None,
+    'IsOrganizationMasterAccount': False,
     'VisibleCloudTrailArns': None,
     'IsAuditAccount': False,
     'IsCloudTrailOwnerAccount': False,
@@ -67,6 +69,8 @@ event_account_id = get_in(['event', 'ResourceProperties', 'AccountId'])
 coeffects_traillist = get_in(['coeffects', 'cloudtrail', 'trailList'], default=[])
 coeffects_buckets = get_in(['coeffects', 's3', 'Buckets'], default=[])
 coeffects_report_definitions = get_in(['coeffects', 'cur', 'ReportDefinitions'], default=[])
+coeffects_master_account_id = get_in(['coeffects', 'organizations', 'Organization', 'MasterAccountId'])
+
 
 #####################
 #
@@ -77,7 +81,8 @@ def coeffects(world):
     return pipe(world,
                 coeffects_cloudtrail,
                 coeffects_s3,
-                coeffects_cur)
+                coeffects_cur,
+                coeffects_organizations)
 
 
 def coeffect(name):
@@ -109,6 +114,12 @@ def coeffects_s3(world):
 def coeffects_cur(world):
     response = cur.describe_report_definitions()
     return keyfilter(lambda x: x in {'ReportDefinitions'}, response)
+
+
+@coeffect('organizations')
+def coeffects_organizations(world):
+    response = orgs.describe_organization()
+    return keyfilter(lambda x: x in {'Organization'}, response)
 
 
 #####################
@@ -232,12 +243,23 @@ def discover_master_payer_account(world):
     return update_in(world, ['output'], lambda x: merge(x or {}, output))
 
 
+def discover_organization_master_account(world):
+    account_id = event_account_id(world)
+    master_account_id = coeffects_master_account_id(world)
+
+    output = {
+        'IsOrganizationMasterAccount': account_id == master_account_id,
+    }
+    return update_in(world, ['output'], lambda x: merge(x or {}, output))
+
+
 def discover_account_types(world):
     return pipe(world,
                 discover_audit_account,
                 discover_connected_account,
                 discover_cloudtrail_account,
-                discover_master_payer_account)
+                discover_master_payer_account,
+                discover_organization_master_account)
 
 
 #####################

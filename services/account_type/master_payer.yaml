@@ -10,7 +10,13 @@ Description: CloudZero Master Payer Template
 
 Parameters:
   IsMasterPayerAccount:
-    Description: Flag to indicate if this is the master payer account
+    Description: Flag to indicate if this is the master payer account, i.e. existing valid CUR
+    Type: String
+    AllowedValues:
+      - 'true'
+      - 'false'
+  IsOrganizationMasterAccount:
+    Description: Flag to indicate if this is an organization master account
     Type: String
     AllowedValues:
       - 'true'
@@ -28,18 +34,29 @@ Parameters:
       associating this template with a Customer Organization
     Type: String
 
-
 Conditions:
-  CreateResources: !And [ !Not [ !Equals [ !Ref MasterPayerBillingBucketName, 'null' ] ], !Equals [ !Ref IsMasterPayerAccount, 'true' ] ]
+  ValidExistingBucketName: !Not [ !Equals [ !Ref MasterPayerBillingBucketName, 'null' ] ]
+  CreateCurAndBucketAndPolicy: !And
+    - !Not
+      - Condition: CreatePolicyForExistingCur
+    - !Equals [ !Ref IsOrganizationMasterAccount, 'true' ]
+  CreatePolicyForExistingCur: !And
+    - Condition: ValidExistingBucketName
+    - !Equals [ !Ref IsMasterPayerAccount, 'true' ]
+  CreateRoleAndPolicy: !Or
+    - Condition: CreatePolicyForExistingCur
+    - Condition: CreateCurAndBucketAndPolicy
 
+Mappings:
+  Defaults:
+    Cur:
+      BucketName: 'cz-cur-hourly-csv'
 
 Resources:
-
   Role:
-    Condition: CreateResources
+    Condition: CreateRoleAndPolicy
     Type: 'AWS::IAM::Role'
     Properties:
-      RoleName: !Sub 'cz-reactor-access-${ReactorAccountId}'
       Path: '/cloudzero/'
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
@@ -54,9 +71,164 @@ Resources:
               StringEquals:
                 'sts:ExternalId': !Ref ExternalId
 
+  CostAndUsageReportResource:
+    Condition: CreateCurAndBucketAndPolicy
+    Type: 'Custom::CostAndUsageReport'
+    Properties:
+      ServiceToken: !GetAtt CostAndUsageReportLambda.Arn
+      Region: !Ref AWS::Region
+      BucketName: !Sub
+        - '${BucketName}-${Id}'
+        - { BucketName: !FindInMap [ Defaults, Cur, BucketName ],
+            Id: !Select [ 2, !Split [ '/', !Ref 'AWS::StackId' ] ] }
 
+  CostAndUsageReportRole:
+    Condition: CreateCurAndBucketAndPolicy
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: CurAccess
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+            - Sid: AllowLogging
+              Effect: Allow
+              Action:
+                - 'logs:CreateLogGroup'
+                - 'logs:CreateLogStream'
+                - 'logs:PutLogEvents'
+              Resource: '*'
+            - Sid: AllowCreateCur
+              Effect: Allow
+              Action:
+                - 'cur:*'
+              Resource: '*'
+            - Sid: AllowVerifyCurBucket
+              Effect: Allow
+              Action:
+                - 's3:*'
+              Resource:
+                - !Sub
+                  - 'arn:aws:s3:::${BucketName}-${Id}'
+                  - { BucketName: !FindInMap [ Defaults, Cur, BucketName ],
+                      Id: !Select [ 2, !Split [ '/', !Ref 'AWS::StackId' ] ] }
+                - !Sub
+                  - 'arn:aws:s3:::${BucketName}-${Id}/*'
+                  - { BucketName: !FindInMap [ Defaults, Cur, BucketName ],
+                      Id: !Select [ 2, !Split [ '/', !Ref 'AWS::StackId' ] ] }
+
+  # NOTE: This is an inline lambda function b/c we want it to be easy for you
+  # to see the resource we're creating, in this case a Cost and Usage report.
+  # We always prefer pure CFN to custom resources; however, CFN currently does
+  # not support creating a CUR.
+  CostAndUsageReportLambda:
+    Condition: CreateCurAndBucketAndPolicy
+    Type: 'AWS::Lambda::Function'
+    Properties:
+      Description: Create/Delete Cost and Usage Report
+      Handler: index.handler
+      Runtime: python3.7
+      Role: !GetAtt CostAndUsageReportRole.Arn
+      Timeout: 15
+      # Unfortunately, the default lambda python execution environment includes an older
+      # version of boto3 that does not support the ReportDefinition parameters we need.
+      # This layer contains a newer version of boto3.
+      Layers:
+        - !Sub 'arn:aws:lambda:${AWS::Region}:113088814899:layer:Klayers-python37-boto3:7'
+      Code:
+        ZipFile: |
+          import boto3
+          import cfnresponse
+          import json
+          import logging
+
+          cur = boto3.client('cur', region_name='us-east-1')  # cur is only in us-east-1
+          logger = logging.getLogger()
+          logger.setLevel(logging.INFO)
+
+
+          def handler(event, context):
+              result = cfnresponse.SUCCESS
+              report_name = 'cloudzero-cur-hourly-csv'
+              try:
+                  logger.info(f'Received event: {event}')
+                  bucket_name = event['ResourceProperties']['BucketName']
+                  current_region = event['ResourceProperties']['Region']
+                  # valid regions are an intersection of supported S3 region affinity and CUR Report
+                  valid_regions = {'us-west-1', 'us-west-2', 'ap-northeast-1','ap-southeast-1',
+                                   'eu-west-1', 'us-east-1', 'ap-southeast-2', 'eu-central-1'}
+                  region = current_region if current_region in valid_regions else 'us-east-1'
+                  s3 = boto3.resource('s3', region_name=region)
+                  bucket = s3.Bucket(bucket_name)
+
+                  if event['RequestType'] == 'Create':
+                      bucket.create(
+                        CreateBucketConfiguration={'LocationConstraint': region},
+                      )
+                      policy = {
+                          'Version': '2012-10-17',
+                          'Statement': [
+                              {
+                                  'Sid': 'AddBillReportsGet',
+                                  'Effect': 'Allow',
+                                  'Principal': {
+                                      'Service': 'billingreports.amazonaws.com'
+                                  },
+                                  'Action': [
+                                      's3:GetBucketAcl',
+                                      's3:GetBucketPolicy'
+                                  ],
+                                  'Resource': f'arn:aws:s3:::{bucket_name}'
+                              },
+                              {
+                                  'Sid': 'AddBillReportsPut',
+                                  'Effect': 'Allow',
+                                  'Principal': {
+                                      'Service': 'billingreports.amazonaws.com'
+                                  },
+                                  'Action': 's3:PutObject',
+                                  'Resource': f'arn:aws:s3:::{bucket_name}/*'
+                              }
+                          ]
+                      }
+                      bucket.Policy().put(Policy=json.dumps(policy))
+
+                      logger.info(f'Creating {report_name}')
+                      cur.put_report_definition(
+                          ReportDefinition={
+                              'AdditionalSchemaElements': ['RESOURCES'],
+                              'Compression': 'GZIP', 'Format': 'textORcsv',
+                              'RefreshClosedReports': True,
+                              'ReportName': report_name,
+                              'ReportVersioning': 'CREATE_NEW_REPORT',
+                              'S3Bucket': bucket_name, 'S3Prefix': 'cloudzero',
+                              'S3Region': region, 'TimeUnit': 'HOURLY',
+                          }
+                      )
+                  elif event['RequestType'] == 'Update':
+                      logger.warning(f'Update is unsupported')
+                  elif event['RequestType'] == 'Delete':
+                      logger.info(f'Deleting {report_name}')
+                      bucket.objects.all().delete()
+                      bucket.delete()
+                      cur.delete_report_definition(ReportName=report_name)
+              except Exception:
+                  logger.error('Failed to Update Cur Resource', exc_info=True)
+                  result = cfnresponse.FAILED
+              finally:
+                  cfnresponse.send(event, context, result, {'ReportS3Bucket': bucket_name, 'ReportS3Prefix': 'cloudzero'})
+
+
+              
   RolePolicy:
-    Condition: CreateResources
+    Condition: CreateRoleAndPolicy
     Type: 'AWS::IAM::Policy'
     Properties:
       PolicyName: !Sub 'cloudzero-master-payer-policy-${ReactorAccountId}'
@@ -74,9 +246,20 @@ Resources:
             Action:
               - 's3:Get*'
               - 's3:List*'
-            Resource:
-              - !Sub 'arn:aws:s3:::${MasterPayerBillingBucketName}'
-              - !Sub 'arn:aws:s3:::${MasterPayerBillingBucketName}/*'
+            Resource: !If
+              - CreatePolicyForExistingCur
+              - 
+                - !Sub 'arn:aws:s3:::${MasterPayerBillingBucketName}'
+                - !Sub 'arn:aws:s3:::${MasterPayerBillingBucketName}/*'
+              - 
+                - !Sub
+                  - 'arn:aws:s3:::${BucketName}-${Id}'
+                  - { BucketName: !FindInMap [ Defaults, Cur, BucketName ],
+                      Id: !Select [ 2, !Split [ '/', !Ref 'AWS::StackId' ] ] }
+                - !Sub
+                  - 'arn:aws:s3:::${BucketName}-${Id}/*'
+                  - { BucketName: !FindInMap [ Defaults, Cur, BucketName ],
+                      Id: !Select [ 2, !Split [ '/', !Ref 'AWS::StackId' ] ] }
           - Sid: ViewBilling1
             Effect: Allow
             Action:
@@ -111,4 +294,10 @@ Resources:
 Outputs:
   RoleArn:
     Description: The cloudzero cross account role ARN
-    Value: !If [ CreateResources, !GetAtt Role.Arn, 'null' ]
+    Value: !If [ CreateRoleAndPolicy, !GetAtt Role.Arn, 'null' ]
+  ReportS3Bucket:
+    Description: The CUR bucket if it was created
+    Value: !If [ CreateCurAndBucketAndPolicy, !GetAtt CostAndUsageReportResource.ReportS3Bucket, 'null' ]
+  ReportS3Prefix:
+    Description: The CUR bucket prefix if it was created
+    Value: !If [ CreateCurAndBucketAndPolicy, !GetAtt CostAndUsageReportResource.ReportS3Prefix, 'null' ]
