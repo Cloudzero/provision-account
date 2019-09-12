@@ -237,15 +237,21 @@ Resources:
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
-          - Sid: ProtectAccountInfo1
+          - Sid: CZProtect20190912
             Effect: Deny
-            Action: 'aws-portal:*Account'
+            Action:
+              - aws-portal:*PaymentMethods
+              - aws-portal:*Account
+              - ec2:GetPasswordData
+              - ec2:GetConsoleOutput
+              - ec2:GetConsoleScreenshot
+              - glue:GetConnection
             Resource: '*'
-          - Sid: AccessMasterPayerBillingBucket
+          - Sid: CZMasterPayerBillingBucket20190912
             Effect: Allow
             Action:
-              - 's3:Get*'
-              - 's3:List*'
+              - s3:Get*
+              - s3:List*
             Resource: !If
               - CreatePolicyForExistingCur
               - 
@@ -260,35 +266,33 @@ Resources:
                   - 'arn:aws:s3:::${BucketName}-${Id}/*'
                   - { BucketName: !FindInMap [ Defaults, Cur, BucketName ],
                       Id: !Select [ 2, !Split [ '/', !Ref 'AWS::StackId' ] ] }
-          - Sid: ViewBilling1
+          - Sid: CZBudgetMonitoring20190912
             Effect: Allow
             Action:
-              - 'aws-portal:View*'
-              - 'budgets:*'
-              - 'cur:*'
-              - 'ce:*'
+              - cur:Describe*
+              - ce:*
             Resource: '*'
-          - Sid: ReservedCapacityServices
+          - Sid: CZReservedCapacity20190912
             Effect: Allow
             Action:
-              - 'cloudfront:Get*'
-              - 'cloudfront:List*'
-              - 'dynamodb:Describe*'
-              - 'dynamodb:Get*'
-              - 'dynamodb:List*'
-              - 'ec2:Describe*'
-              - 'ec2:Get*'
-              - 'ec2:Get*'
-              - 'elasticache:Describe*'
-              - 'elasticache:List*'
-              - 'elasticmapreduce:Describe*'
-              - 'elasticmapreduce:List*'
-              - 'es:Describe*'
-              - 'es:List*'
-              - 'es:Get*'
-              - 'rds:Describe*'
-              - 'redshift:Describe*'
-              - 'redshift:List*'
+              - cloudfront:Get*
+              - cloudfront:List*
+              - dynamodb:Describe*
+              - dynamodb:Get*
+              - dynamodb:List*
+              - ec2:Describe*
+              - ec2:Get*
+              - ec2:Get*
+              - elasticache:Describe*
+              - elasticache:List*
+              - elasticmapreduce:Describe*
+              - elasticmapreduce:List*
+              - es:Describe*
+              - es:List*
+              - es:Get*
+              - rds:Describe*
+              - redshift:Describe*
+              - redshift:List*
             Resource: '*'
 
 Outputs:
