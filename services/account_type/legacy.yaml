@@ -83,14 +83,10 @@ Resources:
               StringEquals:
                 'sts:ExternalId': !Ref ExternalId
       ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/SecurityAudit
-        - arn:aws:iam::aws:policy/AmazonSNSReadOnlyAccess
+        - arn:aws:iam::aws:policy/AWSXrayReadOnlyAccess
         - arn:aws:iam::aws:policy/CloudWatchReadOnlyAccess
-        - arn:aws:iam::aws:policy/CloudWatchEventsReadOnlyAccess
-        - arn:aws:iam::aws:policy/AWSXrayFullAccess
-        - arn:aws:iam::aws:policy/AmazonGuardDutyReadOnlyAccess
-        - arn:aws:iam::aws:policy/AmazonInspectorReadOnlyAccess
-        - arn:aws:iam::aws:policy/AmazonRoute53ReadOnlyAccess
+        - arn:aws:iam::aws:policy/SecurityAudit
+        - arn:aws:iam::aws:policy/job-function/ViewOnlyAccess
 
   RolePolicy:
     Type: AWS::IAM::Policy
@@ -125,23 +121,26 @@ Resources:
           # Master Payer Account Permissions
           - !If
             - CreateMasterPayerPolicy
-            - - Sid: AccessMasterPayerBillingBucket
-                Effect: Allow
-                Action:
-                  - 's3:Get*'
-                  - 's3:List*'
-                Resource: !If
-                  - DiscoveredMasterPayerBucket
-                  - - !Sub 'arn:aws:s3:::${MasterPayerDiscoveredBucketName}'
-                    - !Sub 'arn:aws:s3:::${MasterPayerDiscoveredBucketName}/*'
-                  - - !Sub 'arn:aws:s3:::${MasterPayerCreatedBucketName}'
-                    - !Sub 'arn:aws:s3:::${MasterPayerCreatedBucketName}/*'
-              - Sid: CZMasterPayerMonitoring20190912
-                Effect: Allow
-                Action:
-                  - cur:Describe*
-                  - ce:*
-                Resource: '*'
+            - Sid: AccessMasterPayerBillingBucket
+              Effect: Allow
+              Action:
+                - 's3:Get*'
+                - 's3:List*'
+              Resource: !If
+                - DiscoveredMasterPayerBucket
+                - - !Sub 'arn:aws:s3:::${MasterPayerDiscoveredBucketName}'
+                  - !Sub 'arn:aws:s3:::${MasterPayerDiscoveredBucketName}/*'
+                - - !Sub 'arn:aws:s3:::${MasterPayerCreatedBucketName}'
+                  - !Sub 'arn:aws:s3:::${MasterPayerCreatedBucketName}/*'
+            - !Ref AWS::NoValue
+          - !If
+            - CreateMasterPayerPolicy
+            - Sid: CZMasterPayerMonitoring20190912
+              Effect: Allow
+              Action:
+                - cur:Describe*
+                - ce:*
+              Resource: '*'
             - !Ref AWS::NoValue
           # Resource Owner Account Permissions
           - Sid: CZProtect20190912
