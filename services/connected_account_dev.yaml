@@ -59,7 +59,7 @@ Resources:
           Value: !Ref AWS::StackName
         - Key: cloudzero-reactor-account-id
           Value: !FindInMap [ CallbackConfiguration, dev, ReactorAccountId ]
-      TemplateURL: https://s3.amazonaws.com/cz-provision-account/latest/services/discovery.yaml
+      TemplateURL: https://s3.amazonaws.com/cz-provision-account/v1.0.dev/services/discovery.yaml
 
   # TODO: This Legacy Account supports older reactors that require all permissions in a single role
   LegacyAccount:
@@ -81,7 +81,7 @@ Resources:
         MasterPayerDiscoveredBucketName: !GetAtt Discovery.Outputs.MasterPayerBillingBucketName
         MasterPayerCreatedBucketName: !GetAtt MasterPayerAccount.Outputs.ReportS3Bucket
         CloudTrailSQSQueueArn: !GetAtt CloudTrailOwnerAccount.Outputs.SQSQueueArn
-      TemplateURL: https://s3.amazonaws.com/cz-provision-account/latest/services/account_type/legacy.yaml
+      TemplateURL: https://s3.amazonaws.com/cz-provision-account/v1.0.dev/services/account_type/legacy.yaml
 
 
   ResourceOwnerAccount:
@@ -96,7 +96,7 @@ Resources:
         IsResourceOwnerAccount: !GetAtt Discovery.Outputs.IsResourceOwnerAccount
         ExternalId: !Ref ExternalId
         ReactorAccountId: !FindInMap [ CallbackConfiguration, dev, ReactorAccountId ]
-      TemplateURL: https://s3.amazonaws.com/cz-provision-account/latest/services/account_type/resource_owner.yaml
+      TemplateURL: https://s3.amazonaws.com/cz-provision-account/v1.0.dev/services/account_type/resource_owner.yaml
 
   CloudTrailOwnerAccount:
     Type: AWS::CloudFormation::Stack
@@ -110,7 +110,7 @@ Resources:
         IsCloudTrailOwnerAccount: !GetAtt Discovery.Outputs.IsCloudTrailOwnerAccount
         CloudTrailSNSTopicArn: !GetAtt Discovery.Outputs.CloudTrailSNSTopicArn
         ReactorAccountId: !FindInMap [ CallbackConfiguration, dev, ReactorAccountId ]
-      TemplateURL: https://s3.amazonaws.com/cz-provision-account/latest/services/account_type/cloudtrail_owner.yaml
+      TemplateURL: https://s3.amazonaws.com/cz-provision-account/v1.0.dev/services/account_type/cloudtrail_owner.yaml
 
   AuditAccount:
     Type: AWS::CloudFormation::Stack
@@ -125,7 +125,7 @@ Resources:
         AuditCloudTrailBucketName: !GetAtt Discovery.Outputs.AuditCloudTrailBucketName
         ExternalId: !Ref ExternalId
         ReactorAccountId: !FindInMap [ CallbackConfiguration, dev, ReactorAccountId ]
-      TemplateURL: https://s3.amazonaws.com/cz-provision-account/latest/services/account_type/audit.yaml
+      TemplateURL: https://s3.amazonaws.com/cz-provision-account/v1.0.dev/services/account_type/audit.yaml
 
   MasterPayerAccount:
     Type: AWS::CloudFormation::Stack
@@ -141,7 +141,7 @@ Resources:
         MasterPayerBillingBucketName: !GetAtt Discovery.Outputs.MasterPayerBillingBucketName
         ExternalId: !Ref ExternalId
         ReactorAccountId: !FindInMap [ CallbackConfiguration, dev, ReactorAccountId ]
-      TemplateURL: https://s3.amazonaws.com/cz-provision-account/latest/services/account_type/master_payer.yaml
+      TemplateURL: https://s3.amazonaws.com/cz-provision-account/v1.0.dev/services/account_type/master_payer.yaml
 
 
   NotificationFunctionStack:
@@ -155,7 +155,7 @@ Resources:
           Value: !FindInMap [ CallbackConfiguration, dev, ReactorAccountId ]
       Parameters:
         ReactorCallbackUrl: !FindInMap [ CallbackConfiguration, dev, ReactorCallbackUrl ]
-      TemplateURL: https://s3.amazonaws.com/cz-provision-account/latest/services/notification.yaml
+      TemplateURL: https://s3.amazonaws.com/cz-provision-account/v1.0.dev/services/notification.yaml
 
 
   NotifyCloudZeroReactor:

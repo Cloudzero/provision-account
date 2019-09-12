@@ -175,25 +175,26 @@ deploy-once:
 	done
 
 
+copy-to-s3: guard-path
+	@for cfn in $(CFN_TEMPLATES) ; do \
+		aws s3 cp $${cfn} s3://$(BUCKET)/$(path)/$${cfn} ; \
+	done && \
+	for app in $(SAM_APPS) ; do \
+		aws s3 cp $${app}/$(TEMPLATE_FILE) s3://$(BUCKET)/$(path)/$${app}.yaml && \
+		aws s3 cp $${app}/$(APP_ZIP) s3://$(BUCKET)/$(path)/$${app}.zip && \
+		for r in $(regions) ; do \
+			aws s3 cp $${app}/$(APP_ZIP) s3://$(BUCKET)-$${r}/$(path)/$${app}.zip ; \
+		done ; \
+	done
+
+
 .PHONY: deploy                                                                          ## Deploys Artifacts to S3 Bucket
 deploy:
 	@. ./project.sh && cz_assert_profile && \
 	find . -name $(APP_ZIP) -exec rm -rf {} \; && \
 	$(MAKE) package-sam-apps && \
-	for cfn in $(CFN_TEMPLATES) ; do \
-		aws s3 cp $${cfn} s3://$(BUCKET)/v$(SEMVER_MAJ_MIN).$(version)/$${cfn} && \
-		aws s3 cp $${cfn} s3://$(BUCKET)/latest/$${cfn} ; \
-	done && \
-	for app in $(SAM_APPS) ; do \
-		aws s3 cp $${app}/$(TEMPLATE_FILE) s3://$(BUCKET)/v$(SEMVER_MAJ_MIN).$(version)/$${app}.yaml && \
-		aws s3 cp $${app}/$(TEMPLATE_FILE) s3://$(BUCKET)/latest/$${app}.yaml && \
-		aws s3 cp $${app}/$(APP_ZIP) s3://$(BUCKET)/v$(SEMVER_MAJ_MIN).$(version)/$${app}.zip && \
-		aws s3 cp $${app}/$(APP_ZIP) s3://$(BUCKET)/latest/$${app}.zip && \
-		for r in $(regions) ; do \
-			aws s3 cp $${app}/$(APP_ZIP) s3://$(BUCKET)-$${r}/v$(SEMVER_MAJ_MIN).$(version)/$${app}.zip && \
-			aws s3 cp $${app}/$(APP_ZIP) s3://$(BUCKET)-$${r}/latest/$${app}.zip ; \
-		done ; \
-	done
+	$(MAKE) copy-to-s3 path=v$(SEMVER_MAJ_MIN).$(version) && \
+	[ $(version) != 'dev' ] && $(MAKE) copy-to-s3 path=latest || true
 
 
 .PHONY: describe                                                                        ## Return information about SAM-created stack from AWS
