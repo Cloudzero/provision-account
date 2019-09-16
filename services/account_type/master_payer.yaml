@@ -278,7 +278,6 @@ Resources:
               - cloudfront:Get*
               - cloudfront:List*
               - dynamodb:Describe*
-              - dynamodb:Get*
               - dynamodb:List*
               - ec2:Describe*
               - ec2:Get*

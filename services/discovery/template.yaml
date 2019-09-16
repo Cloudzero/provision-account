@@ -21,10 +21,16 @@ Resources:
         Key: latest/services/discovery.zip
       Handler: src.app.handler
       Policies:
-        - AmazonS3ReadOnlyAccess
-        - AWSCloudTrailReadOnlyAccess
-        - arn:aws:iam::aws:policy/AWSOrganizationsReadOnlyAccess
-        - Billing
+        - Version: '2012-10-17'
+          Statement:
+            - Sid: CZDiscovery20190912
+              Effect: Allow
+              Action:
+                - cloudtrail:DescribeTrails
+                - s3:ListAllMyBuckets
+                - cur:DescribeReportDefinitions
+                - organizations:DescribeOrganization
+              Resource: '*'
       Environment:
         Variables:
           VERSION: '2'
