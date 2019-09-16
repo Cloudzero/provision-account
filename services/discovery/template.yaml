@@ -21,10 +21,10 @@ Resources:
         Key: latest/services/discovery.zip
       Handler: src.app.handler
       Policies:
-        - Sid: CZDiscovery20190912
-          Version: '2012-10-17'
+        - Version: '2012-10-17'
           Statement:
-            - Effect: Allow
+            - Sid: CZDiscovery20190912
+              Effect: Allow
               Action:
                 - cloudtrail:DescribeTrails
                 - s3:ListAllMyBuckets
