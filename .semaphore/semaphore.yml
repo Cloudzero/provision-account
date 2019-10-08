@@ -34,7 +34,13 @@ blocks:
 promotions:
   - name: Create Buckets for All Regions (once)
     pipeline_file: buckets.yml
-  - name: Deploy Templates and Lambdas to All Regionss
+  - name: Deploy Dev Templates and Lambdas to Some Regions
+    pipeline_file: templates_and_lambdas_dev.yml
+    auto_promote_on:
+      - result: passed
+        branch:
+          - "develop"
+  - name: Deploy Templates and Lambdas to All Regions
     pipeline_file: templates_and_lambdas.yml
     auto_promote_on:
       - result: passed
