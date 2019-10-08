@@ -13,18 +13,17 @@ blocks:
           commands:
             - sem-version python 3.7
             - checkout
-            - cache restore dev-requirements-$SEMAPHORE_GIT_BRANCH-$(checksum backend/requirements-dev.txt),requirements
+            - cache restore dev-requirements-$SEMAPHORE_GIT_BRANCH-$(checksum requirements-dev.txt),requirements
             - make clean
             - make init
-            - cache store dev-requirements-$SEMAPHORE_GIT_BRANCH-$(checksum backend/requirements-dev.txt) /home/semaphore/.pyenv/3.7
+            - cache store dev-requirements-$SEMAPHORE_GIT_BRANCH-$(checksum requirements-dev.txt) /home/semaphore/.pyenv/3.7
   - name: Run Tests
     task:
       prologue:
         commands:
           - sem-version python 3.7
           - checkout
-          - cache restore dev-requirements-$SEMAPHORE_GIT_BRANCH-$(checksum backend/requirements-dev.txt),requirements
-          - make init
+          - cache restore dev-requirements-$SEMAPHORE_GIT_BRANCH-$(checksum requirements-dev.txt),requirements
       jobs:
         - name: Python Tests
           commands:
