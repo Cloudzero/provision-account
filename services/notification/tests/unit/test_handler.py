@@ -14,7 +14,7 @@ import src.app as app
 
 
 # TODO: Replace these fixtures with Voluptuous Schemas + Hypothesis + Property Tests
-@pytest.fixture()
+@pytest.fixture(scope='function')
 def cfn_event():
     return {
         'LogicalResourceId': 'some logical resource id',
@@ -58,7 +58,7 @@ def boolean_string():
     return 'True' if random_bool() else 'False'
 
 
-@pytest.fixture()
+@pytest.fixture(scope='function')
 def cfn_coeffect():
     return {
         'AuditAccount': {
