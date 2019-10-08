@@ -149,13 +149,10 @@ Resources:
           import json
           import logging
           import time
-          from botocore.exceptions import ClientError
 
           cur = boto3.client('cur', region_name='us-east-1')  # cur is only in us-east-1
           logger = logging.getLogger()
           logger.setLevel(logging.INFO)
-          n_retries = 5
-          retry_sleep = 1
 
           def handler(event, context):
               result = cfnresponse.SUCCESS
@@ -164,28 +161,16 @@ Resources:
                   logger.info(f'Received event: {event}')
                   bucket_name = event['ResourceProperties']['BucketName']
                   current_region = event['ResourceProperties']['Region']
-                  # valid regions are an intersection of supported S3 region affinity and CUR Report
-                  valid_regions = {'us-west-1', 'us-west-2', 'ap-northeast-1','ap-southeast-1',
-                                   'eu-west-1', 'us-east-1', 'ap-southeast-2', 'eu-central-1'}
+                  valid_regions = {'us-west-1','us-west-2','ap-northeast-1','ap-southeast-1',
+                                   'eu-west-1','us-east-1','ap-southeast-2','eu-central-1'}
                   region = current_region if current_region in valid_regions else 'us-east-1'
-                  bucket_config = {} if region == 'us-east-1' else {'CreateBucketConfiguration': {'LocationConstraint': region}}
                   s3 = boto3.resource('s3', region_name=region)
                   bucket = s3.Bucket(bucket_name)
 
                   if event['RequestType'] == 'Create':
                       logger.info(f'Creating {bucket_name} in {region}')
-                      for attempt in range(n_retries):
-                        try:
-                          bucket.create(**bucket_config)
-                          logger.info(f'Waiting for bucket to exist')
-                          bucket.wait_until_exists()
-                        except ClientError:
-                          logger.warning(f'Failed attempt to create {bucket_name}')
-                          time.sleep(retry_sleep)
-                        else:
-                          break
-                      else:
-                        logger.error(f'Failed all {n_retries} attempts to create {bucket_name}')
+                      bucket.create(**({} if region == 'us-east-1' else {'CreateBucketConfiguration': {'LocationConstraint': region}}))
+                      bucket.wait_until_exists()
                       policy = {
                           'Version': '2012-10-17',
                           'Statement': [
@@ -212,21 +197,18 @@ Resources:
                               }
                           ]
                       }
-                      logger.info(f'Adding bucket policy to {bucket_name}')
-                      for attempt in range(n_retries):
+                      for attempt in range(5):
                         try:
+                          logger.info(f'Adding bucket policy to {bucket_name}')
                           bucket.Policy().put(Policy=json.dumps(policy))
-                        except ClientError:
-                          logger.warning(f'Failed attempt to add policy to {bucket_name}')
-                          time.sleep(retry_sleep)
+                        except:
+                          time.sleep(1)
                         else:
                           break
-                      else:
-                        logger.error(f'Failed all {n_retries} attempts to add bucket policy')
 
-                      logger.info(f'Creating {report_name}')
-                      for attempt in range(n_retries):
+                      for attempt in range(5):
                         try:
+                          logger.info(f'Creating {report_name}')
                           cur.put_report_definition(
                               ReportDefinition={
                                   'AdditionalSchemaElements': ['RESOURCES'],
@@ -238,14 +220,10 @@ Resources:
                                   'S3Region': region, 'TimeUnit': 'HOURLY',
                               }
                           )
-                        except ClientError:
-                          logger.warning(f'Failed attempt to create CUR')
-                          time.sleep(retry_sleep)
+                        except:
+                          time.sleep(1)
                         else:
                           break
-                      else:
-                        logger.error(f'Failed all {n_retries} attempts to create CUR')
-
                   elif event['RequestType'] == 'Update':
                       logger.warning(f'Update is unsupported')
                   elif event['RequestType'] == 'Delete':
@@ -258,6 +236,7 @@ Resources:
                   result = cfnresponse.FAILED
               finally:
                   cfnresponse.send(event, context, result, {'ReportS3Bucket': bucket_name, 'ReportS3Prefix': 'cloudzero'})
+
 
 
               
