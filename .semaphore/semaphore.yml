@@ -1,0 +1,51 @@
+version: v1.0
+name: CloudZero Feature Notifications
+agent:
+  machine:
+    type: e1-standard-2
+    os_image: ubuntu1804
+
+blocks:
+  - name: Install dependencies
+    task:
+      jobs:
+        - name: pip
+          commands:
+            - sem-version python 3.7
+            - checkout
+            - cache restore dev-requirements-$SEMAPHORE_GIT_BRANCH-$(checksum requirements-dev.txt),requirements
+            - make clean
+            - make init
+            - cache store dev-requirements-$SEMAPHORE_GIT_BRANCH-$(checksum requirements-dev.txt) /home/semaphore/.pyenv/3.7
+  - name: Run Tests
+    task:
+      prologue:
+        commands:
+          - sem-version python 3.7
+          - checkout
+          - cache restore dev-requirements-$SEMAPHORE_GIT_BRANCH-$(checksum requirements-dev.txt),requirements
+      jobs:
+        - name: Python Tests
+          commands:
+            - mv ~/.aws/dummy_credentials ~/.aws/credentials
+            - make test
+      secrets:
+        - name: Dummy AWS Credentials
+
+promotions:
+  - name: |
+      Create Buckets for All Regions (once)
+      You should not need to run this (ever?)
+    pipeline_file: buckets.yml
+  - name: Deploy Dev Templates and Lambdas to Some Regions
+    pipeline_file: templates_and_lambdas_dev.yml
+    auto_promote_on:
+      - result: passed
+        branch:
+          - "develop"
+  - name: Deploy Templates and Lambdas to All Regions
+    pipeline_file: templates_and_lambdas.yml
+    auto_promote_on:
+      - result: passed
+        branch:
+          - "master"

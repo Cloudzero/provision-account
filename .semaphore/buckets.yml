@@ -1,0 +1,26 @@
+version: v1.0
+name: Deploy Buckets
+agent:
+  machine:
+    type: e1-standard-2
+    os_image: ubuntu1804
+
+blocks:
+  - name: Deploy Buckets to all Regions
+    task:
+      prologue:
+        commands:
+          - sem-version python 3.7
+          - checkout
+          - cache restore dev-requirements-$SEMAPHORE_GIT_BRANCH-$(checksum backend/requirements-dev.txt),requirements
+          - cp /home/semaphore/.aws/prime_credentials /home/semaphore/.aws/credentials
+          - source ./project.sh
+          - cz_use_profile prime
+      jobs:
+        - name: Deploy Backend to AWS
+          commands:
+            - make deploy-once
+      secrets:
+        - name: Prime AWS Credentials
+        - name: AWS Config
+        - name: Default AWS Profile
