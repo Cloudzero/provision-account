@@ -14,6 +14,7 @@ ALL_CFN_TEMPLATES := $(shell find services -name "*.yaml" -a ! -name "packaged*.
 SAM_APPS := $(shell find services -name "tox.ini" | grep -v '.aws-sam' | xargs -Ipath dirname path | uniq)
 SAM_TEMPLATES := $(shell find $(SAM_APPS) -maxdepth 1 -name "template.yaml")
 CFN_TEMPLATES := $(filter-out $(SAM_TEMPLATES), $(ALL_CFN_TEMPLATES))
+IAM_POLICIES := $(shell find policies -name "*.json")
 
 
 ####################
@@ -176,8 +177,8 @@ deploy-once:
 
 
 copy-to-s3: guard-path
-	@for cfn in $(CFN_TEMPLATES) ; do \
-		aws s3 cp $${cfn} s3://$(BUCKET)/$(path)/$${cfn} ; \
+	@for key in $(CFN_TEMPLATES) $(IAM_POLICIES) ; do \
+		aws s3 cp $${key} s3://$(BUCKET)/$(path)/$${key} ; \
 	done && \
 	for app in $(SAM_APPS) ; do \
 		aws s3 cp $${app}/$(TEMPLATE_FILE) s3://$(BUCKET)/$(path)/$${app}.yaml && \
