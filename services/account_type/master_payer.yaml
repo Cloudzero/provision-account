@@ -279,11 +279,14 @@ Resources:
                   - 'arn:aws:s3:::${BucketName}-${Id}/*'
                   - { BucketName: !FindInMap [ Defaults, Cur, BucketName ],
                       Id: !Select [ 2, !Split [ '/', !Ref 'AWS::StackId' ] ] }
-          - Sid: CZBudgetMonitoring20190912
+          - Sid: CZCostMonitoring20191111
             Effect: Allow
             Action:
-              - cur:Describe*
+              - aws-portal:View*
               - ce:*
+              - cur:Describe*
+              - budgets:*
+              - pricing:*
             Resource: '*'
           - Sid: CZReservedCapacity20190912
             Effect: Allow
