@@ -153,10 +153,12 @@ Resources:
               - ec2:GetConsoleScreenshot
               - glue:GetConnection
             Resource: '*'
-          - Sid: CZBudgetMonitoring20190912
+          - Sid: CZCostMonitoring20191111
             Effect: Allow
             Action:
               - aws-portal:View*
+              - ce:*
+              - cur:Describe*
               - budgets:*
               - pricing:*
             Resource: '*'
