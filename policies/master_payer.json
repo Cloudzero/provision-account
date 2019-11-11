@@ -15,15 +15,6 @@
         },
         {
             "Action": [
-                "cur:Describe*",
-                "ce:*"
-            ],
-            "Resource": "*",
-            "Effect": "Allow",
-            "Sid": "CZMasterPayerMonitoring20190912"
-        },
-        {
-            "Action": [
                 "aws-portal:*PaymentMethods",
                 "aws-portal:*Account",
                 "ec2:GetPasswordData",
@@ -39,11 +30,13 @@
             "Action": [
                 "aws-portal:View*",
                 "budgets:*",
-                "pricing:*"
+                "ce:*",
+                "cur:Describe*",
+                "pricing:*",
             ],
             "Resource": "*",
             "Effect": "Allow",
-            "Sid": "CZBudgetMonitoring20190912"
+            "Sid": "CZCostMonitoring20191111"
         },
         {
             "Action": [

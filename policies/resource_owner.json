@@ -18,11 +18,13 @@
             "Action": [
                 "aws-portal:View*",
                 "budgets:*",
-                "pricing:*"
+                "ce:*",
+                "cur:Describe*",
+                "pricing:*",
             ],
             "Resource": "*",
             "Effect": "Allow",
-            "Sid": "CZBudgetMonitoring20190912"
+            "Sid": "CZCostMonitoring20191111"
         },
         {
             "Action": [
