@@ -7,8 +7,8 @@
                 "s3:List*"
             ],
             "Resource": [
-                "arn:aws:s3:::${BillingBucketName}",
-                "arn:aws:s3:::${BillingBucketName}/*"
+                "arn:aws:s3:::{{BillingBucketName}}",
+                "arn:aws:s3:::{{BillingBucketName}}/*"
             ],
             "Effect": "Allow",
             "Sid": "AccessMasterPayerBillingBucket"
