@@ -7,6 +7,7 @@ import os
 import attrdict
 import cfnresponse
 import pytest
+from botocore.exceptions import ClientError
 from voluptuous import All, Schema, ALLOW_EXTRA
 from toolz.curried import assoc_in
 
@@ -203,6 +204,13 @@ def describe_report_definitions_response_invalid():
     }
 
 
+@pytest.fixture()
+def describe_report_definitions_client_error():
+    return ClientError({'Error': {'Code': 'AccessDeniedException',
+                                  'Message': 'is not authorized to callDescribeReportDefinitions'}},
+                       'GetReportDefinitions')
+
+
 @pytest.fixture(scope='function')
 def context(mocker):
     context = attrdict.AttrMap()
@@ -328,7 +336,7 @@ def test_handler_remote_organization_trail(context, cfn_event, describe_trails_r
 
 
 @pytest.mark.unit
-def test_handler_non_master_payer_invalid(context, cfn_event, describe_trails_response_local, list_buckets_response, describe_report_definitions_response_invalid, describe_organizations_remote):
+def test_handler_master_payer_with_no_valid_reports(context, cfn_event, describe_trails_response_local, list_buckets_response, describe_report_definitions_response_invalid, describe_organizations_remote):
     context.mock_ct.describe_trails.return_value = describe_trails_response_local
     context.mock_cur.describe_report_definitions.return_value = describe_report_definitions_response_invalid
     context.mock_orgs.describe_organization.return_value = describe_organizations_remote
@@ -349,15 +357,16 @@ def test_handler_non_master_payer_invalid(context, cfn_event, describe_trails_re
         'IsAuditAccount': True,
         'IsCloudTrailOwnerAccount': True,
         'IsResourceOwnerAccount': True,
-        'IsMasterPayerAccount': False,
+        'IsMasterPayerAccount': True,
         'IsOrganizationMasterAccount': False,
         'MasterPayerBillingBucketName': None,
         'MasterPayerBillingBucketPath': None,
     }
 
 
+# This is actually not possible
 @pytest.mark.unit
-def test_handler_non_master_payer_remote(context, cfn_event, describe_trails_response_local, list_buckets_response, describe_report_definitions_response_remote, describe_organizations_remote):
+def test_handler_master_payer_remote(context, cfn_event, describe_trails_response_local, list_buckets_response, describe_report_definitions_response_remote, describe_organizations_remote):
     context.mock_ct.describe_trails.return_value = describe_trails_response_local
     context.mock_cur.describe_report_definitions.return_value = describe_report_definitions_response_remote
     context.mock_orgs.describe_organization.return_value = describe_organizations_remote
@@ -378,17 +387,17 @@ def test_handler_non_master_payer_remote(context, cfn_event, describe_trails_res
         'IsAuditAccount': True,
         'IsCloudTrailOwnerAccount': True,
         'IsResourceOwnerAccount': True,
-        'IsMasterPayerAccount': False,
+        'IsMasterPayerAccount': True,
         'IsOrganizationMasterAccount': False,
-        'MasterPayerBillingBucketName': REMOTE_BUCKET_NAME,
-        'MasterPayerBillingBucketPath': 'reports/valid-local-report',
+        'MasterPayerBillingBucketName': None,
+        'MasterPayerBillingBucketPath': None,
     }
 
 
 @pytest.mark.unit
-def test_handler_just_resource_owner(context, cfn_event, list_buckets_response):
+def test_handler_just_resource_owner(context, cfn_event, list_buckets_response, describe_report_definitions_client_error):
     context.mock_ct.describe_trails.return_value = {'trailList': []}
-    context.mock_cur.describe_report_definitions.return_value = {'ReportDefinitions': []}
+    context.mock_cur.describe_report_definitions.side_effect = describe_report_definitions_client_error
     context.mock_orgs.describe_organization.return_value = {'Organization': {}}
     context.mock_s3.list_buckets.return_value = list_buckets_response
     ret = app.handler(cfn_event, None)
@@ -415,9 +424,9 @@ def test_handler_just_resource_owner(context, cfn_event, list_buckets_response):
 
 
 @pytest.mark.unit
-def test_handler_only_connected(context, cfn_event):
+def test_handler_only_connected(context, cfn_event, describe_report_definitions_client_error):
     context.mock_ct.describe_trails.return_value = {'trailList': []}
-    context.mock_cur.describe_report_definitions.return_value = {'ReportDefinitions': []}
+    context.mock_cur.describe_report_definitions.side_effect = describe_report_definitions_client_error
     context.mock_s3.list_buckets.return_value = {'Buckets': []}
     ret = app.handler(cfn_event, None)
     assert ret is None
