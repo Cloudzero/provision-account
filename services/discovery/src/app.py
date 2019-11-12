@@ -5,6 +5,7 @@
 from pprint import pformat
 import boto3
 import cfnresponse
+from botocore.exceptions import ClientError
 from toolz.curried import assoc_in, get_in, keyfilter, merge, pipe, update_in
 from voluptuous import Any, ExactSequence, Schema, ALLOW_EXTRA, REMOVE_EXTRA
 
@@ -65,10 +66,12 @@ OUTPUT_SCHEMA = Schema({
     },
 }, required=True, extra=ALLOW_EXTRA)
 
+DEFAULT_PAYER_REPORTS = {'is_master_payer': False, 'report_definitions': []}
+
 event_account_id = get_in(['event', 'ResourceProperties', 'AccountId'])
 coeffects_traillist = get_in(['coeffects', 'cloudtrail', 'trailList'], default=[])
 coeffects_buckets = get_in(['coeffects', 's3', 'Buckets'], default=[])
-coeffects_report_definitions = get_in(['coeffects', 'cur', 'ReportDefinitions'], default=[])
+coeffects_payer_reports = get_in(['coeffects', 'cur'], default=DEFAULT_PAYER_REPORTS)
 coeffects_master_account_id = get_in(['coeffects', 'organizations', 'Organization', 'MasterAccountId'])
 
 
@@ -112,8 +115,14 @@ def coeffects_s3(world):
 
 @coeffect('cur')
 def coeffects_cur(world):
-    response = cur.describe_report_definitions()
-    return keyfilter(lambda x: x in {'ReportDefinitions'}, response)
+    try:
+        return {
+            'is_master_payer': True,
+            'report_definitions': cur.describe_report_definitions().get('ReportDefinitions', []),
+        }
+    except ClientError as e:
+        logger.warning(f'Failed to access CUR DescribeReportDefinitions', exc_info=True)
+        return DEFAULT_PAYER_REPORTS
 
 
 @coeffect('organizations')
@@ -222,21 +231,25 @@ def get_first_valid_report_definition(valid_report_definitions, default=None):
     return valid_report_definitions[0] if any(valid_report_definitions) else default
 
 
-def discover_master_payer_account(world):
-    report_definitions = coeffects_report_definitions(world)
+def get_cur_bucket_if_local(world, report_definitions):
     logger.info(f'Found these ReportDefinitions: {report_definitions}')
     local_buckets = {x['Name'] for x in coeffects_buckets(world)}
     valid_report_definitions = keep_valid(MINIMUM_BILLING_REPORT, report_definitions)
     logger.info(f'Found these _valid_ ReportDefinitions: {valid_report_definitions}')
-    first_valid = get_first_valid_report_definition(valid_report_definitions, default={})
     valid_local_report_definitions = [x for x in valid_report_definitions if x['S3Bucket'] in local_buckets]
     logger.info(f'Found these _valid local_ ReportDefinitions: {valid_local_report_definitions}')
-    local = any(valid_local_report_definitions)
-    first_valid_local = get_first_valid_report_definition(valid_local_report_definitions, default=first_valid)
+    first_valid_local = get_first_valid_report_definition(valid_local_report_definitions, default={})
     bucket_name = first_valid_local.get('S3Bucket')
     bucket_path = f"{first_valid_local.get('S3Prefix', '')}/{first_valid_local.get('ReportName', '')}" if bucket_name else None
+    return (bucket_name, bucket_path)
+
+
+def discover_master_payer_account(world):
+    is_master_payer = coeffects_payer_reports(world)['is_master_payer']
+    report_definitions = coeffects_payer_reports(world)['report_definitions']
+    (bucket_name, bucket_path) = get_cur_bucket_if_local(world, report_definitions)
     output = {
-        'IsMasterPayerAccount': local,
+        'IsMasterPayerAccount': is_master_payer,
         'MasterPayerBillingBucketName': bucket_name,
         'MasterPayerBillingBucketPath': bucket_path,
     }
