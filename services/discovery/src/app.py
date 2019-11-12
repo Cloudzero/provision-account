@@ -66,10 +66,12 @@ OUTPUT_SCHEMA = Schema({
     },
 }, required=True, extra=ALLOW_EXTRA)
 
+DEFAULT_PAYER_REPORTS = {'is_master_payer': False, 'report_definitions': []}
+
 event_account_id = get_in(['event', 'ResourceProperties', 'AccountId'])
 coeffects_traillist = get_in(['coeffects', 'cloudtrail', 'trailList'], default=[])
 coeffects_buckets = get_in(['coeffects', 's3', 'Buckets'], default=[])
-coeffects_payer_reports = get_in(['coeffects', 'cur'], default={'is_master_payer': False, 'report_definitions': []})
+coeffects_payer_reports = get_in(['coeffects', 'cur'], default=DEFAULT_PAYER_REPORTS)
 coeffects_master_account_id = get_in(['coeffects', 'organizations', 'Organization', 'MasterAccountId'])
 
 
@@ -120,7 +122,7 @@ def coeffects_cur(world):
         }
     except ClientError as e:
         logger.warning(f'Failed to access CUR DescribeReportDefinitions', exc_info=True)
-        return {'is_master_payer': False, 'report_definitions': []}
+        return DEFAULT_PAYER_REPORTS
 
 
 @coeffect('organizations')
