@@ -119,6 +119,7 @@ def coeffects_cur(world):
             'report_definitions': cur.describe_report_definitions().get('ReportDefinitions', []),
         }
     except ClientError as e:
+        logger.warning(f'Failed to access CUR DescribeReportDefinitions', exc_info=True)
         return {'is_master_payer': False, 'report_definitions': []}
 
 
