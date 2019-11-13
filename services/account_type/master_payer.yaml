@@ -38,8 +38,8 @@ Conditions:
   ValidExistingBucketName: !Not [ !Equals [ !Ref MasterPayerBillingBucketName, 'null' ] ]
   CreateCurAndBucketAndPolicy: !And
     - !Not
-      - Condition: CreatePolicyForExistingCur
-    - !Equals [ !Ref IsOrganizationMasterAccount, 'true' ]
+      - Condition: ValidExistingBucketName
+    - !Equals [ !Ref IsMasterPayerAccount, 'true' ]
   CreatePolicyForExistingCur: !And
     - Condition: ValidExistingBucketName
     - !Equals [ !Ref IsMasterPayerAccount, 'true' ]
