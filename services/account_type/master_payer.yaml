@@ -141,7 +141,7 @@ Resources:
       # version of boto3 that does not support the ReportDefinition parameters we need.
       # This layer contains a newer version of boto3.
       Layers:
-        - !Sub 'arn:aws:lambda:${AWS::Region}:113088814899:layer:Klayers-python37-boto3:22'
+        - !Sub 'arn:aws:lambda:${AWS::Region}:113088814899:layer:Klayers-python37-boto3:18'
       Code:
         ZipFile: |
           import boto3
@@ -227,10 +227,7 @@ Resources:
                   elif event['RequestType'] == 'Update':
                       logger.warning(f'Update is unsupported')
                   elif event['RequestType'] == 'Delete':
-                      logger.info(f'Deleting {report_name}')
-                      bucket.objects.all().delete()
-                      bucket.delete()
-                      cur.delete_report_definition(ReportName=report_name)
+                      logger.warning(f'We do not want to delete your billing data.')
               except Exception:
                   logger.error('Failed to Update Cur Resource', exc_info=True)
                   result = cfnresponse.FAILED
