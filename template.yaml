@@ -14,6 +14,17 @@ Resources:
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Ref BucketName
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - '*'
+            AllowedMethods:
+              - GET
+            AllowedOrigins:
+              - '*'
+            ExposedHeaders:
+              - Content-Type
+            MaxAge: 3000
   Policy:
     Type: AWS::S3::BucketPolicy
     Properties:
