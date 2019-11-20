@@ -137,11 +137,6 @@ Resources:
       Runtime: python3.7
       Role: !GetAtt CostAndUsageReportRole.Arn
       Timeout: 120
-      # Unfortunately, the default lambda python execution environment includes an older
-      # version of boto3 that does not support the ReportDefinition parameters we need.
-      # This layer contains a newer version of boto3.
-      Layers:
-        - !Sub 'arn:aws:lambda:${AWS::Region}:113088814899:layer:Klayers-python37-boto3:19'
       Code:
         ZipFile: |
           import boto3
