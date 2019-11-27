@@ -152,6 +152,9 @@ Resources:
           def handler(event, context):
               result = cfnresponse.SUCCESS
               report_name = 'cloudzero-cur-hourly-csv'
+              s3_prefix = 'cloudzero'
+              report_s3_prefix = f'{s3_prefix}/{report_name}'
+
               try:
                   logger.info(f'Received event: {event}')
                   bucket_name = event['ResourceProperties']['BucketName']
@@ -211,7 +214,7 @@ Resources:
                                   'RefreshClosedReports': True,
                                   'ReportName': report_name,
                                   'ReportVersioning': 'CREATE_NEW_REPORT',
-                                  'S3Bucket': bucket_name, 'S3Prefix': 'cloudzero',
+                                  'S3Bucket': bucket_name, 'S3Prefix': s3_prefix,
                                   'S3Region': region, 'TimeUnit': 'HOURLY',
                               }
                           )
@@ -227,7 +230,7 @@ Resources:
                   logger.error('Failed to Update Cur Resource', exc_info=True)
                   result = cfnresponse.FAILED
               finally:
-                  cfnresponse.send(event, context, result, {'ReportS3Bucket': bucket_name, 'ReportS3Prefix': 'cloudzero'})
+                  cfnresponse.send(event, context, result, {'ReportS3Bucket': bucket_name, 'ReportS3Prefix': report_s3_prefix})
 
 
 
