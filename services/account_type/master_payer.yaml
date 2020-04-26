@@ -282,6 +282,8 @@ Resources:
               - cur:Describe*
               - budgets:*
               - pricing:*
+              - organizations:Describe*
+              - organizations:List*
             Resource: '*'
           - Sid: CZReservedCapacity20190912
             Effect: Allow

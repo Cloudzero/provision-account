@@ -20,7 +20,9 @@
                 "budgets:*",
                 "ce:*",
                 "cur:Describe*",
-                "pricing:*"
+                "pricing:*",
+                "organizations:Describe*",
+                "organizations:List*"
             ],
             "Resource": "*",
             "Effect": "Allow",

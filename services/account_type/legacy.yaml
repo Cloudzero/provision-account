@@ -161,6 +161,8 @@ Resources:
               - cur:Describe*
               - budgets:*
               - pricing:*
+              - organizations:Describe*
+              - organizations:List*
             Resource: '*'
           - Sid: CZActivityMonitoring20190912
             Effect: Allow
