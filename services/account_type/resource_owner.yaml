@@ -45,6 +45,7 @@ Resources:
         - arn:aws:iam::aws:policy/CloudWatchReadOnlyAccess
         - arn:aws:iam::aws:policy/SecurityAudit
         - arn:aws:iam::aws:policy/job-function/ViewOnlyAccess
+        - arn:aws:iam::aws:policy/job-function/Billing
 
   RolePolicy:
     Type: AWS::IAM::Policy
@@ -72,6 +73,8 @@ Resources:
               - cur:Describe*
               - budgets:*
               - pricing:*
+              - organizations:Describe*
+              - organizations:List*
             Resource: '*'
           - Sid: CZActivityMonitoring20190912
             Effect: Allow
