@@ -19,6 +19,10 @@
         {
             "arn": "arn:aws:iam::aws:policy/job-function/Billing",
             "name": "Billing"
+        },
+        {
+            "arn": "arn:aws:iam::aws:policy/CloudWatchLogsReadOnlyAccess",
+            "name": "CloudWatchLogsReadOnlyAccess"
         }
     ]
 }
