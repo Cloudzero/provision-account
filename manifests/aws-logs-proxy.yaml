@@ -1,0 +1,66 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: aws-logs-proxy-service
+spec:
+  selector:
+    app: aws-logs-proxy
+  ports:
+  - protocol: "TCP"
+    port: 6000
+    targetPort: 5000
+
+---
+apiVersion: v1
+data:
+  proxy.conf: |
+    server {
+      listen 5000;
+
+      location ~ ^/([^/]+) {
+          proxy_buffering off;
+
+          proxy_set_header Host logs.$1.amazonaws.com;
+          proxy_set_header X-Amzn-Logs-Format "";
+
+          set $upstream http://127.0.0.1:5001;
+          proxy_pass $upstream;
+      }
+    }
+kind: ConfigMap
+metadata:
+  name: aws-logs-proxy-nginx-config
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aws-logs-proxy
+spec:
+  selector:
+    matchLabels:
+      app: aws-logs-proxy
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: aws-logs-proxy
+    spec:
+      volumes:
+        - configMap:
+            name: aws-logs-proxy-nginx-config
+          name: aws-logs-proxy-nginx-config
+      containers:
+      - name: nginx
+        image: nginx
+        ports:
+        - containerPort: 5000
+        volumeMounts:
+          - mountPath: /etc/nginx/conf.d
+            name: aws-logs-proxy-nginx-config
+      - name: aws-sigv4-proxy
+        image: cloudzero/aws-sigv4-proxy:latest
+        ports:
+        - containerPort: 5001
+        args: ["--port", ":5001"]
+      dnsPolicy: ClusterFirst
