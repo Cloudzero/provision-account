@@ -3,11 +3,11 @@
 Proxies connections to the CloudWatch Logs API and removes the `X-Amzn-Logs-Format` header to prevent generation of EMF metrics
 ### Installation
 ```
-kubectl apply -f aws-logs-proxy.yaml
+kubectl apply -f https://raw.githubusercontent.com/Cloudzero/provision-account/master/manifests/aws-logs-proxy.yaml
 ```
 
 ### CloudWatch Agent Configuration
-While this may be used for any connection to CloudWatch Logs, the typical use case is to proxy connections from the 
+While this may be used for any connection to CloudWatch Logs, the typical use case is to proxy connections from the
 CloudWatch Agent to prevent cost Container Insights metrics, but keep the `performance` log stream.
 
 #### Install the Agent
@@ -22,7 +22,7 @@ aws-logs-proxy-service   ClusterIP   10.100.151.128   <none>        6000/TCP   2
 Copy the `CLUSTER-IP` from the output, it'll be used for the `<service-ip>` below.
 
 #### Edit the CloudWatch Agent ConfigMap
-Edit the `cwagent-configmap.yaml` that was downloaded in Step 3 of the [agent install instructions](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/Container-Insights-setup-metrics.html).  Add an `endpoint_override` parameter: 
+Edit the `cwagent-configmap.yaml` that was downloaded in Step 3 of the [agent install instructions](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/Container-Insights-setup-metrics.html).  Add an `endpoint_override` parameter:
 ```
 "endpoint_override": "http://<service-ip>:6000/<aws_region>"
 ```
@@ -46,7 +46,7 @@ The complete agent ConfigMap should now look something like this:
 ```
 
 #### Restart the CloudWatch Agent
-Editing an existing ConfigMap may require the CloudWatch Agent to be restarted.  Either delete and reapply the DaemonSet 
+Editing an existing ConfigMap may require the CloudWatch Agent to be restarted.  Either delete and reapply the DaemonSet
 manifest or follow the [instructions for updating the agent.](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/ContainerInsights-update-image.html)
 
 ### Additional Notes
