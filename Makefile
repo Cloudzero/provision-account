@@ -10,7 +10,7 @@ include MakefileConstants.mk
 # Project Constants
 #
 ####################
-VANTA_TAGS = $(if $(filter prod,$(configuration_set)),"VantaOwner=$(OWNER)" "VantaDescription=$(FEATURE_NAME)" "VantaContainsUserData=true",)
+VANTA_TAGS = "VantaOwner=$(OWNER)" "VantaDescription=$(FEATURE_NAME)" "VantaContainsUserData=false"
 ALL_CFN_TEMPLATES := $(shell find services -name "*.yaml" -a ! -name "packaged*.yaml" -a ! -path "*.aws-sam*")
 SAM_APPS := $(shell find services -name "tox.ini" | grep -v '.aws-sam' | xargs -Ipath dirname path | uniq)
 SAM_TEMPLATES := $(shell find $(SAM_APPS) -maxdepth 1 -name "template.yaml")
