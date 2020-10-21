@@ -3,6 +3,7 @@
 # Licensed under the BSD-style license. See LICENSE file in the project root for full license information.
 
 # Main parameters
+OWNER := bill.buckley@cloudzero.com
 FEATURE_NAME ?= provision-account
 TEAM_NAME ?= cloudzero
 BUCKET := cz-$(FEATURE_NAME)
