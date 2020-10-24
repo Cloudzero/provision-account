@@ -10,6 +10,7 @@ include MakefileConstants.mk
 # Project Constants
 #
 ####################
+VANTA_TAGS = "VantaOwner=$(OWNER)" "VantaDescription=$(FEATURE_NAME)" "VantaContainsUserData=false"
 ALL_CFN_TEMPLATES := $(shell find services -name "*.yaml" -a ! -name "packaged*.yaml" -a ! -path "*.aws-sam*")
 SAM_APPS := $(shell find services -name "tox.ini" | grep -v '.aws-sam' | xargs -Ipath dirname path | uniq)
 SAM_TEMPLATES := $(shell find $(SAM_APPS) -maxdepth 1 -name "template.yaml")
@@ -105,7 +106,7 @@ cfn-deploy: guard-stack_name guard-template_file guard-bucket
 		--no-fail-on-empty-changeset \
 		--parameter-overrides \
 			BucketName=$(bucket) \
-		--tags "cz:feature=$(FEATURE_NAME)" "cz:team=$(TEAM_NAME)"
+		--tags "cz:feature=$(FEATURE_NAME)" "cz:team=$(TEAM_NAME)" $(VANTA_TAGS)
 
 
 cfn-delete: guard-stack_name
@@ -143,7 +144,7 @@ cfn-dryrun: guard-stack_name guard-template_file guard-bucket
 		--no-execute-changeset \
 		--parameter-overrides \
 			BucketName=$(bucket) \
-		--tags "cz:feature=$(FEATURE_NAME)" "cz:team=$(TEAM_NAME)"
+		--tags "cz:feature=$(FEATURE_NAME)" "cz:team=$(TEAM_NAME)" $(VANTA_TAGS)
 
 
 
