@@ -8,7 +8,7 @@ import os
 import attrdict
 import cfnresponse
 import pytest
-import simplejson as json
+import json
 
 import src.app as app
 
