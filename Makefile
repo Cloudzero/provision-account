@@ -55,6 +55,7 @@ help:
 .PHONY: init                                                                            ## Install package dependencies for python
 init: guard-VIRTUAL_ENV $(PYTHON_DEPENDENCY_FILE)
 $(PYTHON_DEPENDENCY_FILE): $(REQUIREMENTS_FILES)
+	pip install pip==20.2.4
 	for f in $^ ; do \
     pip install -r $${f} ; \
   done
