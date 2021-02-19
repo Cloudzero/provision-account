@@ -76,7 +76,7 @@ clean:
 #################
 .PHONY: lint                                          ## Lint Python Files via Flake8
 lint: $(FLAKE8_OUT)
-$(FLAKE8_OUT): $(SRC_FILES) $(TEST_FILES) tox.ini
+$(FLAKE8_OUT): $(SRC_FILES) $(TEST_FILES) setup.cfg
 	@flake8 --output-file=$(FLAKE8_OUT)
 
 
