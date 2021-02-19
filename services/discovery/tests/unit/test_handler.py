@@ -5,13 +5,13 @@
 import os
 
 import attrdict
-import cfnresponse
 import pytest
 from botocore.exceptions import ClientError
 from voluptuous import All, Schema, ALLOW_EXTRA
 from toolz.curried import assoc_in
 
 import src.app as app
+from src import cfnresponse
 
 
 LOCAL_ACCOUNT_ID = '123456789012'
