@@ -30,7 +30,7 @@ Resources:
     Properties:
       CodeUri:
         Bucket: !Sub 'cz-provision-account-${AWS::Region}'
-        Key: latest/services/notification.zip
+        Key: v1.0.dev/services/notification.zip
       Handler: src.app.handler
       Policies:
         - AWSCloudFormationReadOnlyAccess
