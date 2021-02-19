@@ -3,18 +3,17 @@
 # Licensed under the BSD-style license. See LICENSE file in the project root for full license information.
 
 from pprint import pformat
+import logging
+
 import boto3
-import cfnresponse
 from botocore.exceptions import ClientError
 from toolz.curried import assoc_in, get_in, keyfilter, merge, pipe, update_in
 from voluptuous import Any, ExactSequence, Schema, ALLOW_EXTRA, REMOVE_EXTRA
 
+from src import cfnresponse
 
-import logging
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
-
-
 ct = boto3.client('cloudtrail')
 cur = boto3.client('cur', region_name='us-east-1')  # cur is only in us-east-1
 orgs = boto3.client('organizations')
@@ -120,8 +119,8 @@ def coeffects_cur(world):
             'is_master_payer': True,
             'report_definitions': cur.describe_report_definitions().get('ReportDefinitions', []),
         }
-    except ClientError as e:
-        logger.warning(f'Failed to access CUR DescribeReportDefinitions', exc_info=True)
+    except ClientError:
+        logger.warning('Failed to access CUR DescribeReportDefinitions', exc_info=True)
         return DEFAULT_PAYER_REPORTS
 
 
