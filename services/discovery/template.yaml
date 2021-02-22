@@ -18,7 +18,7 @@ Resources:
     Properties:
       CodeUri:
         Bucket: !Sub 'cz-provision-account-${AWS::Region}'
-        Key: v1.0.dev/services/discovery.zip
+        Key: latest/services/discovery.zip
       Handler: src.app.handler
       Policies:
         - Version: '2012-10-17'
