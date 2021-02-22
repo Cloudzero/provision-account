@@ -3,8 +3,8 @@
 # Licensed under the BSD-style license. See LICENSE file in the project root for full license information.
 
 import os
+from collections import namedtuple
 
-import attrdict
 import pytest
 from botocore.exceptions import ClientError
 from voluptuous import All, Schema, ALLOW_EXTRA
@@ -220,7 +220,7 @@ def describe_report_definitions_client_error():
 
 @pytest.fixture(scope='function')
 def context(mocker):
-    context = attrdict.AttrMap()
+    context = namedtuple('context', ['os', 'prefix'])
     orig_env = os.environ.copy()
     context.os = {'environ': os.environ}
     context.prefix = app.__name__

@@ -2,10 +2,10 @@
 # Copyright (c) 2016-present, CloudZero, Inc. All rights reserved.
 # Licensed under the BSD-style license. See LICENSE file in the project root for full license information.
 
-import random
 import os
+import random
+from collections import namedtuple
 
-import attrdict
 import pytest
 import json
 
@@ -116,7 +116,7 @@ class Response:
 
 @pytest.fixture(scope='function')
 def context(mocker):
-    context = attrdict.AttrMap()
+    context = namedtuple('context', ['os', 'prefix'])
     orig_env = os.environ.copy()
     context.os = {'environ': os.environ}
     context.prefix = app.__name__
@@ -192,7 +192,5 @@ def test_prepare_output(context, cfn_event, cfn_coeffect):
         'valid_cfn': cfn_coeffect,
     }
     new_world = app.prepare_output(world)
-    is_master_payer_account = bool(cfn_coeffect['Discovery']['IsMasterPayerAccount'] == 'True' or
-                                   (cfn_coeffect['MasterPayerAccount']['ReportS3Bucket'] and
-                                    cfn_coeffect['MasterPayerAccount']['ReportS3Bucket'] != 'null'))
+    is_master_payer_account = bool(cfn_coeffect['Discovery']['IsMasterPayerAccount'] == 'True')
     assert new_world['output']['data']['discovery']['is_master_payer_account'] == is_master_payer_account

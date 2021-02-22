@@ -263,8 +263,6 @@ def prepare_output(world):
     message_type = 'account-link-provisioned' if request_type(world) in {'Create', 'Update'} else 'account-link-deprovisioned'
     visible_cloudtrail_arns_string = null_to_none(get_in(['Discovery', 'VisibleCloudTrailArns'], valid_cfn))
     visible_cloudtrail_arns = visible_cloudtrail_arns_string.split(',') if visible_cloudtrail_arns_string else None
-    is_master_payer_account = bool(string_to_bool(get_in(['Discovery', 'IsMasterPayerAccount'], valid_cfn)) or
-                                   null_to_none(get_in(['MasterPayerAccount', 'ReportS3Bucket'], valid_cfn)))
     master_payer_billing_bucket_name = (null_to_none(get_in(['Discovery', 'MasterPayerBillingBucketName'], valid_cfn)) or
                                         null_to_none(get_in(['MasterPayerAccount', 'ReportS3Bucket'], valid_cfn)))
     master_payer_billing_bucket_path = (null_to_none(get_in(['Discovery', 'MasterPayerBillingBucketPath'], valid_cfn)) or
@@ -299,7 +297,7 @@ def prepare_output(world):
 
                 'is_audit_account': string_to_bool(get_in(['Discovery', 'IsAuditAccount'], valid_cfn)),
                 'is_cloudtrail_owner_account': string_to_bool(get_in(['Discovery', 'IsCloudTrailOwnerAccount'], valid_cfn)),
-                'is_master_payer_account': is_master_payer_account,
+                'is_master_payer_account': string_to_bool(get_in(['Discovery', 'IsMasterPayerAccount'], valid_cfn)),
                 'is_organization_master_account': string_to_bool(get_in(['Discovery', 'IsOrganizationMasterAccount'], valid_cfn)),
                 'is_organization_trail': string_to_bool(get_in(['Discovery', 'IsOrganizationTrail'], valid_cfn)),
                 'is_resource_owner_account': string_to_bool(get_in(['Discovery', 'IsResourceOwnerAccount'], valid_cfn)),
