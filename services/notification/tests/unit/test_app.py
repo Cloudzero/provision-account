@@ -2,15 +2,17 @@
 # Copyright (c) 2016-present, CloudZero, Inc. All rights reserved.
 # Licensed under the BSD-style license. See LICENSE file in the project root for full license information.
 
-import random
 import os
+import random
+from collections import namedtuple
 
-import attrdict
-import cfnresponse
 import pytest
-import simplejson as json
+import json
 
 import src.app as app
+from src import cfnresponse
+
+EXPECTED_URL = 'url'
 
 
 # TODO: Replace these fixtures with Voluptuous Schemas + Hypothesis + Property Tests
@@ -25,7 +27,7 @@ def cfn_event():
             'AccountId': 'str',
             'Region': 'str',
             'ExternalId': 'str',
-            'ReactorCallbackUrl': 'str',
+            'ReactorCallbackUrl': EXPECTED_URL,
             'AccountName': 'str',
             'ReactorId': 'str',
             'Stacks': {
@@ -101,25 +103,25 @@ def cfn_coeffect():
 class Response:
     def __init__(self, status_code, json_data={}, data={}):
         self.status_code = status_code
-        self.json = json_data
-        self.data = {}
-        self.text = json.dumps(self.json)
+        self._json = json_data
+        self._data = {}
+        self.text = json.dumps(self._json)
 
     def json(self):
-        return self.json
+        return self._json
 
     def data(self):
-        return self.data
+        return self._data
 
 
 @pytest.fixture(scope='function')
 def context(mocker):
-    context = attrdict.AttrMap()
+    context = namedtuple('context', ['os', 'prefix'])
     orig_env = os.environ.copy()
     context.os = {'environ': os.environ}
     context.prefix = app.__name__
     context.mock_cfnresponse_send = mocker.patch(f'{context.prefix}.cfnresponse.send', autospec=True)
-    context.mock_requests_post = mocker.patch(f'{context.prefix}.requests.post', autospec=True)
+    context.mock_http = mocker.patch(f'{context.prefix}.http')
     context.mock_cfn = mocker.patch(f'{context.prefix}.cfn', autospec=True)
     yield context
     os.environ = orig_env
@@ -129,11 +131,11 @@ def context(mocker):
 @pytest.mark.unit
 def test_handler_no_cfn_coeffects(context, cfn_event):
     response = Response(200)
-    context.mock_requests_post.return_value = response
+    context.mock_http.return_value = response
     ret = app.handler(cfn_event, None)
     assert ret is None
     assert context.mock_cfnresponse_send.call_count == 1
-    assert context.mock_requests_post.call_count == 1
+    assert context.mock_http.request.call_count == 1
     ((_, _, status, output, _), _) = context.mock_cfnresponse_send.call_args
     expected = {
         'version': '1',
@@ -160,7 +162,7 @@ def test_handler_no_cfn_coeffects(context, cfn_event):
                 'cloud_region': 'str',
                 'cz_account_name': 'str',
                 'cloud_account_id': 'str',
-                'reactor_callback_url': 'str',
+                'reactor_callback_url': EXPECTED_URL,
                 'external_id': 'str',
                 'reactor_id': 'str',
             },
@@ -178,9 +180,9 @@ def test_handler_no_cfn_coeffects(context, cfn_event):
     }
     assert status == cfnresponse.SUCCESS
     assert output == expected
-    (_, kwargs) = context.mock_requests_post.call_args
-    assert 'json' in kwargs
-    assert kwargs['json'] == expected
+    (args, kwargs) = context.mock_http.request.call_args
+    assert args == ('POST', EXPECTED_URL)
+    assert json.loads(kwargs['body']) == expected
 
 
 @pytest.mark.unit
@@ -190,7 +192,5 @@ def test_prepare_output(context, cfn_event, cfn_coeffect):
         'valid_cfn': cfn_coeffect,
     }
     new_world = app.prepare_output(world)
-    is_master_payer_account = bool(cfn_coeffect['Discovery']['IsMasterPayerAccount'] == 'True' or
-                                   (cfn_coeffect['MasterPayerAccount']['ReportS3Bucket'] and
-                                    cfn_coeffect['MasterPayerAccount']['ReportS3Bucket'] != 'null'))
+    is_master_payer_account = bool(cfn_coeffect['Discovery']['IsMasterPayerAccount'] == 'True')
     assert new_world['output']['data']['discovery']['is_master_payer_account'] == is_master_payer_account

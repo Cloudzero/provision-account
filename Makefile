@@ -12,7 +12,7 @@ include MakefileConstants.mk
 ####################
 VANTA_TAGS = "VantaOwner=$(OWNER)" "VantaDescription=$(FEATURE_NAME)" "VantaContainsUserData=false"
 ALL_CFN_TEMPLATES := $(shell find services -name "*.yaml" -a ! -name "packaged*.yaml" -a ! -path "*.aws-sam*")
-SAM_APPS := $(shell find services -name "tox.ini" | grep -v '.aws-sam' | xargs -Ipath dirname path | uniq)
+SAM_APPS := $(shell find services -name "setup.cfg" | grep -v '.aws-sam' | xargs -Ipath dirname path | uniq)
 SAM_TEMPLATES := $(shell find $(SAM_APPS) -maxdepth 1 -name "template.yaml")
 CFN_TEMPLATES := $(filter-out $(SAM_TEMPLATES), $(ALL_CFN_TEMPLATES))
 IAM_POLICIES := $(shell find policies -name "*.json")
@@ -55,6 +55,7 @@ help:
 .PHONY: init                                                                            ## Install package dependencies for python
 init: guard-VIRTUAL_ENV $(PYTHON_DEPENDENCY_FILE)
 $(PYTHON_DEPENDENCY_FILE): $(REQUIREMENTS_FILES)
+	pip install pip==20.2.4
 	for f in $^ ; do \
     pip install -r $${f} ; \
   done

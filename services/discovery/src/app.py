@@ -3,18 +3,17 @@
 # Licensed under the BSD-style license. See LICENSE file in the project root for full license information.
 
 from pprint import pformat
+import logging
+
 import boto3
-import cfnresponse
 from botocore.exceptions import ClientError
 from toolz.curried import assoc_in, get_in, keyfilter, merge, pipe, update_in
 from voluptuous import Any, ExactSequence, Schema, ALLOW_EXTRA, REMOVE_EXTRA
 
+from src import cfnresponse
 
-import logging
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
-
-
 ct = boto3.client('cloudtrail')
 cur = boto3.client('cur', region_name='us-east-1')  # cur is only in us-east-1
 orgs = boto3.client('organizations')
@@ -35,6 +34,7 @@ DEFAULT_OUTPUT = {
     'IsMasterPayerAccount': False,
     'MasterPayerBillingBucketName': None,
     'MasterPayerBillingBucketPath': None,
+    'IsAccountOutsideOrganization': False,
 }
 
 
@@ -67,12 +67,15 @@ OUTPUT_SCHEMA = Schema({
 }, required=True, extra=ALLOW_EXTRA)
 
 DEFAULT_PAYER_REPORTS = {'is_master_payer': False, 'report_definitions': []}
+NOT_IN_ORGANIZATION_RESPONSE = {}
 
 event_account_id = get_in(['event', 'ResourceProperties', 'AccountId'])
 coeffects_traillist = get_in(['coeffects', 'cloudtrail', 'trailList'], default=[])
 coeffects_buckets = get_in(['coeffects', 's3', 'Buckets'], default=[])
 coeffects_payer_reports = get_in(['coeffects', 'cur'], default=DEFAULT_PAYER_REPORTS)
 coeffects_master_account_id = get_in(['coeffects', 'organizations', 'Organization', 'MasterAccountId'])
+output_is_organization_master = get_in(['output', 'IsOrganizationMasterAccount'])
+output_is_account_outside_organization = get_in(['output', 'IsAccountOutsideOrganization'])
 
 
 #####################
@@ -117,18 +120,20 @@ def coeffects_s3(world):
 def coeffects_cur(world):
     try:
         return {
-            'is_master_payer': True,
             'report_definitions': cur.describe_report_definitions().get('ReportDefinitions', []),
         }
-    except ClientError as e:
-        logger.warning(f'Failed to access CUR DescribeReportDefinitions', exc_info=True)
+    except ClientError:
+        logger.warning('Failed to access CUR DescribeReportDefinitions', exc_info=True)
         return DEFAULT_PAYER_REPORTS
 
 
 @coeffect('organizations')
 def coeffects_organizations(world):
-    response = orgs.describe_organization()
-    return keyfilter(lambda x: x in {'Organization'}, response)
+    try:
+        response = orgs.describe_organization()
+        return keyfilter(lambda x: x in {'Organization'}, response)
+    except ClientError:
+        return NOT_IN_ORGANIZATION_RESPONSE
 
 
 #####################
@@ -245,7 +250,9 @@ def get_cur_bucket_if_local(world, report_definitions):
 
 
 def discover_master_payer_account(world):
-    is_master_payer = coeffects_payer_reports(world)['is_master_payer']
+    is_account_not_in_organization = output_is_account_outside_organization(world)
+    is_account_organization_master_account = output_is_organization_master(world)
+    is_master_payer = is_account_not_in_organization or is_account_organization_master_account
     report_definitions = coeffects_payer_reports(world)['report_definitions']
     (bucket_name, bucket_path) = get_cur_bucket_if_local(world, report_definitions)
     output = {
@@ -262,6 +269,7 @@ def discover_organization_master_account(world):
 
     output = {
         'IsOrganizationMasterAccount': account_id == master_account_id,
+        'IsAccountOutsideOrganization': master_account_id is None,
     }
     return update_in(world, ['output'], lambda x: merge(x or {}, output))
 
@@ -271,8 +279,8 @@ def discover_account_types(world):
                 discover_audit_account,
                 discover_connected_account,
                 discover_cloudtrail_account,
-                discover_master_payer_account,
-                discover_organization_master_account)
+                discover_organization_master_account,
+                discover_master_payer_account)
 
 
 #####################
