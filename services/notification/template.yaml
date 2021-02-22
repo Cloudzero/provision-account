@@ -19,7 +19,7 @@ Conditions:
 
 Globals:
   Function:
-    Runtime: python3.7
+    Runtime: python3.8
     MemorySize: 512
     Timeout: 30
 
@@ -30,7 +30,7 @@ Resources:
     Properties:
       CodeUri:
         Bucket: !Sub 'cz-provision-account-${AWS::Region}'
-        Key: latest/services/notification.zip
+        Key: v1.0.dev/services/notification.zip
       Handler: src.app.handler
       Policies:
         - AWSCloudFormationReadOnlyAccess
@@ -42,4 +42,4 @@ Outputs:
   Arn:
     Condition: ValidReactorCallbackUrl
     Value: !GetAtt NotificationFunction.Arn
-    Description: Notification Function ARN 
+    Description: Notification Function ARN

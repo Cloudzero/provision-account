@@ -2,19 +2,21 @@
 # Copyright (c) 2016-present, CloudZero, Inc. All rights reserved.
 # Licensed under the BSD-style license. See LICENSE file in the project root for full license information.
 
+import logging
+import json
+
 import boto3
-import cfnresponse
-import requests
-import simplejson as json
+import urllib3
 from toolz.curried import assoc_in, get_in, keyfilter, merge, pipe, update_in
 from voluptuous import Any, Invalid, Match, Schema, ALLOW_EXTRA, REMOVE_EXTRA
 
+from src import cfnresponse
 
-import logging
+cfn = boto3.resource('cloudformation')
+http = urllib3.PoolManager()
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-cfn = boto3.resource('cloudformation')
 
 DEFAULT_CFN_COEFFECT = {
     'AuditAccount': {
@@ -338,8 +340,9 @@ def effect(name):
 def effects_reactor_callback(world):
     url = reactor_callback_url(world)
     data = get_in(['output'], world)
-    logger.info(f'Posting to {url} this data: {json.dumps(data)}')
-    response = requests.post(url, json=data)
+    data_string = json.dumps(data)
+    logger.info(f'Posting to {url} this data: {data_string}')
+    response = http.request('POST', url, body=data_string.encode('utf-8'))
     logger.info(f'response {response.status_code}; text {response.text}')
     assert response.status_code == 200
     return response.text
