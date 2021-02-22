@@ -6,11 +6,11 @@ import random
 import os
 
 import attrdict
-import cfnresponse
 import pytest
 import json
 
 import src.app as app
+from src import cfnresponse
 
 EXPECTED_URL = 'url'
 
