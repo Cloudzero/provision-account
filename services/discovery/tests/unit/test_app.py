@@ -3,15 +3,15 @@
 # Licensed under the BSD-style license. See LICENSE file in the project root for full license information.
 
 import os
+from collections import namedtuple
 
-import attrdict
-import cfnresponse
 import pytest
 from botocore.exceptions import ClientError
 from voluptuous import All, Schema, ALLOW_EXTRA
 from toolz.curried import assoc_in
 
 import src.app as app
+from src import cfnresponse
 
 
 LOCAL_ACCOUNT_ID = '123456789012'
@@ -59,6 +59,13 @@ def describe_organizations_remote():
             'MasterAccountId': REMOTE_ACCOUNT_ID
         }
     }
+
+
+@pytest.fixture()
+def describe_organizations_not_in_organization_error():
+    return ClientError({'Error': {'Code': 'AWSOrganizationsNotInUseException',
+                                  'Message': 'Your account is not a member of an organization'}},
+                       'DescribeOrganization')
 
 
 @pytest.fixture()
@@ -213,7 +220,7 @@ def describe_report_definitions_client_error():
 
 @pytest.fixture(scope='function')
 def context(mocker):
-    context = attrdict.AttrMap()
+    context = namedtuple('context', ['os', 'prefix'])
     orig_env = os.environ.copy()
     context.os = {'environ': os.environ}
     context.prefix = app.__name__
@@ -274,6 +281,7 @@ def test_handler_all_local(context, cfn_event, describe_trails_response_local, l
         'MasterPayerBillingBucketName': LOCAL_BUCKET_NAME,
         'MasterPayerBillingBucketPath': 'reports/valid-local-report',
         'RemoteCloudTrailBucket': False,
+        'IsAccountOutsideOrganization': False,
     }
 
 
@@ -303,6 +311,7 @@ def test_handler_non_audit(context, cfn_event, describe_trails_response_remote_b
         'IsOrganizationMasterAccount': True,
         'MasterPayerBillingBucketName': LOCAL_BUCKET_NAME,
         'MasterPayerBillingBucketPath': 'reports/valid-local-report',
+        'IsAccountOutsideOrganization': False,
     }
 
 
@@ -332,14 +341,45 @@ def test_handler_remote_organization_trail(context, cfn_event, describe_trails_r
         'IsOrganizationMasterAccount': True,
         'MasterPayerBillingBucketName': LOCAL_BUCKET_NAME,
         'MasterPayerBillingBucketPath': 'reports/valid-local-report',
+        'IsAccountOutsideOrganization': False,
     }
 
 
 @pytest.mark.unit
-def test_handler_master_payer_with_no_valid_reports(context, cfn_event, describe_trails_response_local, list_buckets_response, describe_report_definitions_response_invalid, describe_organizations_remote):
+def test_handler_master_payer_with_no_valid_reports(context, cfn_event, describe_trails_response_local, list_buckets_response, describe_report_definitions_response_invalid, describe_organizations_local):
     context.mock_ct.describe_trails.return_value = describe_trails_response_local
     context.mock_cur.describe_report_definitions.return_value = describe_report_definitions_response_invalid
-    context.mock_orgs.describe_organization.return_value = describe_organizations_remote
+    context.mock_orgs.describe_organization.return_value = describe_organizations_local
+    context.mock_s3.list_buckets.return_value = list_buckets_response
+    ret = app.handler(cfn_event, None)
+    assert ret is None
+    assert context.mock_cfnresponse_send.call_count == 1
+    ((_, _, status, output, _), kwargs) = context.mock_cfnresponse_send.call_args
+    assert status == cfnresponse.SUCCESS
+    assert output == {
+        'AuditCloudTrailBucketPrefix': 'trails',
+        'AuditCloudTrailBucketName': LOCAL_BUCKET_NAME,
+        'RemoteCloudTrailBucket': False,
+        'CloudTrailSNSTopicArn': LOCAL_TOPIC_ARN,
+        'CloudTrailTrailArn': LOCAL_TRAIL_ARN,
+        'VisibleCloudTrailArns': LOCAL_TRAIL_ARN,
+        'IsOrganizationTrail': False,
+        'IsAuditAccount': True,
+        'IsCloudTrailOwnerAccount': True,
+        'IsResourceOwnerAccount': True,
+        'IsMasterPayerAccount': True,
+        'IsOrganizationMasterAccount': True,
+        'MasterPayerBillingBucketName': None,
+        'MasterPayerBillingBucketPath': None,
+        'IsAccountOutsideOrganization': False,
+    }
+
+
+@pytest.mark.unit
+def test_handler_master_payer_outside_organization(context, cfn_event, describe_trails_response_local, list_buckets_response, describe_report_definitions_response_invalid, describe_organizations_not_in_organization_error):
+    context.mock_ct.describe_trails.return_value = describe_trails_response_local
+    context.mock_cur.describe_report_definitions.return_value = describe_report_definitions_response_invalid
+    context.mock_orgs.describe_organization.side_effect = describe_organizations_not_in_organization_error
     context.mock_s3.list_buckets.return_value = list_buckets_response
     ret = app.handler(cfn_event, None)
     assert ret is None
@@ -361,6 +401,7 @@ def test_handler_master_payer_with_no_valid_reports(context, cfn_event, describe
         'IsOrganizationMasterAccount': False,
         'MasterPayerBillingBucketName': None,
         'MasterPayerBillingBucketPath': None,
+        'IsAccountOutsideOrganization': True,
     }
 
 
@@ -387,18 +428,19 @@ def test_handler_master_payer_remote(context, cfn_event, describe_trails_respons
         'IsAuditAccount': True,
         'IsCloudTrailOwnerAccount': True,
         'IsResourceOwnerAccount': True,
-        'IsMasterPayerAccount': True,
+        'IsMasterPayerAccount': False,
         'IsOrganizationMasterAccount': False,
         'MasterPayerBillingBucketName': None,
         'MasterPayerBillingBucketPath': None,
+        'IsAccountOutsideOrganization': False,
     }
 
 
 @pytest.mark.unit
-def test_handler_just_resource_owner(context, cfn_event, list_buckets_response, describe_report_definitions_client_error):
+def test_handler_just_resource_owner(context, cfn_event, list_buckets_response, describe_report_definitions_client_error, describe_organizations_remote):
     context.mock_ct.describe_trails.return_value = {'trailList': []}
     context.mock_cur.describe_report_definitions.side_effect = describe_report_definitions_client_error
-    context.mock_orgs.describe_organization.return_value = {'Organization': {}}
+    context.mock_orgs.describe_organization.return_value = describe_organizations_remote
     context.mock_s3.list_buckets.return_value = list_buckets_response
     ret = app.handler(cfn_event, None)
     assert ret is None
@@ -420,14 +462,16 @@ def test_handler_just_resource_owner(context, cfn_event, list_buckets_response, 
         'IsOrganizationMasterAccount': False,
         'MasterPayerBillingBucketName': None,
         'MasterPayerBillingBucketPath': None,
+        'IsAccountOutsideOrganization': False,
     }
 
 
 @pytest.mark.unit
-def test_handler_only_connected(context, cfn_event, describe_report_definitions_client_error):
+def test_handler_only_connected(context, cfn_event, describe_report_definitions_client_error, describe_organizations_remote):
     context.mock_ct.describe_trails.return_value = {'trailList': []}
     context.mock_cur.describe_report_definitions.side_effect = describe_report_definitions_client_error
     context.mock_s3.list_buckets.return_value = {'Buckets': []}
+    context.mock_orgs.describe_organization.return_value = describe_organizations_remote
     ret = app.handler(cfn_event, None)
     assert ret is None
     assert context.mock_cfnresponse_send.call_count == 1

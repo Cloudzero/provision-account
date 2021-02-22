@@ -2,19 +2,21 @@
 # Copyright (c) 2016-present, CloudZero, Inc. All rights reserved.
 # Licensed under the BSD-style license. See LICENSE file in the project root for full license information.
 
+import logging
+import json
+
 import boto3
-import cfnresponse
-import requests
-import simplejson as json
+import urllib3
 from toolz.curried import assoc_in, get_in, keyfilter, merge, pipe, update_in
 from voluptuous import Any, Invalid, Match, Schema, ALLOW_EXTRA, REMOVE_EXTRA
 
+from src import cfnresponse
 
-import logging
+cfn = boto3.resource('cloudformation')
+http = urllib3.PoolManager()
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-cfn = boto3.resource('cloudformation')
 
 DEFAULT_CFN_COEFFECT = {
     'AuditAccount': {
@@ -261,8 +263,6 @@ def prepare_output(world):
     message_type = 'account-link-provisioned' if request_type(world) in {'Create', 'Update'} else 'account-link-deprovisioned'
     visible_cloudtrail_arns_string = null_to_none(get_in(['Discovery', 'VisibleCloudTrailArns'], valid_cfn))
     visible_cloudtrail_arns = visible_cloudtrail_arns_string.split(',') if visible_cloudtrail_arns_string else None
-    is_master_payer_account = bool(string_to_bool(get_in(['Discovery', 'IsMasterPayerAccount'], valid_cfn)) or
-                                   null_to_none(get_in(['MasterPayerAccount', 'ReportS3Bucket'], valid_cfn)))
     master_payer_billing_bucket_name = (null_to_none(get_in(['Discovery', 'MasterPayerBillingBucketName'], valid_cfn)) or
                                         null_to_none(get_in(['MasterPayerAccount', 'ReportS3Bucket'], valid_cfn)))
     master_payer_billing_bucket_path = (null_to_none(get_in(['Discovery', 'MasterPayerBillingBucketPath'], valid_cfn)) or
@@ -297,7 +297,7 @@ def prepare_output(world):
 
                 'is_audit_account': string_to_bool(get_in(['Discovery', 'IsAuditAccount'], valid_cfn)),
                 'is_cloudtrail_owner_account': string_to_bool(get_in(['Discovery', 'IsCloudTrailOwnerAccount'], valid_cfn)),
-                'is_master_payer_account': is_master_payer_account,
+                'is_master_payer_account': string_to_bool(get_in(['Discovery', 'IsMasterPayerAccount'], valid_cfn)),
                 'is_organization_master_account': string_to_bool(get_in(['Discovery', 'IsOrganizationMasterAccount'], valid_cfn)),
                 'is_organization_trail': string_to_bool(get_in(['Discovery', 'IsOrganizationTrail'], valid_cfn)),
                 'is_resource_owner_account': string_to_bool(get_in(['Discovery', 'IsResourceOwnerAccount'], valid_cfn)),
@@ -338,8 +338,9 @@ def effect(name):
 def effects_reactor_callback(world):
     url = reactor_callback_url(world)
     data = get_in(['output'], world)
-    logger.info(f'Posting to {url} this data: {json.dumps(data)}')
-    response = requests.post(url, json=data)
+    data_string = json.dumps(data)
+    logger.info(f'Posting to {url} this data: {data_string}')
+    response = http.request('POST', url, body=data_string.encode('utf-8'))
     logger.info(f'response {response.status_code}; text {response.text}')
     assert response.status_code == 200
     return response.text
