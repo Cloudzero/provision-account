@@ -71,3 +71,5 @@ Outputs:
     Value: !GetAtt DiscoveryResource.IsOrganizationTrail
   IsOrganizationMasterAccount:
     Value: !GetAtt DiscoveryResource.IsOrganizationMasterAccount
+  IsAccountOutsideOrganization:
+    Value: !GetAtt DiscoveryResource.IsAccountOutsideOrganization
