@@ -134,7 +134,7 @@ Resources:
     Properties:
       Description: Create/Delete Cost and Usage Report
       Handler: index.handler
-      Runtime: python3.7
+      Runtime: python3.8
       Role: !GetAtt CostAndUsageReportRole.Arn
       Timeout: 120
       Code:
@@ -234,7 +234,7 @@ Resources:
 
 
 
-              
+
   RolePolicy:
     Condition: CreateRoleAndPolicy
     Type: 'AWS::IAM::Policy'
@@ -262,10 +262,10 @@ Resources:
               - s3:List*
             Resource: !If
               - CreatePolicyForExistingCur
-              - 
+              -
                 - !Sub 'arn:aws:s3:::${MasterPayerBillingBucketName}'
                 - !Sub 'arn:aws:s3:::${MasterPayerBillingBucketName}/*'
-              - 
+              -
                 - !Sub
                   - 'arn:aws:s3:::${BucketName}-${Id}'
                   - { BucketName: !FindInMap [ Defaults, Cur, BucketName ],
