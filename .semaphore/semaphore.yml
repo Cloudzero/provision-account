@@ -4,33 +4,25 @@ agent:
   machine:
     type: e1-standard-2
     os_image: ubuntu1804
-
+global_job_config:
+  prologue:
+    commands:
+      - sem-version python 3.8
+      - checkout
+      - cache restore
+      - pip install --cache-dir .pip_cache -r requirements-dev.txt
+  epilogue:
+    commands:
+      - cache store
+  secrets:
+    - name: dummy-aws-configuration
 blocks:
-  - name: Install dependencies
-    task:
-      jobs:
-        - name: pip
-          commands:
-            - sem-version python 3.8
-            - checkout
-            - cache restore dev-requirements-$SEMAPHORE_GIT_BRANCH-$(checksum requirements-dev.txt),requirements
-            - make clean
-            - make init
-            - cache store dev-requirements-$SEMAPHORE_GIT_BRANCH-$(checksum requirements-dev.txt) /home/semaphore/.pyenv/3.7
   - name: Run Tests
     task:
-      prologue:
-        commands:
-          - sem-version python 3.8
-          - checkout
-          - cache restore dev-requirements-$SEMAPHORE_GIT_BRANCH-$(checksum requirements-dev.txt),requirements
       jobs:
         - name: Python Tests
           commands:
-            - mv ~/.aws/dummy_credentials ~/.aws/credentials
             - make test
-      secrets:
-        - name: Dummy AWS Credentials
 
 promotions:
   - name: |
