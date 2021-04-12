@@ -9,7 +9,7 @@ global_job_config:
     commands:
       - sem-version python 3.8
       - checkout
-      - cache restore
+      - cache restore requirements-$SEMAPHORE_GIT_BRANCH-$(checksum requirements.txt)
       - pip install -r requirements.txt
 blocks:
   - name: Deploy Buckets to all Regions

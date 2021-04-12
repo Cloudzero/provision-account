@@ -10,11 +10,11 @@ global_job_config:
       - sem-version python 3.8
       - sh ~/get-sam-cli.sh
       - checkout
-      - cache restore
+      - cache restore requirements-$SEMAPHORE_GIT_BRANCH-$(checksum requirements.txt)
       - pip install -r requirements.txt
   epilogue:
     commands:
-      - cache store /home/semaphore/.pip_cache
+      - cache store requirements-$SEMAPHORE_GIT_BRANCH-$(checksum requirements.txt) /home/semaphore/.pip_cache
   secrets:
     - name: dummy-aws-configuration
     - name: get-sam-cli-latest

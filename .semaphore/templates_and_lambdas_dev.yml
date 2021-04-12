@@ -10,7 +10,7 @@ global_job_config:
       - sem-version python 3.8
       - sh ~/get-sam-cli.sh
       - checkout
-      - cache restore
+      - cache restore requirements-$SEMAPHORE_GIT_BRANCH-$(checksum requirements.txt)
       - pip install -r requirements.txt
   secrets:
     - name: get-sam-cli-latest
