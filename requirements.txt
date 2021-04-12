@@ -8,4 +8,5 @@ flake8==3.9.0
 pytest-cov==2.5.1
 pytest-mock==1.10.0
 pytest==6.2.3
-
+-r services/discovery/requirements.txt
+-r services/notification/requirements.txt
