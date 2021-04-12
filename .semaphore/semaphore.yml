@@ -14,7 +14,7 @@ global_job_config:
       - pip install -r requirements.txt
   epilogue:
     commands:
-      - cache store requirements-$SEMAPHORE_GIT_BRANCH-$(checksum requirements.txt) /home/semaphore/.pip_cache
+      - cache store requirements-$SEMAPHORE_GIT_BRANCH-$(checksum requirements.txt) /home/semaphore/.pyenv/3.8
   secrets:
     - name: dummy-aws-configuration
     - name: get-sam-cli-latest
