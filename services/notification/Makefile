@@ -75,21 +75,13 @@ clean:
 #
 #################
 .PHONY: lint                                          ## Lint Python Files via Flake8
-lint: $(FLAKE8_OUT)
-$(FLAKE8_OUT): $(SRC_FILES) $(TEST_FILES) setup.cfg
+lint:
 	@flake8 --output-file=$(FLAKE8_OUT)
 
 
 .PHONY: test                                          ## Run Tests and Produce Coverage Report
-test: lint $(COVERAGE_REPORT)
-$(COVERAGE_REPORT): $(SRC_FILES) $(TEST_FILES)
-	@pytest src tests \
-		--doctest-modules \
-		--cov src \
-		--cov-report html:$(COVERAGE_REPORT) \
-		--cov-branch \
-		-vvv
-	@touch $(COVERAGE_REPORT)
+test: lint
+	@pytest src tests
 
 
 #################
