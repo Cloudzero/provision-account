@@ -13,7 +13,7 @@ global_job_config:
       - pip install -r requirements.txt
   epilogue:
     commands:
-      - cache store
+      - cache store /home/semaphore/.pip_cache
   secrets:
     - name: dummy-aws-configuration
 blocks:
