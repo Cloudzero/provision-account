@@ -8,6 +8,7 @@ global_job_config:
   prologue:
     commands:
       - sem-version python 3.8
+      - sh ~/get-sam-cli.sh
       - checkout
       - cache restore
       - pip install -r requirements.txt
@@ -16,6 +17,7 @@ global_job_config:
       - cache store /home/semaphore/.pip_cache
   secrets:
     - name: dummy-aws-configuration
+    - name: get-sam-cli-latest
 blocks:
   - name: Run Tests
     task:

@@ -8,9 +8,12 @@ global_job_config:
   prologue:
     commands:
       - sem-version python 3.8
+      - sh ~/get-sam-cli.sh
       - checkout
       - cache restore
       - pip install -r requirements.txt
+  secrets:
+    - name: get-sam-cli-latest
 blocks:
   - name: Deploy Templates and Lambdas all Regions
     task:
