@@ -285,6 +285,26 @@ Resources:
               - organizations:Describe*
               - organizations:List*
             Resource: '*'
+          - Sid: CZActivityMonitoring20210411
+            Effect: Allow
+            Action:
+              - cloudtrail:Get*
+              - cloudtrail:List*
+              - cloudtrail:Describe*
+              - health:*
+              - support:DescribeTrustedAdvisor*
+              - servicequotas:Get*
+              - servicequotas:List*
+              - resource-groups:Get*
+              - resource-groups:List*
+              - resource-groups:Search*
+              - cloudformation:Describe*
+              - cloudformation:List*
+              - tag:Get*
+              - tag:Describe*
+              - resource-explorer:List*
+              - account:ListRegions
+            Resource: '*'
           - Sid: CZReservedCapacity20190912
             Effect: Allow
             Action:
