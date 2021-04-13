@@ -15,12 +15,6 @@ Parameters:
     AllowedValues:
       - 'true'
       - 'false'
-  IsOrganizationMasterAccount:
-    Description: Flag to indicate if this is an organization master account
-    Type: String
-    AllowedValues:
-      - 'true'
-      - 'false'
   MasterPayerBillingBucketName:
     Description: The name of the S3 bucket responsible for billing data
     Type: String
