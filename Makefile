@@ -66,7 +66,12 @@ $(PYTHON_DEPENDENCY_FILE): $(REQUIREMENTS_FILES)
 
 
 .PHONY: test
-test: lint-sam-apps test-sam-apps																	## Lints then tests code for all available runtimes
+test: lint-all-templates lint-sam-apps test-sam-apps								    ## Lints then tests code for all available runtimes
+
+
+.PHONY: lint-all-templates
+lint-all-templates: $(ALL_CFN_TEMPLATES)
+	cfn-lint -i W2001 -t $?
 
 
 .PHONY: lint-sam-apps
