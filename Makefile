@@ -80,7 +80,7 @@ test: lint test-all-apps																		## Lints then tests code for all avail
 test-all-apps: $(SAM_APPS)
 $(SAM_APPS):
 	$(MAKE) test -C $@
-.PHONY: all-apps $(SAM_APPS)
+.PHONY: test-all-apps $(SAM_APPS)
 
 
 .PHONY: clean                                                                           ## Cleans up everything that isn't source code (similar to re-cloning the repo)
