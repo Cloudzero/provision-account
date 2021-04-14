@@ -14,8 +14,6 @@ APP_NAME = $(FEATURE_NAME)-discovery
 SRC_FILES = $(shell find src -name "*.py")
 TEST_FILES = $(shell find tests -name "test_*.py")
 COVERAGE_REPORT = coverage-report
-COVERAGE_XML = coverage.xml
-FLAKE8_OUT = flake8.out
 BUILD_DIR = .aws-sam
 DEPLOYMENT_FILE = .deploy
 ACCOUNT_ID = $(shell source ../../project.sh && cz_assert_profile &> /dev/null && \
@@ -62,7 +60,7 @@ defaults:
 .PHONY: clean                                         ## Clean python c files, reports, and build dir
 clean:
 	-rm $(APP_ZIP)
-	-rm $(FLAKE8_OUT)
+	-rm $(LINT_RESULTS)
 	-rm -rf $(COVERAGE_REPORT) $(COVERAGE_XML)
 	-rm -rf $(BUILD_DIR)
 	-find . -name '*.pyc' -exec rm -f {} +
@@ -78,7 +76,7 @@ clean:
 #################
 .PHONY: lint                                          ## Lint Python Files via Flake8
 lint:
-	@flake8 --output-file=$(FLAKE8_OUT)
+	@flake8 --output-file=$(LINT_RESULTS)
 
 
 .PHONY: test                                          ## Run Tests and Produce Coverage Report

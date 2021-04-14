@@ -23,6 +23,8 @@ PYTHON_DEPENDENCY_FILE := .cz_py_dependencies_installed
 CFN_LINT_OUTPUT := cfn-lint.output
 
 # CFN Constants
+COVERAGE_XML := coverage.xml
+LINT_RESULTS := flake8.out
 TEMPLATE_FILE := template.yaml
 PACKAGED_TEMPLATE_FILE := packaged-template.yaml
 APP_ZIP := app.zip

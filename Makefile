@@ -13,9 +13,10 @@ include MakefileConstants.mk
 VANTA_TAGS = "VantaOwner=$(OWNER)" "VantaDescription=$(FEATURE_NAME)" "VantaContainsUserData=false"
 ALL_CFN_TEMPLATES := $(shell find services -name "*.yaml" -a ! -name "packaged*.yaml" -a ! -path "*.aws-sam*")
 SAM_APPS := $(shell find services -name "setup.cfg" | grep -v '.aws-sam' | xargs -Ipath dirname path | uniq)
-SAM_APP_TEMPLATES := $(shell find $(SAM_APPS) -maxdepth 1 -name "template.yaml")
-SAM_APP_TEST_RESULTS := $(SAM_APP_TEMPLATES:template.yaml=coverage.xml)
-SAM_APP_ZIPS := $(SAM_APP_TEMPLATES:template.yaml=app.zip)
+SAM_APP_TEMPLATES := $(shell find $(SAM_APPS) -maxdepth 1 -name "$(TEMPLATE_FILE)")
+SAM_APP_TEST_RESULTS := $(SAM_APP_TEMPLATES:$(TEMPLATE_FILE)=$(COVERAGE_XML))
+SAM_APP_LINT_RESULTS := $(SAM_APP_TEMPLATES:$(TEMPLATE_FILE)=$(LINT_RESULTS))
+SAM_APP_ZIPS := $(SAM_APP_TEMPLATES:$(TEMPLATE_FILE)=$(APP_ZIP))
 CFN_TEMPLATES := $(filter-out $(SAM_APP_TEMPLATES), $(ALL_CFN_TEMPLATES))
 IAM_POLICIES := $(shell find policies -name "*.json")
 
@@ -64,19 +65,14 @@ $(PYTHON_DEPENDENCY_FILE): $(REQUIREMENTS_FILES)
 	touch $(PYTHON_DEPENDENCY_FILE)
 
 
-lint: lint-all																			## Lints the code for all available runtimes
-	@echo "CFN Lint complete"
-.PHONY: lint
-
-
-.PHONY: lint-all
-lint-all: $(ALL_CFN_TEMPLATES)
-$(ALL_CFN_TEMPLATES):
-	cfn-lint -t $@
-
-
 .PHONY: test
-test: lint test-all-apps																		## Lints then tests code for all available runtimes
+test: lint-sam-apps test-sam-apps																	## Lints then tests code for all available runtimes
+
+
+.PHONY: lint-sam-apps
+lint-sam-apps: $(SAM_APP_LINT_RESULTS)
+$(SAM_APP_LINT_RESULTS):
+	cd $(@D) && $(MAKE) lint
 
 
 .PHONY: test-sam-apps
