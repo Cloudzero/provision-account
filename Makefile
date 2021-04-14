@@ -13,8 +13,10 @@ include MakefileConstants.mk
 VANTA_TAGS = "VantaOwner=$(OWNER)" "VantaDescription=$(FEATURE_NAME)" "VantaContainsUserData=false"
 ALL_CFN_TEMPLATES := $(shell find services -name "*.yaml" -a ! -name "packaged*.yaml" -a ! -path "*.aws-sam*")
 SAM_APPS := $(shell find services -name "setup.cfg" | grep -v '.aws-sam' | xargs -Ipath dirname path | uniq)
-SAM_TEMPLATES := $(shell find $(SAM_APPS) -maxdepth 1 -name "template.yaml")
-CFN_TEMPLATES := $(filter-out $(SAM_TEMPLATES), $(ALL_CFN_TEMPLATES))
+SAM_APP_TEMPLATES := $(shell find $(SAM_APPS) -maxdepth 1 -name "template.yaml")
+SAM_APP_TEST_RESULTS := $(SAM_APP_TEMPLATES:template.yaml=coverage.xml)
+SAM_APP_ZIPS := $(SAM_APP_TEMPLATES:template.yaml=app.zip)
+CFN_TEMPLATES := $(filter-out $(SAM_APP_TEMPLATES), $(ALL_CFN_TEMPLATES))
 IAM_POLICIES := $(shell find policies -name "*.json")
 
 
@@ -67,20 +69,34 @@ lint: lint-all																			## Lints the code for all available runtimes
 .PHONY: lint
 
 
+.PHONY: lint-all
 lint-all: $(ALL_CFN_TEMPLATES)
 $(ALL_CFN_TEMPLATES):
 	cfn-lint -t $@
-.PHONY: lint-all $(ALL_CFN_TEMPLATES)
 
 
-test: lint test-all-apps																		## Lints then tests code for all available runtimes
 .PHONY: test
+test: lint test-all-apps																		## Lints then tests code for all available runtimes
 
 
-test-all-apps: $(SAM_APPS)
-$(SAM_APPS):
-	$(MAKE) test -C $@
-.PHONY: test-all-apps $(SAM_APPS)
+.PHONY: test-sam-apps
+test-sam-apps: $(SAM_APP_TEST_RESULTS)
+$(SAM_APP_TEST_RESULTS):
+	cd $(@D) && $(MAKE) test
+
+
+.PHONY: test-sam-apps
+package-sam-apps: $(SAM_APP_ZIPS)
+$(SAM_APP_ZIPS):
+	cd $(@D) && $(MAKE) package
+
+
+.PHONY: clean-sam-apps
+clean-sam-apps:
+	@cwd=`pwd` ; \
+	  for app in $(SAM_APPS) ; do \
+    	cd $${app} ; $(MAKE) clean ; cd $${cwd} ; \
+	  done
 
 
 .PHONY: clean                                                                           ## Cleans up everything that isn't source code (similar to re-cloning the repo)
