@@ -1,45 +1,79 @@
 {
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Action": [
-                "aws-portal:*PaymentMethods",
-                "aws-portal:*Account",
-                "ec2:GetPasswordData",
-                "ec2:GetConsoleOutput",
-                "ec2:GetConsoleScreenshot",
-                "glue:GetConnection"
-            ],
-            "Resource": "*",
-            "Effect": "Deny",
-            "Sid": "CZProtect20190912"
-        },
-        {
-            "Action": [
-                "aws-portal:View*",
-                "budgets:*",
-                "ce:*",
-                "cur:Describe*",
-                "pricing:*",
-                "organizations:Describe*",
-                "organizations:List*"
-            ],
-            "Resource": "*",
-            "Effect": "Allow",
-            "Sid": "CZCostMonitoring20191111"
-        },
-        {
-            "Action": [
-                "xray:Get*",
-                "xray:Batch*",
-                "cloudtrail:Get*",
-                "cloudtrail:List*",
-                "cloudtrail:Describe*",
-                "health:*"
-            ],
-            "Resource": "*",
-            "Effect": "Allow",
-            "Sid": "CZActivityMonitoring20190912"
-        }
-    ]
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": [
+        "aws-portal:*PaymentMethods",
+        "aws-portal:*Account",
+        "ec2:GetPasswordData",
+        "ec2:GetConsoleOutput",
+        "ec2:GetConsoleScreenshot",
+        "glue:GetConnection"
+      ],
+      "Resource": "*",
+      "Effect": "Deny",
+      "Sid": "CZProtect20190912"
+    },
+    {
+      "Action": [
+        "aws-portal:View*",
+        "budgets:*",
+        "ce:*",
+        "cur:Describe*",
+        "pricing:*",
+        "organizations:Describe*",
+        "organizations:List*"
+      ],
+      "Resource": "*",
+      "Effect": "Allow",
+      "Sid": "CZCostMonitoring20191111"
+    },
+    {
+      "Action": [
+        "cloudtrail:Get*",
+        "cloudtrail:List*",
+        "cloudtrail:Describe*",
+        "health:*",
+        "support:DescribeTrustedAdvisor*",
+        "servicequotas:Get*",
+        "servicequotas:List*",
+        "resource-groups:Get*",
+        "resource-groups:List*",
+        "resource-groups:Search*",
+        "cloudformation:DescribeStacks",
+        "cloudformation:ListStackResources",
+        "tag:Get*",
+        "tag:Describe*",
+        "resource-explorer:List*",
+        "account:ListRegions"
+      ],
+      "Resource": "*",
+      "Effect": "Allow",
+      "Sid": "CZActivityMonitoring20210411"
+    },
+    {
+      "Action": [
+        "cloudfront:Get*",
+        "cloudfront:List*",
+        "dynamodb:Describe*",
+        "dynamodb:List*",
+        "ec2:Describe*",
+        "ec2:Get*",
+        "ec2:Get*",
+        "elasticache:Describe*",
+        "elasticache:List*",
+        "elasticmapreduce:Describe*",
+        "elasticmapreduce:List*",
+        "es:Describe*",
+        "es:List*",
+        "es:Get*",
+        "rds:Describe*",
+        "redshift:Describe*",
+        "redshift:List*"
+      ],
+      "Resource": "*",
+      "Effect": "Allow",
+      "Sid": "CZReservedCapacity20190912"
+    }
+  ]
 }

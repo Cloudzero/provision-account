@@ -62,27 +62,26 @@ $(PYTHON_DEPENDENCY_FILE): $(REQUIREMENTS_FILES)
 	touch $(PYTHON_DEPENDENCY_FILE)
 
 
-.PHONY: lint                                                                            ## Lints the code for all available runtimes
-lint: lint-templates lint-sam-apps
+lint: lint-all																			## Lints the code for all available runtimes
+	@echo "CFN Lint complete"
+.PHONY: lint
 
 
-.PHONY: lint-templates
-lint-templates: $(CFN_LINT_OUTPUT)
-$(CFN_LINT_OUTPUT): $(ALL_CFN_TEMPLATES) $(TEMPLATE_FILE)
-	for t in $? ; do \
-		cfn-lint -t $${t} ; \
-	done
+lint-all: $(ALL_CFN_TEMPLATES)
+$(ALL_CFN_TEMPLATES):
+	cfn-lint -t $@
+.PHONY: lint-all $(ALL_CFN_TEMPLATES)
 
-.PHONY: test                                                                            ## Lints then tests code for all available runtimes
-test: lint test-sam-apps
 
-# Generic Sam Apps Target, loop through SAM_APPS calling make with stem
-.PHONY: %-sam-apps
-%-sam-apps:
-	@cwd=`pwd` ; \
-	for app in $(SAM_APPS) ; do \
-    cd $${app} ; $(MAKE) $* ; cd $${cwd} ; \
-  done
+test: lint test-all-apps																		## Lints then tests code for all available runtimes
+.PHONY: test
+
+
+test-all-apps: $(SAM_APPS)
+$(SAM_APPS):
+	$(MAKE) test -C $@
+.PHONY: test-all-apps $(SAM_APPS)
+
 
 .PHONY: clean                                                                           ## Cleans up everything that isn't source code (similar to re-cloning the repo)
 clean: clean-sam-apps

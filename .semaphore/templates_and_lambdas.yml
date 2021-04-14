@@ -4,15 +4,21 @@ agent:
   machine:
     type: e1-standard-2
     os_image: ubuntu1804
-
+global_job_config:
+  prologue:
+    commands:
+      - sem-version python 3.8
+      - sh ~/get-sam-cli.sh
+      - checkout
+      - cache restore requirements-$SEMAPHORE_GIT_BRANCH-$(checksum requirements-dev.txt)
+      - make init
+  secrets:
+    - name: get-sam-cli-latest
 blocks:
   - name: Deploy Templates and Lambdas all Regions
     task:
       prologue:
         commands:
-          - sem-version python 3.7
-          - checkout
-          - cache restore dev-requirements-$SEMAPHORE_GIT_BRANCH-$(checksum backend/requirements-dev.txt),requirements
           - cp /home/semaphore/.aws/prime_credentials /home/semaphore/.aws/credentials
           - source ./project.sh
           - cz_use_profile prime

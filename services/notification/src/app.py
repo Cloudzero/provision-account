@@ -254,7 +254,31 @@ def null_to_none(s):
 
 
 def string_to_bool(s):
-    return None if s == 'null' else s == 'true'
+    """
+    Convert String to Bool
+
+    >>> string_to_bool('True')
+    True
+
+    >>> string_to_bool('true')
+    True
+
+    >>> string_to_bool('False')
+    False
+
+    >>> string_to_bool('false')
+    False
+
+    >>> string_to_bool('null')
+
+    >>> string_to_bool(None)
+
+    >>> string_to_bool('')
+
+    """
+    if not s:
+        return None
+    return None if s.lower() == 'null' else s.lower() == 'true'
 
 
 def prepare_output(world):

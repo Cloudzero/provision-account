@@ -191,6 +191,6 @@ def test_prepare_output(context, cfn_event, cfn_coeffect):
         'event': cfn_event,
         'valid_cfn': cfn_coeffect,
     }
-    new_world = app.prepare_output(world)
     is_master_payer_account = bool(cfn_coeffect['Discovery']['IsMasterPayerAccount'] == 'True')
+    new_world = app.prepare_output(world)
     assert new_world['output']['data']['discovery']['is_master_payer_account'] == is_master_payer_account

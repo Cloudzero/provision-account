@@ -1,4 +1,4 @@
-# AWS Account Provisioning Template for CloudZero
+# CloudZero Account Provisioning Template for AWS
 
 ## About CloudZero
 CloudZero provides Cloud Cost Intelligence for Engineering Teams and is designed to eliminate manual work, build cost optimized software, and optimize your AWS bill.
