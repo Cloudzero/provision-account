@@ -5,24 +5,12 @@
             "name": "AWSXrayReadOnlyAccess"
         },
         {
-            "arn": "arn:aws:iam::aws:policy/CloudWatchReadOnlyAccess",
-            "name": "CloudWatchReadOnlyAccess"
-        },
-        {
             "arn": "arn:aws:iam::aws:policy/SecurityAudit",
             "name": "SecurityAudit"
         },
         {
             "arn": "arn:aws:iam::aws:policy/job-function/ViewOnlyAccess",
             "name": "ViewOnlyAccess"
-        },
-        {
-            "arn": "arn:aws:iam::aws:policy/job-function/Billing",
-            "name": "Billing"
-        },
-        {
-            "arn": "arn:aws:iam::aws:policy/CloudWatchLogsReadOnlyAccess",
-            "name": "CloudWatchLogsReadOnlyAccess"
         }
     ]
 }

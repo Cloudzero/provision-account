@@ -8,6 +8,7 @@
         "ec2:GetPasswordData",
         "ec2:GetConsoleOutput",
         "ec2:GetConsoleScreenshot",
+        "ec2:GetLaunchTemplateData",
         "glue:GetConnection"
       ],
       "Resource": "*",
@@ -17,8 +18,11 @@
     {
       "Action": [
         "aws-portal:View*",
-        "budgets:*",
-        "ce:*",
+        "budgets:Describe*",
+        "budgets:View*",
+        "ce:Get*",
+        "ce:Describe*",
+        "ce:List*",
         "cur:Describe*",
         "pricing:*",
         "organizations:Describe*",
@@ -26,14 +30,14 @@
       ],
       "Resource": "*",
       "Effect": "Allow",
-      "Sid": "CZCostMonitoring20191111"
+      "Sid": "CZCostMonitoring20210423"
     },
     {
       "Action": [
         "cloudtrail:Get*",
         "cloudtrail:List*",
         "cloudtrail:Describe*",
-        "health:*",
+        "health:Describe*",
         "support:DescribeTrustedAdvisor*",
         "servicequotas:Get*",
         "servicequotas:List*",
@@ -49,31 +53,44 @@
       ],
       "Resource": "*",
       "Effect": "Allow",
-      "Sid": "CZActivityMonitoring20210411"
+      "Sid": "CZActivityMonitoring20210423"
     },
     {
       "Action": [
-        "cloudfront:Get*",
-        "cloudfront:List*",
-        "dynamodb:Describe*",
-        "dynamodb:List*",
-        "ec2:Describe*",
-        "ec2:Get*",
-        "ec2:Get*",
-        "elasticache:Describe*",
-        "elasticache:List*",
-        "elasticmapreduce:Describe*",
-        "elasticmapreduce:List*",
-        "es:Describe*",
-        "es:List*",
-        "es:Get*",
-        "rds:Describe*",
-        "redshift:Describe*",
-        "redshift:List*"
+        "dynamodb:DescribeReserved*",
+        "ec2:DescribeReserved*",
+        "elasticache:DescribeReserved*",
+        "es:DescribeReserved*",
+        "rds:DescribeReserved*",
+        "redshift:DescribeReserved*"
       ],
       "Resource": "*",
       "Effect": "Allow",
       "Sid": "CZReservedCapacity20190912"
+    },
+    {
+      "Action": [
+        "logs:List*",
+        "logs:Describe*",
+        "logs:StartQuery",
+        "logs:StopQuery",
+        "logs:Filter*",
+        "logs:Get*"
+      ],
+      "Resource": "arn:aws:logs:*:*:log-group:/aws/containerinsights/*",
+      "Effect": "Allow",
+      "Sid": "CloudZeroContainerInsightsAccess20210423"
+    },
+    {
+      "Action": [
+        "autoscaling:Describe*",
+        "cloudwatch:Describe*",
+        "cloudwatch:Get*",
+        "cloudwatch:List*"
+      ],
+      "Resource": "*",
+      "Effect": "Allow",
+      "Sid": "CloudZeroCloudWatchMetricsAccess20210423"
     }
   ]
 }
