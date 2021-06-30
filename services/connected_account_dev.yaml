@@ -61,29 +61,6 @@ Resources:
           Value: !FindInMap [ CallbackConfiguration, dev, ReactorAccountId ]
       TemplateURL: https://s3.amazonaws.com/cz-provision-account/v1.0.dev/services/discovery.yaml
 
-  # TODO: This Legacy Account supports older reactors that require all permissions in a single role
-  LegacyAccount:
-    Type: AWS::CloudFormation::Stack
-    Properties:
-      Tags:
-        - Key: cloudzero-stack
-          Value: !Ref AWS::StackName
-        - Key: cloudzero-reactor-account-id
-          Value: !FindInMap [ CallbackConfiguration, dev, ReactorAccountId ]
-      Parameters:
-        IsResourceOwnerAccount: !GetAtt Discovery.Outputs.IsResourceOwnerAccount
-        IsAuditAccount: !GetAtt Discovery.Outputs.IsAuditAccount
-        IsMasterPayerAccount: !GetAtt Discovery.Outputs.IsMasterPayerAccount
-        IsCloudTrailOwnerAccount: !GetAtt Discovery.Outputs.IsCloudTrailOwnerAccount
-        ExternalId: !Ref ExternalId
-        ReactorAccountId: !FindInMap [ CallbackConfiguration, dev, ReactorAccountId ]
-        AuditCloudTrailBucketName: !GetAtt Discovery.Outputs.AuditCloudTrailBucketName
-        MasterPayerDiscoveredBucketName: !GetAtt Discovery.Outputs.MasterPayerBillingBucketName
-        MasterPayerCreatedBucketName: !GetAtt MasterPayerAccount.Outputs.ReportS3Bucket
-        CloudTrailSQSQueueArn: !GetAtt CloudTrailOwnerAccount.Outputs.SQSQueueArn
-      TemplateURL: https://s3.amazonaws.com/cz-provision-account/v1.0.dev/services/account_type/legacy.yaml
-
-
   ResourceOwnerAccount:
     Type: AWS::CloudFormation::Stack
     Properties:
@@ -160,7 +137,7 @@ Resources:
 
   NotifyCloudZeroReactor:
     Type: Custom::NotifyCloudZero
-    Condition: ValidReactorCallbackUrl    
+    Condition: ValidReactorCallbackUrl
     Properties:
       Tags:
         - Key: cloudzero-stack
@@ -184,7 +161,7 @@ Resources:
         CloudTrailOwnerAccount: !Ref CloudTrailOwnerAccount
         AuditAccount: !Ref AuditAccount
         MasterPayerAccount: !Ref MasterPayerAccount
-        LegacyAccount: !Ref LegacyAccount
+        LegacyAccount: !Ref ResourceOwnerAccount
 
 Outputs:
   AuditAccount:
@@ -193,8 +170,6 @@ Outputs:
     Value: !Ref CloudTrailOwnerAccount
   Discovery:
     Value: !Ref Discovery
-  LegacyAccount:
-    Value: !Ref LegacyAccount
   MasterPayerAccount:
     Value: !Ref MasterPayerAccount
   NotificationFunctionStack:
