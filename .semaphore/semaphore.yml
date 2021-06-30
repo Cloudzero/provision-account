@@ -10,6 +10,7 @@ global_job_config:
       - sem-version python 3.8
       - sh ~/get-sam-cli.sh
       - checkout
+      - pip install pip==20.2.4
       - cache restore requirements-$SEMAPHORE_GIT_BRANCH-$(checksum requirements-dev.txt)
       - make init
   epilogue:
