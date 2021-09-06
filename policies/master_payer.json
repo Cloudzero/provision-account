@@ -95,6 +95,15 @@
     },
     {
       "Action": [
+        "logs:GetQueryResults",
+        "logs:DescribeLogGroups"
+      ],
+      "Resource": "arn:aws:logs:*:*:log-group::log-stream:*",
+      "Effect": "Allow",
+      "Sid": "CloudZeroCloudWatchContainerLogStreamAccess20210906"
+    },
+    {
+      "Action": [
         "autoscaling:Describe*",
         "cloudwatch:Describe*",
         "cloudwatch:Get*",
