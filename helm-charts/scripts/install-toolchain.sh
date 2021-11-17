@@ -10,6 +10,7 @@ TOOLS_DIR="${BUILD_DIR}/tools"
 mkdir -p "${TOOLS_DIR}"
 export PATH="${TOOLS_DIR}:${PATH}"
 
+HELMV2_VERSION="v2.17.0"
 HELMV3_VERSION="v3.6.3"
 KUBECTL_VERSION=$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)
 KIND_VERSION=v0.11.1
@@ -23,6 +24,12 @@ chmod +x "${TOOLS_DIR}/kubectl"
 mkdir -p "${TMP_DIR}/kubeval"
 curl -sSL https://github.com/instrumenta/kubeval/releases/latest/download/kubeval-${PLATFORM}-${ARCH}.tar.gz | tar xz -C "${TMP_DIR}/kubeval"
 mv "${TMP_DIR}/kubeval/kubeval" "${TOOLS_DIR}/kubeval"
+
+## Install helm v2
+mkdir -p "${TMP_DIR}/helmv2"
+curl -sSL  https://get.helm.sh/helm-${HELMV2_VERSION}-${PLATFORM}-${ARCH}.tar.gz | tar xz -C "${TMP_DIR}/helmv2"
+mv "${TMP_DIR}/helmv2/${PLATFORM}-${ARCH}/helm" "${TOOLS_DIR}/helmv2"
+rm -rf "${PLATFORM}-${ARCH}"
 
 ## Install helm v3
 mkdir -p "${TMP_DIR}/helmv3"

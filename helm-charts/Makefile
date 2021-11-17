@@ -33,6 +33,9 @@ clean:
 	rm -rf ${REPO_ROOT}/build/
 
 help:
+	@echo REPO_ROOT    = ${REPO_ROOT}
+	@echo BUILD_DIR    = ${BUILD_DIR}
+	@echo VERSION      = ${VERSION}
 	@grep -E '^[a-zA-Z_-]+:.*$$' $(MAKEFILE_LIST) | sort
 
 .PHONY: all build test verify package publish draft-release help

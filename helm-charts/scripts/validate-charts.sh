@@ -19,7 +19,7 @@ for d in */; do
     echo "Validating chart ${d} w/ helm v3"
     helmv3 template ${STABLE}/${d} ${EXTRA_ARGS}| kubeval --strict --ignore-missing-schemas || FAILED_V3+=("${d}")
     echo "Validating chart ${d} w/ helm v2"
-    helm template ${STABLE}/${d} ${EXTRA_ARGS}| kubeval --strict --ignore-missing-schemas || FAILED_V2+=("${d}")
+    helmv2 template ${STABLE}/${d} ${EXTRA_ARGS}| kubeval --strict --ignore-missing-schemas || FAILED_V2+=("${d}")
 done
 
 if [[ "${#FAILED_V2[@]}" -eq  0 ]] && [[ "${#FAILED_V3[@]}" -eq 0 ]]; then
