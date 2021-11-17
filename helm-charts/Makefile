@@ -6,6 +6,7 @@ $(shell mkdir -p ${BUILD_DIR})
 
 all: verify test build
 
+
 build:
 	@echo "build"
 
