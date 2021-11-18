@@ -1,19 +1,19 @@
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  name: {{ include "aws-cloudwatch-metrics.fullname" . }}
+  name: {{ include "cloudzero-cloudwatch-metrics.fullname" . }}
   labels:
-    {{- include "aws-cloudwatch-metrics.labels" . | nindent 4 }}
+    {{- include "cloudzero-cloudwatch-metrics.labels" . | nindent 4 }}
 spec:
   selector:
     matchLabels:
-      {{- include "aws-cloudwatch-metrics.selectorLabels" . | nindent 6 }}
+      {{- include "cloudzero-cloudwatch-metrics.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "aws-cloudwatch-metrics.selectorLabels" . | nindent 8 }}
+        {{- include "cloudzero-cloudwatch-metrics.selectorLabels" . | nindent 8 }}
     spec:
-      serviceAccountName: {{ include "aws-cloudwatch-metrics.serviceAccountName" . }}
+      serviceAccountName: {{ include "cloudzero-cloudwatch-metrics.serviceAccountName" . }}
       hostNetwork: {{ .Values.hostNetwork }}
       containers:
       - name: {{ .Chart.Name }}
@@ -59,7 +59,7 @@ spec:
       volumes:
       - name: cwagentconfig
         configMap:
-          name: {{ include "aws-cloudwatch-metrics.fullname" . }}
+          name: {{ include "cloudzero-cloudwatch-metrics.fullname" . }}
       - name: rootfs
         hostPath:
           path: /

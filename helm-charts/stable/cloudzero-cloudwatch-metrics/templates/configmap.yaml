@@ -1,9 +1,9 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "aws-cloudwatch-metrics.fullname" . }}
+  name: {{ include "cloudzero-cloudwatch-metrics.fullname" . }}
   labels:
-    {{- include "aws-cloudwatch-metrics.labels" . | nindent 4 }}
+    {{- include "cloudzero-cloudwatch-metrics.labels" . | nindent 4 }}
 data:
   cwagentconfig.json: |
     {
