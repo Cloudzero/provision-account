@@ -1,6 +1,6 @@
 image:
   repository: cloudzero/cloudwatch-agent
-  tag: 1.0.0
+  tag: 1.247349.0
   pullPolicy: IfNotPresent
 
 clusterName: cluster_name
