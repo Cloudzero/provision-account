@@ -15,7 +15,7 @@ if echo "${CIRCLE_TAG}" | grep -Eq "^v[0-9]+(\.[0-9]+){2}$"; then
     git remote set-url origin ${REPOSITORY}
     git checkout gh-pages
     mv -f $PACKAGE_DIR/stable/*.tgz .
-    helm repo index . --url https://cloudzero.github.io/cloudzero-helm-charts
+    helm repo index . --url https://cloudzero.github.io/provision-account/
     git add .
     git commit -m "Publish stable charts ${CIRCLE_TAG}"
     git push origin gh-pages
