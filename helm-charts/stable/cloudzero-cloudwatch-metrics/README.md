@@ -7,11 +7,12 @@ A helm chart for CloudWatch Agent to Collect Cluster Metrics
 Add the EKS repository to Helm:
 
 ```sh
-helm repo add cloudzero https://aws.github.io/provision-account
+helm repo add cloudzero https://cloudzero.github.io/provision-account
 ```
 
 Install or upgrading aws-cloudwatch-metrics chart with default configuration:
-Note: below is a helv3 command that creates a namespace for this deployment
+Note: below is a helv3 command that creates a namespace for this deployment or
+      use an exsisting namespace.
 
 ```sh
 helm upgrade --install cloudzero-cloudwatch-metrics \

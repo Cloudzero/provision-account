@@ -5,7 +5,7 @@
 Add the EKS repository to Helm:
 
 ```sh
-helm repo add cloudzero https://aws.github.io/provision-account
+helm repo add cloudzero https://cloudzero.github.io/provision-account
 ```
 
 ### CloudZero CloudWatch Metrics
