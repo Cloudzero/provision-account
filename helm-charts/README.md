@@ -5,10 +5,10 @@
 Add the EKS repository to Helm:
 
 ```sh
-helm repo add cloudzero https://cloudzero.github.io/helm-charts
+helm repo add cloudzero https://aws.github.io/provision-account
 ```
 
-### AWS CloudWatch Metrics
+### CloudZero CloudWatch Metrics
 * [cloudzero-cloudwatch-metrics](stable/cloudzero-cloudwatch-metrics): A helm chart for CloudWatch Agent to Collect Cluster Metrics
 
 ## License
