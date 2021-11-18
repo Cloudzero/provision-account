@@ -3,9 +3,9 @@ entries:
   cloudzero-cloudwatch-metrics:
   - apiVersion: v1
     appVersion: 1.0.0
-    created: "2021-11-18T02:37:17.932711645Z"
+    created: "2021-11-18T03:03:54.363827478Z"
     description: A Helm chart to deploy cloudzero-cloudwatch-metrics project
-    digest: df88f910ccb484e3601bd3e3cea85cc79429f57522581ae8cbf67fe9b11855bf
+    digest: 39053bd06a275ca9930e26a8abaf1e4e05b6f1b70ce91b354fafb876dda4d99a
     home: https://github.com/Cloudzero/provision-account/helm-charts
     icon: https://raw.githubusercontent.com/cloudzero/provision-account/helm-charts/docs/logo/cloudZerologo.png
     keywords:
@@ -20,4 +20,4 @@ entries:
     urls:
     - https://cloudzero.github.io/provision-account/cloudzero-cloudwatch-metrics-0.0.1.tgz
     version: 0.0.1
-generated: "2021-11-18T02:37:17.932120068Z"
+generated: "2021-11-18T03:03:54.36309618Z"
