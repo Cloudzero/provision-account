@@ -13,8 +13,8 @@ helm repo add eks https://aws.github.io/eks-charts
 Install or upgrading aws-cloudwatch-metrics chart with default configuration:
 
 ```sh
-helm upgrade --install aws-cloudwatch-metrics \
-    --namespace amazon-cloudwatch eks/aws-cloudwatch-metrics \
+helm upgrade --install cloudzero-cloudwatch-metrics \
+    --namespace cloudzero-cloudwatch cloudzero/cloudwatch-cloudwatch-metrics \
     --set clusterName=my-eks-cluster
 ```
 
