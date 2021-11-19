@@ -1,0 +1,20 @@
+image:
+  repository: cloudzero/cloudwatch-agent
+  tag: 1.247349.0
+  pullPolicy: IfNotPresent
+
+clusterName: cluster_name
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 200Mi
+  requests:
+    cpu: 200m
+    memory: 200Mi
+
+serviceAccount:
+  create: true
+  name:
+
+hostNetwork: false
