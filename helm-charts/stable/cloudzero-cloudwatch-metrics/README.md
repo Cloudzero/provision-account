@@ -4,7 +4,7 @@ A helm chart for CloudWatch Agent to Collect Cluster Metrics
 
 ## Installing the Chart
 
-Add the loudzero repository to Helm:
+Add the Cloudzero repository to Helm:
 
 ```sh
 helm repo add cloudzero https://cloudzero.github.io/provision-account
