@@ -1,8 +1,7 @@
-[![CircleCI](https://circleci.com/gh/aws/eks-charts.svg?style=svg)](https://circleci.com/gh/aws/eks-charts)
 
-## EKS Charts
+## CloudZero Charts
 
-Add the EKS repository to Helm:
+Add the CloudZero repository to Helm:
 
 ```sh
 helm repo add cloudzero https://cloudzero.github.io/provision-account
