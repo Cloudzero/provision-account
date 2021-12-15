@@ -1,12 +1,8 @@
 # CloudZero Container Metrics
 
----
-
 A helm chart for collecting performance metrics down to the pod level.  CloudZero uses this data to calculate container cost to the pod, label, namespace, or Cluster level.  See our documentation [here](https://docs.cloudzero.com/docs/container-cost-track).
 
 ## Chart Installation
-
----
 
 Add the CloudZero repository to Helm:
 
@@ -16,13 +12,9 @@ helm repo add cloudzero https://cloudzero.github.io/provision-account
 
 ### Prerequisite
 
----
-
 The agent must have permission to create and write to a CloudWatch LogGroup and LogStream. Adding the AWS Managed policy `arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy` to the cluster nodes allows this. Review how you manage your node to see how to attach this managed policy before installation.
 
 ### Considerations Before Installing
-
----
 
 The agent consumes cpu and memory in relation to your cluster density when initializing but then reduces cpu and memory usage after initialization. The density is defined by counting resources like number of nodes, pods, endpoints, and ReplicaSets.  The values in this chart are tuned for a cluster density of 300 nodes, 5000 pods, and 70,000 ReplicaSets. Even though the limits are high the agent will back off those limits but these values help the initial start-up.
 
@@ -56,8 +48,6 @@ helm upgrade --install cloudzero-cloudwatch-metrics           \
 > Note: these are helm3 commands that creates a namespace for this deployment or you can use an existing namespace.
 
 ## Configuration
-
----
 
 | Parameter | Description | Default | Required |
 | - | - | - | -
