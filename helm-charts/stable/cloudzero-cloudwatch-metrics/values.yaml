@@ -7,8 +7,8 @@ clusterName: cluster_name
 
 resources:
   limits:
-    cpu: 200m
-    memory: 200Mi
+    cpu: 400m
+    memory: 2000Mi
   requests:
     cpu: 100m
     memory: 100Mi
@@ -17,4 +17,4 @@ serviceAccount:
   create: true
   name:
 
-hostNetwork: false
+hostNetwork: true
