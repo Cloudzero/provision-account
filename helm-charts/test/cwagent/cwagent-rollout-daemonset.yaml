@@ -19,12 +19,6 @@ spec:
     spec:
       containers:
         - name: cloudwatch-agent
-          # below is the sampel verion
-          #image: amazon/cloudwatch-agent:1.247348.0b251302
-          # below is the latest release
-          #image: amazon/cloudwatch-agent:1.247349.0b251399
-          # Below is the Pellaton version
-          #image: amazon/cloudwatch-agent:1.247347.3b250378
           # Amazon latest fix.
           image: public.ecr.aws/i9a8f2w4/cloudwatchagent-0853e59:latest
           #ports:
