@@ -5,9 +5,6 @@ data:
   # please keep the Json blob valid.
   cwagentconfig.json: |
     {
-      "agent": {
-        "debug": true
-      },
       "logs": {
         "metrics_collected": {
           "kubernetes": {
