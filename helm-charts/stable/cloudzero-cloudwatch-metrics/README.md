@@ -12,29 +12,11 @@ helm repo add cloudzero https://cloudzero.github.io/provision-account
 
 ### Prerequisite
 
-The agent must have permission to create and write to a CloudWatch LogGroup and LogStream. Adding the AWS Managed policy `arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy` to the cluster nodes allows this. Review how you manage your node to see how to attach this managed policy before installation.
+The agent must have permission to create and write to a CloudWatch LogGroup and LogStream. Adding the AWS Managed policy `arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy` to the cluster nodes allows this. Review how you manage your nodes to see how best to attach this managed policy to the node role before installation.
 
 ### Considerations Before Installing
 
-The agent consumes cpu and memory in relation to your cluster density when initializing but then reduces cpu and memory usage after initialization. The density is defined by counting resources like number of nodes, pods, endpoints, and ReplicaSets.  The values in this chart are tuned for a cluster density of 300 nodes, 5000 pods, and 70,000 ReplicaSets. Even though the limits are high the agent will back off those limits but these values help the initial start-up.
-
-The chart performs a rolling update on a DaemonSet as documented at [kubernetes.io](https://kubernetes.io/docs/tasks/manage-daemon/update-daemon-set/). The rolling update helps large/dense cluster by spreading out the start-up load.
-
-One caveat of the rolling update is the initial release of the agent is a mass install and only the second update is a rolling update. Most cases, it is fine to install the latest the initial install and having the next update a rolling on the next upgrade. For those large dense cluster it is best to follow this two step strategy.  For less dense cluster just proceed to step 2.
-
-#### Step 1
-
-Install version 0.0.0 of the chart.
-
-```sh
-helm upgrade --install cloudzero-cloudwatch-metrics           \
-             cloudzero/cloudzero-cloudwatch-metrics           \
-             --namespace cloudzero-metrics --create-namespace \
-             --set clusterName=<Your Cluster>                 \
-             --version 0.0.0 
-```
-
-#### Step 2
+The agent consumes cpu and memory in relation to your cluster density. The density is defined by counting resources like number of nodes, pods, endpoints, and replicasets.  The chart values defined for CPU and Memory Limits/requests are suitable for a cluster density of 300 nodes, 5000 pods, and 70,000 ReplicaSets.
 
 Install the latest version
 
