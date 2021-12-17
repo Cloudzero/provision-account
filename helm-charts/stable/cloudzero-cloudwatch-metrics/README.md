@@ -16,7 +16,7 @@ The agent must have permission to create and write to a CloudWatch LogGroup and 
 
 ### Considerations Before Installing
 
-The agent consumes cpu and memory in relation to your cluster density. The density is defined by counting resources like number of nodes, pods, endpoints, and replicasets.  The chart values defined for CPU and Memory Limits/requests are suitable for a cluster density of 300 nodes, 5000 pods, and 70,000 ReplicaSets.
+The agent consumes cpu and memory in relation to your cluster density. The density is defined by counting resources like number of nodes, pods, endpoints, and replicasets.  The chart values defined for CPU and Memory limits/requests are suitable for a cluster density of 300 nodes, 5000 pods, and 70,000 ReplicaSets.
 
 Install the latest version
 

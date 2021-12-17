@@ -203,6 +203,7 @@ spec:
   machineType: c5.xlarge
   maxSize: 0
   minSize: 0
+
   nodeLabels:
     kops.k8s.io/instancegroup: nodes-us-east-1b
   role: Node
@@ -223,6 +224,7 @@ spec:
   machineType: c5.xlarge
   maxSize: 0
   minSize: 0
+
   nodeLabels:
     kops.k8s.io/instancegroup: nodes-us-east-1c
   role: Node
