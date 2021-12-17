@@ -34,6 +34,7 @@ spec:
             echo "Looping" &&
             while true
               do 
+              TRAP "exit" SIGTERM SIGKILL
               echo "static sleeping: ${STATIC_SLEEP}" 
               sleep  ${STATIC_SLEEP}
               JITTER=$(shuf -i10-60 -n1)

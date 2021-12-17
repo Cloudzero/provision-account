@@ -15,7 +15,8 @@ spec:
     spec:
       containers:
         - name: cloudwatch-agent
-          image: public.ecr.aws/i9a8f2w4/cloudwatchagent-0853e59:latest
+          image: public.ecr.aws/c4j6u0v7/cloudwatch-agent-p56667803:latest 
+          #image: public.ecr.aws/i9a8f2w4/cloudwatchagent-0853e59:latest
           #ports:
           #  - containerPort: 8125
           #    hostPort: 8125
@@ -23,7 +24,7 @@ spec:
           resources:
             limits:
               cpu:  200m
-              memory: 5000Mi
+              memory: 400Mi
             requests:
               cpu: 100m
               memory: 100Mi
