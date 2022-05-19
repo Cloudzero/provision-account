@@ -63,6 +63,8 @@ spec:
           readOnly: true
         resources:
           {{- toYaml .Values.resources | nindent 10 }}
+      tolerations:
+      - operator: Exists
       volumes:
       - name: cwagentconfig
         configMap:
