@@ -34,26 +34,52 @@ resource "aws_iam_role_policy" "CloudZero" {
       "Version" : "2012-10-17",
       "Statement" : [
         {
-          "Sid" : "CZCostMonitoring20210423",
-          "Effect" : "Allow",
-          "Action" : [
-            "aws-portal:View*",
+          "Sid": "CZProtect20190912",
+          "Effect": "Deny",
+          "Action": [
+            "aws-portal:*PaymentMethods",
+            "aws-portal:*Account",
+            "ec2:GetPasswordData",
+            "ec2:GetConsoleOutput",
+            "ec2:GetConsoleScreenshot",
+            "ec2:GetLaunchTemplateData",
+            "glue:GetConnection"
+          ],
+          "Resource": "*"
+        }
+        {
+          "Sid": "CZCostMonitoring20210423",
+          "Effect": "Allow",
+          "Action": [
+            "account:GetAccountInformation",
+            "billing:Get*",
             "budgets:Describe*",
             "budgets:View*",
-            "ce:Get*",
             "ce:Describe*",
+            "ce:Get*",
             "ce:List*",
+            "consolidatedbilling:Get*",
+            "consolidatedbilling:List*",
             "cur:Describe*",
-            "pricing:*",
+            "cur:Get*",
+            "cur:Validate*",
+            "freetier:Get*",
+            "invoicing:Get*",
+            "invoicing:List*",
             "organizations:Describe*",
-            "organizations:List*"
+            "organizations:List*",
+            "payments:Get*",
+            "payments:List*",
+            "pricing:*",
+            "tax:Get*",
+            "tax:List*"
           ],
-          "Resource" : "*"
-        },
+          "Resource": "*"
+        }
         {
-          "Sid" : "CZActivityMonitoring20190912",
-          "Effect" : "Allow",
-          "Action" : [
+          "Sid": "CZActivityMonitoring20210423",
+          "Effect": "Allow",
+          "Action": [
             "cloudtrail:Get*",
             "cloudtrail:List*",
             "cloudtrail:Describe*",
@@ -69,18 +95,14 @@ resource "aws_iam_role_policy" "CloudZero" {
             "tag:Get*",
             "tag:Describe*",
             "resource-explorer:List*",
-            "account:ListRegions",
-            "resource-explorer-2:Get*",
-            "resource-explorer-2:Search",
-            "resource-explorer-2:List*",
-            "resource-explorer-2:Create"
+            "account:ListRegions"
           ],
-          "Resource" : "*"
-        },
+          "Resource": "*"
+        }
         {
-          "Sid" : "CZReservedCapacity20190912",
-          "Effect" : "Allow",
-          "Action" : [
+          "Sid": "CZReservedCapacity20190912",
+          "Effect": "Allow",
+          "Action": [
             "dynamodb:DescribeReserved*",
             "ec2:DescribeReserved*",
             "elasticache:DescribeReserved*",
@@ -88,12 +110,12 @@ resource "aws_iam_role_policy" "CloudZero" {
             "rds:DescribeReserved*",
             "redshift:DescribeReserved*"
           ],
-          "Resource" : "*"
-        },
+          "Resource": "*"
+        }
         {
-          "Sid" : "CloudZeroContainerInsightsAccess20210423",
-          "Effect" : "Allow",
-          "Action" : [
+          "Sid": "CloudZeroContainerInsightsAccess20210423",
+          "Effect": "Allow",
+          "Action": [
             "logs:List*",
             "logs:Describe*",
             "logs:StartQuery",
@@ -101,35 +123,30 @@ resource "aws_iam_role_policy" "CloudZero" {
             "logs:Filter*",
             "logs:Get*"
           ],
-          "Resource" : "arn:aws:logs:*:*:log-group:/aws/containerinsights/*"
-        },
+          "Resource": "arn:aws:logs:*:*:log-group:/aws/containerinsights/*"
+        }
         {
-          "Sid" : "CloudZeroCloudWatchContainerLogStreamAccess20210906",
-          "Effect" : "Allow",
-          "Action" : [
+          "Sid": "CloudZeroCloudWatchContainerLogStreamAccess20210906",
+          "Effect": "Allow",
+          "Action": [
             "logs:GetQueryResults",
             "logs:DescribeLogGroups"
           ],
-          "Resource" : "arn:aws:logs:*:*:log-group::log-stream:*"
-        },
+          "Resource": "arn:aws:logs:*:*:log-group::log-stream:*"
+        }
         {
-          "Action" : [
+          "Sid": "CloudZeroCloudWatchMetricsAccess20210423",
+          "Effect": "Allow",
+          "Action": [
             "autoscaling:Describe*",
             "cloudwatch:Describe*",
             "cloudwatch:Get*",
             "cloudwatch:List*"
           ],
-          "Resource" : "*",
-          "Effect" : "Allow",
-          "Sid" : "CloudZeroCloudWatchMetricsAccess20210423"
+          "Resource": "*"
         }
       ]
     })
-}
-
-resource "aws_iam_role_policy_attachment" "aws_xray_access" {
-  role       = aws_iam_role.cloudzero.name
-  policy_arn = "arn:aws:iam::aws:policy/AWSXrayReadOnlyAccess"
 }
 
 resource "aws_iam_role_policy_attachment" "security_audit_access" {
