@@ -70,6 +70,8 @@ Resources:
             Condition:
               StringEquals:
                 'sts:ExternalId': !Ref ExternalId
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AWSBillingReadOnlyAccess
 
   CostAndUsageReportResource:
     Condition: CreateCurAndBucketAndPolicy
@@ -274,58 +276,97 @@ Resources:
                   - 'arn:aws:s3:::${BucketName}-${Id}/*'
                   - { BucketName: !FindInMap [ Defaults, Cur, BucketName ],
                       Id: !Select [ 2, !Split [ '/', !Ref 'AWS::StackId' ] ] }
-          - Sid: CZCostMonitoring20191111
+          - Sid: CZProtect20190912
+            Effect: Deny
+            Action:
+              - aws-portal:*PaymentMethods
+              - aws-portal:*Account
+              - ec2:GetPasswordData
+              - ec2:GetConsoleOutput
+              - ec2:GetConsoleScreenshot
+              - ec2:GetLaunchTemplateData
+              - glue:GetConnection
+            Resource: "*"
+          - Sid: CZCostMonitoring20210423
             Effect: Allow
             Action:
-              - aws-portal:View*
-              - ce:*
+              - account:GetAccountInformation
+              - billing:Get*
+              - budgets:Describe*
+              - budgets:View*
+              - ce:Describe*
+              - ce:Get*
+              - ce:List*
+              - consolidatedbilling:Get*
+              - consolidatedbilling:List*
               - cur:Describe*
-              - budgets:*
-              - pricing:*
+              - cur:Get*
+              - cur:Validate*
+              - freetier:Get*
+              - invoicing:Get*
+              - invoicing:List*
               - organizations:Describe*
               - organizations:List*
-            Resource: '*'
-          - Sid: CZActivityMonitoring20210411
+              - payments:Get*
+              - payments:List*
+              - pricing:*
+              - tax:Get*
+              - tax:List*
+            Resource: "*"
+          - Sid: CZActivityMonitoring20210423
             Effect: Allow
             Action:
               - cloudtrail:Get*
               - cloudtrail:List*
               - cloudtrail:Describe*
-              - health:*
+              - health:Describe*
               - support:DescribeTrustedAdvisor*
               - servicequotas:Get*
               - servicequotas:List*
               - resource-groups:Get*
               - resource-groups:List*
               - resource-groups:Search*
-              - cloudformation:Describe*
-              - cloudformation:List*
+              - cloudformation:DescribeStacks
+              - cloudformation:ListStackResources
               - tag:Get*
               - tag:Describe*
               - resource-explorer:List*
               - account:ListRegions
-            Resource: '*'
+            Resource: "*"
           - Sid: CZReservedCapacity20190912
             Effect: Allow
             Action:
-              - cloudfront:Get*
-              - cloudfront:List*
-              - dynamodb:Describe*
-              - dynamodb:List*
-              - ec2:Describe*
-              - ec2:Get*
-              - ec2:Get*
-              - elasticache:Describe*
-              - elasticache:List*
-              - elasticmapreduce:Describe*
-              - elasticmapreduce:List*
-              - es:Describe*
-              - es:List*
-              - es:Get*
-              - rds:Describe*
-              - redshift:Describe*
-              - redshift:List*
-            Resource: '*'
+              - dynamodb:DescribeReserved*
+              - ec2:DescribeReserved*
+              - elasticache:DescribeReserved*
+              - es:DescribeReserved*
+              - rds:DescribeReserved*
+              - redshift:DescribeReserved*
+            Resource: "*"
+          - Sid: CloudZeroContainerInsightsAccess20210423
+            Effect: Allow
+            Action:
+              - logs:List*
+              - logs:Describe*
+              - logs:StartQuery
+              - logs:StopQuery
+              - logs:Filter*
+              - logs:Get*
+            Resource: arn:aws:logs:*:*:log-group:/aws/containerinsights/*
+          - Sid: CloudZeroCloudWatchContainerLogStreamAccess20210906
+            Effect: Allow
+            Action:
+              - logs:GetQueryResults
+              - logs:DescribeLogGroups
+            Resource: arn:aws:logs:*:*:log-group::log-stream:*
+          - Sid: CloudZeroCloudWatchMetricsAccess20210423
+            Effect: Allow
+            Action:
+              - autoscaling:Describe*
+              - cloudwatch:Describe*
+              - cloudwatch:Get*
+              - cloudwatch:List*
+            Resource: "*"
 
 Outputs:
   RoleArn:

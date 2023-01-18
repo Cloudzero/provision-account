@@ -11,6 +11,10 @@
         {
             "arn": "arn:aws:iam::aws:policy/job-function/ViewOnlyAccess",
             "name": "ViewOnlyAccess"
+        },
+        {
+            "arn": "arn:aws:iam::aws:policy/AWSBillingReadOnlyAccess",
+            "name": "AWSBillingReadOnlyAccess"
         }
     ]
 }
