@@ -41,7 +41,6 @@ Resources:
               StringEquals:
                 'sts:ExternalId': !Ref ExternalId
       ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/AWSXrayReadOnlyAccess
         - arn:aws:iam::aws:policy/CloudWatchReadOnlyAccess
         - arn:aws:iam::aws:policy/SecurityAudit
         - arn:aws:iam::aws:policy/job-function/ViewOnlyAccess
