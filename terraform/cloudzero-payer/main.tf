@@ -38,27 +38,13 @@ resource "aws_iam_role_policy" "CloudZero" {
           "Effect" : "Allow",
           "Action" : [
             "S3:get*",
-            "S3:list*",
+            "S3:list*"
           ],
           "Resource" : [
             "arn:aws:s3:::${var.AWS_CUR_bucket}",
             "arn:aws:s3:::${var.AWS_CUR_bucket}/*"
           ]
         },
-        {
-          "Sid": "CZProtect20190912",
-          "Effect": "Deny",
-          "Action": [
-            "aws-portal:*PaymentMethods",
-            "aws-portal:*Account",
-            "ec2:GetPasswordData",
-            "ec2:GetConsoleOutput",
-            "ec2:GetConsoleScreenshot",
-            "ec2:GetLaunchTemplateData",
-            "glue:GetConnection"
-          ],
-          "Resource": "*"
-        }
         {
           "Sid": "CZCostMonitoring20210423",
           "Effect": "Allow",
@@ -87,7 +73,7 @@ resource "aws_iam_role_policy" "CloudZero" {
             "tax:List*"
           ],
           "Resource": "*"
-        }
+        },
         {
           "Sid": "CZActivityMonitoring20210423",
           "Effect": "Allow",
@@ -110,7 +96,7 @@ resource "aws_iam_role_policy" "CloudZero" {
             "account:ListRegions"
           ],
           "Resource": "*"
-        }
+        },
         {
           "Sid": "CZReservedCapacity20190912",
           "Effect": "Allow",
@@ -123,7 +109,7 @@ resource "aws_iam_role_policy" "CloudZero" {
             "redshift:DescribeReserved*"
           ],
           "Resource": "*"
-        }
+        },
         {
           "Sid": "CloudZeroContainerInsightsAccess20210423",
           "Effect": "Allow",
@@ -136,7 +122,7 @@ resource "aws_iam_role_policy" "CloudZero" {
             "logs:Get*"
           ],
           "Resource": "arn:aws:logs:*:*:log-group:/aws/containerinsights/*"
-        }
+        },
         {
           "Sid": "CloudZeroCloudWatchContainerLogStreamAccess20210906",
           "Effect": "Allow",
@@ -145,7 +131,7 @@ resource "aws_iam_role_policy" "CloudZero" {
             "logs:DescribeLogGroups"
           ],
           "Resource": "arn:aws:logs:*:*:log-group::log-stream:*"
-        }
+        },
         {
           "Sid": "CloudZeroCloudWatchMetricsAccess20210423",
           "Effect": "Allow",
@@ -159,11 +145,6 @@ resource "aws_iam_role_policy" "CloudZero" {
         }
       ]
     })
-}
-
-resource "aws_iam_role_policy_attachment" "aws_xray_access" {
-  role       = aws_iam_role.cloudzero.name
-  policy_arn = "arn:aws:iam::aws:policy/AWSXrayReadOnlyAccess"
 }
 
 resource "aws_iam_role_policy_attachment" "security_audit_access" {

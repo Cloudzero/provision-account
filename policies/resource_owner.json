@@ -2,20 +2,8 @@
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Action": [
-        "aws-portal:*PaymentMethods",
-        "aws-portal:*Account",
-        "ec2:GetPasswordData",
-        "ec2:GetConsoleOutput",
-        "ec2:GetConsoleScreenshot",
-        "ec2:GetLaunchTemplateData",
-        "glue:GetConnection"
-      ],
-      "Resource": "*",
-      "Effect": "Deny",
-      "Sid": "CZProtect20190912"
-    },
-    {
+      "Sid": "CZCostMonitoring20210423",
+      "Effect": "Allow",
       "Action": [
         "account:GetAccountInformation",
         "billing:Get*",
@@ -40,11 +28,11 @@
         "tax:Get*",
         "tax:List*"
       ],
-      "Resource": "*",
-      "Effect": "Allow",
-      "Sid": "CZCostMonitoring20210423"
+      "Resource": "*"
     },
     {
+      "Sid": "CZActivityMonitoring20210423",
+      "Effect": "Allow",
       "Action": [
         "cloudtrail:Get*",
         "cloudtrail:List*",
@@ -63,11 +51,11 @@
         "resource-explorer:List*",
         "account:ListRegions"
       ],
-      "Resource": "*",
-      "Effect": "Allow",
-      "Sid": "CZActivityMonitoring20210423"
+      "Resource": "*"
     },
     {
+      "Sid": "CZReservedCapacity20190912",
+      "Effect": "Allow",
       "Action": [
         "dynamodb:DescribeReserved*",
         "ec2:DescribeReserved*",
@@ -76,11 +64,11 @@
         "rds:DescribeReserved*",
         "redshift:DescribeReserved*"
       ],
-      "Resource": "*",
-      "Effect": "Allow",
-      "Sid": "CZReservedCapacity20190912"
+      "Resource": "*"
     },
     {
+      "Sid": "CloudZeroContainerInsightsAccess20210423",
+      "Effect": "Allow",
       "Action": [
         "logs:List*",
         "logs:Describe*",
@@ -89,29 +77,27 @@
         "logs:Filter*",
         "logs:Get*"
       ],
-      "Resource": "arn:aws:logs:*:*:log-group:/aws/containerinsights/*",
-      "Effect": "Allow",
-      "Sid": "CloudZeroContainerInsightsAccess20210423"
+      "Resource": "arn:aws:logs:*:*:log-group:/aws/containerinsights/*"
     },
     {
+      "Sid": "CloudZeroCloudWatchContainerLogStreamAccess20210906",
+      "Effect": "Allow",
       "Action": [
         "logs:GetQueryResults",
         "logs:DescribeLogGroups"
       ],
-      "Resource": "arn:aws:logs:*:*:log-group::log-stream:*",
-      "Effect": "Allow",
-      "Sid": "CloudZeroCloudWatchContainerLogStreamAccess20210906"
+      "Resource": "arn:aws:logs:*:*:log-group::log-stream:*"
     },
     {
+      "Sid": "CloudZeroCloudWatchMetricsAccess20210423",
+      "Effect": "Allow",
       "Action": [
         "autoscaling:Describe*",
         "cloudwatch:Describe*",
         "cloudwatch:Get*",
         "cloudwatch:List*"
       ],
-      "Resource": "*",
-      "Effect": "Allow",
-      "Sid": "CloudZeroCloudWatchMetricsAccess20210423"
+      "Resource": "*"
     }
   ]
 }

@@ -34,20 +34,6 @@ resource "aws_iam_role_policy" "CloudZero" {
       "Version" : "2012-10-17",
       "Statement" : [
         {
-          "Sid": "CZProtect20190912",
-          "Effect": "Deny",
-          "Action": [
-            "aws-portal:*PaymentMethods",
-            "aws-portal:*Account",
-            "ec2:GetPasswordData",
-            "ec2:GetConsoleOutput",
-            "ec2:GetConsoleScreenshot",
-            "ec2:GetLaunchTemplateData",
-            "glue:GetConnection"
-          ],
-          "Resource": "*"
-        }
-        {
           "Sid": "CZCostMonitoring20210423",
           "Effect": "Allow",
           "Action": [
@@ -75,7 +61,7 @@ resource "aws_iam_role_policy" "CloudZero" {
             "tax:List*"
           ],
           "Resource": "*"
-        }
+        },
         {
           "Sid": "CZActivityMonitoring20210423",
           "Effect": "Allow",
@@ -98,7 +84,7 @@ resource "aws_iam_role_policy" "CloudZero" {
             "account:ListRegions"
           ],
           "Resource": "*"
-        }
+        },
         {
           "Sid": "CZReservedCapacity20190912",
           "Effect": "Allow",
@@ -111,7 +97,7 @@ resource "aws_iam_role_policy" "CloudZero" {
             "redshift:DescribeReserved*"
           ],
           "Resource": "*"
-        }
+        },
         {
           "Sid": "CloudZeroContainerInsightsAccess20210423",
           "Effect": "Allow",
@@ -124,7 +110,7 @@ resource "aws_iam_role_policy" "CloudZero" {
             "logs:Get*"
           ],
           "Resource": "arn:aws:logs:*:*:log-group:/aws/containerinsights/*"
-        }
+        },
         {
           "Sid": "CloudZeroCloudWatchContainerLogStreamAccess20210906",
           "Effect": "Allow",
@@ -133,7 +119,7 @@ resource "aws_iam_role_policy" "CloudZero" {
             "logs:DescribeLogGroups"
           ],
           "Resource": "arn:aws:logs:*:*:log-group::log-stream:*"
-        }
+        },
         {
           "Sid": "CloudZeroCloudWatchMetricsAccess20210423",
           "Effect": "Allow",

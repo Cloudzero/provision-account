@@ -251,16 +251,6 @@ Resources:
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
-          - Sid: CZProtect20190912
-            Effect: Deny
-            Action:
-              - aws-portal:*PaymentMethods
-              - aws-portal:*Account
-              - ec2:GetPasswordData
-              - ec2:GetConsoleOutput
-              - ec2:GetConsoleScreenshot
-              - glue:GetConnection
-            Resource: '*'
           - Sid: CZMasterPayerBillingBucket20190912
             Effect: Allow
             Action:
