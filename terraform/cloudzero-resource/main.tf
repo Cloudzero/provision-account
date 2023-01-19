@@ -34,7 +34,7 @@ resource "aws_iam_role_policy" "CloudZero" {
       "Version" : "2012-10-17",
       "Statement" : [
         {
-          "Sid": "CZCostMonitoring20210423",
+          "Sid": "CZCostMonitoring20230119",
           "Effect": "Allow",
           "Action": [
             "account:GetAccountInformation",

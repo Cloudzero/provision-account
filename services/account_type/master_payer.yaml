@@ -281,7 +281,7 @@ Resources:
               - ec2:GetLaunchTemplateData
               - glue:GetConnection
             Resource: "*"
-          - Sid: CZCostMonitoring20210423
+          - Sid: CZCostMonitoring20230119
             Effect: Allow
             Action:
               - account:GetAccountInformation
