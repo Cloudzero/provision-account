@@ -1,10 +1,6 @@
 {
     "policies": [
         {
-            "arn": "arn:aws:iam::aws:policy/AWSXrayReadOnlyAccess",
-            "name": "AWSXrayReadOnlyAccess"
-        },
-        {
             "arn": "arn:aws:iam::aws:policy/SecurityAudit",
             "name": "SecurityAudit"
         },
