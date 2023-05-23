@@ -33,14 +33,14 @@ Resources:
               Resource: '*'
       Environment:
         Variables:
-          VERSION: '2'
+          VERSION: '20230523'
 
   DiscoveryResource:
     Type: Custom::Discovery
     Properties:
       ServiceToken: !GetAtt DiscoveryFunction.Arn
       AccountId: !Sub ${AWS::AccountId}
-      Version: '2'
+      Version: '20230523'
 
 Outputs:
   AuditCloudTrailBucketName:
