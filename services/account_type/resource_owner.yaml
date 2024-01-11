@@ -15,10 +15,17 @@ Parameters:
     Type: String
     Description: |
       CloudZero AWS AccountID; for cross-account Role Access
+    Default: "061190967865"
   IsResourceOwnerAccount:
     Type: String
     Description: |
       Should this template instantiate any resources?
+  ResourcesOwnerRoleName:
+    Type: String
+    Description: |
+      Name of the Role to be created in the resource account. This must be identical
+      in every resource account.
+    Default: "CloudzeroConnectedAccountResourceOwnerRole"
 
 Conditions:
   CreateResources: !Equals [ !Ref IsResourceOwnerAccount, 'true' ]
@@ -28,6 +35,7 @@ Resources:
     Type: AWS::IAM::Role
     Condition: CreateResources
     Properties:
+      RoleName: ${ResourceOwnerRoleName}
       Path: '/cloudzero/'
       AssumeRolePolicyDocument:
         Version: 2012-10-17
