@@ -2,7 +2,7 @@
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "CZCostMonitoring20230119",
+      "Sid": "CZCostMonitoring20240422",
       "Effect": "Allow",
       "Action": [
         "account:GetAccountInformation",
@@ -17,6 +17,7 @@
         "cur:Describe*",
         "cur:Get*",
         "cur:Validate*",
+        "cur:List*",
         "freetier:Get*",
         "invoicing:Get*",
         "invoicing:List*",

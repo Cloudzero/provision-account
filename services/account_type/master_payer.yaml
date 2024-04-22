@@ -270,7 +270,7 @@ Resources:
                   - 'arn:aws:s3:::${BucketName}-${Id}/*'
                   - { BucketName: !FindInMap [ Defaults, Cur, BucketName ],
                       Id: !Select [ 2, !Split [ '/', !Ref 'AWS::StackId' ] ] }
-          - Sid: CZCostMonitoring20230119
+          - Sid: CZCostMonitoring20240422
             Effect: Allow
             Action:
               - account:GetAccountInformation
@@ -285,6 +285,7 @@ Resources:
               - cur:Describe*
               - cur:Get*
               - cur:Validate*
+              - cur:List*
               - freetier:Get*
               - invoicing:Get*
               - invoicing:List*
