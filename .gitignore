@@ -39,3 +39,4 @@ packaged.yaml
 /.vscode/
 /services/discovery/.vscode/
 /services/notification/.vscode/
+temp

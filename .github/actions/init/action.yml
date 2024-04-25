@@ -1,0 +1,29 @@
+# This workflow installs dependencies for a deployable SAM Python Application, caching them for downstream jobs.
+
+name: Init
+description: Initialize Python environment
+
+inputs:
+  python-version:
+    description: "Python version"
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python ${{ inputs.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ inputs.python-version }}
+        cache: "pip"
+        cache-dependency-path: |
+          requirements-dev.txt
+          src/lib/requirements.txt
+
+    - name: Install dependencies
+      shell: bash
+      run: |
+        touch .cz_py_virtualenv_verified
+        make init

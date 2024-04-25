@@ -8,6 +8,7 @@ FEATURE_NAME ?= provision-account
 TEAM_NAME ?= cloudzero
 BUCKET := cz-$(FEATURE_NAME)
 SEMVER_MAJ_MIN := 1.0
+VIRTUAL_ENV ?= .venv
 
 # Util constants
 ERROR_COLOR := \033[1;31m
