@@ -33,6 +33,6 @@ jobs:
         with:
           role-to-assume: ${{ secrets.SAM_DEPLOY_ROLE_ARN }}
           aws-region: us-east-1
-      - name: Deploy
+      - name: Upload S3 Artifacts
         shell: bash
         run: make deploy
