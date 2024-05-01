@@ -109,7 +109,7 @@ $(BUILD_DIR): $(SRC_FILES) $(TEMPLATE_FILE) build-python
 .PHONY: package
 package: $(APP_ZIP)
 $(APP_ZIP): $(BUILD_DIR)
-	rm -f $@ ; cd temp ; zip -rq ./../$@ .
+	rm -f $@ ; cd $(TEMP_DIR) ; zip -rq ./../$@ .
 
 .PHONY: deploy
 deploy: $(DEPLOYMENT_FILE)
