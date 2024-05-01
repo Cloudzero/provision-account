@@ -6,9 +6,16 @@ Description: >
 
   SAM Template for discovery
 
+Parameters:
+  Version:
+    Type: String
+    Default: 'latest'
+    Description: |
+      Version to target when deploying the stack. `latest` should be used by default.
+
 Globals:
   Function:
-    Runtime: python3.8
+    Runtime: python3.11
     MemorySize: 512
     Timeout: 30
 
@@ -18,19 +25,19 @@ Resources:
     Properties:
       CodeUri:
         Bucket: !Sub 'cz-provision-account-${AWS::Region}'
-        Key: latest/services/discovery.zip
+        Key: !Sub ${Version}/services/discovery.zip
       Handler: src.app.handler
       Policies:
-        - Version: '2012-10-17'
-          Statement:
-            - Sid: CZDiscovery20190912
-              Effect: Allow
-              Action:
-                - cloudtrail:DescribeTrails
-                - s3:ListAllMyBuckets
-                - cur:DescribeReportDefinitions
-                - organizations:DescribeOrganization
-              Resource: '*'
+      - Version: '2012-10-17'
+        Statement:
+        - Sid: CZDiscovery20190912
+          Effect: Allow
+          Action:
+          - cloudtrail:DescribeTrails
+          - s3:ListAllMyBuckets
+          - cur:DescribeReportDefinitions
+          - organizations:DescribeOrganization
+          Resource: '*'
       Environment:
         Variables:
           VERSION: '20230523'
