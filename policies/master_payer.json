@@ -14,7 +14,7 @@
       ]
     },
     {
-      "Sid": "CZCostMonitoring20240422",
+      "Sid": "CZCostMonitoring20230119",
       "Effect": "Allow",
       "Action": [
         "account:GetAccountInformation",
@@ -29,7 +29,6 @@
         "cur:Describe*",
         "cur:Get*",
         "cur:Validate*",
-        "cur:List*",
         "freetier:Get*",
         "invoicing:Get*",
         "invoicing:List*",

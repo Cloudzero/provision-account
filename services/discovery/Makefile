@@ -13,10 +13,8 @@ include ../../MakefileConstants.mk
 APP_NAME = $(FEATURE_NAME)-discovery
 SRC_FILES = $(shell find src -name "*.py")
 TEST_FILES = $(shell find tests -name "test_*.py")
-COVERAGE_REPORT = coverage-reports
-COVERAGE_XML = coverage.xml
+COVERAGE_REPORT = coverage-report
 BUILD_DIR = .aws-sam
-TEMP_DIR = temp
 DEPLOYMENT_FILE = .deploy
 ACCOUNT_ID = $(shell source ../../project.sh && cz_assert_profile &> /dev/null && \
 							 aws sts get-caller-identity | jq -r -e '.Account')
@@ -69,9 +67,6 @@ clean:
 	-find . -name '*.pyo' -exec rm -f {} +
 	-find . -name '*~' -exec rm -f {} +
 	-find . -name '__pycache__' -exec rm -fr {} +
-	-find . -name '*.pytest_cache' -exec rm -fr {} +
-	-find . -name '*.coverage' -exec rm -fr {} +
-	-find . -name 'temp' -exec rm -fr {} +
 
 
 #################
@@ -85,7 +80,7 @@ lint:
 
 
 .PHONY: test                                          ## Run Tests and Produce Coverage Report
-test:
+test: lint
 	@pytest src tests
 
 
@@ -95,21 +90,15 @@ test:
 # All official deployment automation is done in the root Makefile.
 #
 #################
-.PHONY: build-python
-build-python:
-	mkdir -p $(TEMP_DIR)
-	cp -r src $(TEMP_DIR)/src
-	pip install -r requirements.txt -t $(TEMP_DIR)
-
 .PHONY: build                                         ## Build sam app
-build: $(BUILD_DIR) 
-$(BUILD_DIR): $(SRC_FILES) $(TEMPLATE_FILE) build-python
+build: $(BUILD_DIR)
+$(BUILD_DIR): $(SRC_FILES) $(TEMPLATE_FILE)
 	sam build
 
 .PHONY: package
 package: $(APP_ZIP)
 $(APP_ZIP): $(BUILD_DIR)
-	rm -f $@ ; cd $(TEMP_DIR) ; zip -rq ./../$@ .
+	rm -f $@ ; cd .aws-sam/build/DiscoveryFunction ; zip -rq ../../../$@ .
 
 
 .PHONY: deploy

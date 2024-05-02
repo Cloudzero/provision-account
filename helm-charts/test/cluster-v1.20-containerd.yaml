@@ -1,0 +1,46 @@
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+metadata:
+ name: helm-1-20
+ region: us-east-1
+ version: "1.20"
+vpc:
+  id: "vpc-d4b483af"
+  clusterEndpoints:
+    publicAccess:  true
+    privateAccess: true
+  subnets:
+    private:
+      us-east-1a:
+        id: "subnet-3574f87f"
+      us-east-1b:
+        id: "subnet-80b149dc"
+    public:
+      us-east-1a:
+        id: "subnet-3574f87f"
+      us-east-1b:
+        id: "subnet-80b149dc"
+managedNodeGroups:
+  - name: helm-1-20-ng
+    desiredCapacity: 2
+    ami: ami-00836a7940260f6dd
+    ssh:
+      enableSsm:
+    iam:
+      attachPolicyARNs:
+        - arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy
+        - arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy
+        - arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly
+        - arn:aws:iam::aws:policy/ElasticLoadBalancingFullAccess
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      withAddonPolicies:
+        autoScaler: true
+        imageBuilder: true
+        cloudWatch: true
+        externalDNS: true
+    overrideBootstrapCommand: |
+      #!/bin/bash
+      /etc/eks/bootstrap.sh helm-containerd-c --container-runtime containerd
+
+

@@ -11,8 +11,8 @@ include MakefileConstants.mk
 #
 ####################
 VANTA_TAGS = "VantaOwner=$(OWNER)" "VantaDescription=$(FEATURE_NAME)" "VantaContainsUserData=false"
-ALL_CFN_TEMPLATES := $(shell find services -name "*.yaml" -a ! -name "packaged*.yaml" -a ! -path "*.aws-sam*" -a ! -path "*temp*")
-SAM_APPS := $(shell find services -name "setup.cfg" -a ! -path "*temp*" | grep -v '.aws-sam' | xargs -Ipath dirname path | uniq)
+ALL_CFN_TEMPLATES := $(shell find services -name "*.yaml" -a ! -name "packaged*.yaml" -a ! -path "*.aws-sam*")
+SAM_APPS := $(shell find services -name "setup.cfg" | grep -v '.aws-sam' | xargs -Ipath dirname path | uniq)
 SAM_APP_TEMPLATES := $(shell find $(SAM_APPS) -maxdepth 1 -name "$(TEMPLATE_FILE)")
 SAM_APP_TEST_RESULTS := $(SAM_APP_TEMPLATES:$(TEMPLATE_FILE)=$(COVERAGE_XML))
 SAM_APP_LINT_RESULTS := $(SAM_APP_TEMPLATES:$(TEMPLATE_FILE)=$(LINT_RESULTS))
@@ -58,19 +58,15 @@ help:
 .PHONY: init                                                                            ## Install package dependencies for python
 init: guard-VIRTUAL_ENV $(PYTHON_DEPENDENCY_FILE)
 $(PYTHON_DEPENDENCY_FILE): $(REQUIREMENTS_FILES)
-	pip install pip==24.0
+	pip install pip==20.2.4
 	for f in $^ ; do \
     pip install -r $${f} ; \
   done
 	touch $(PYTHON_DEPENDENCY_FILE)
 
 
-.PHONY: lint
-lint: lint-all-templates lint-sam-apps
-
-
 .PHONY: test
-test: test-sam-apps
+test: lint-all-templates lint-sam-apps test-sam-apps								    ## Lints then tests code for all available runtimes
 
 
 .PHONY: lint-all-templates
@@ -182,8 +178,8 @@ deploy-dry-run: $(VIRTUAL_ENV) $(PACKAGED_TEMPLATE_FILE)
 	@$(MAKE) cfn-dryrun stack_name=cz-$(FEATURE_NAME) template_file=$(PACKAGED_TEMPLATE_FILE)
 
 
-.PHONY: deploy-bucket
-deploy-bucket:
+.PHONY: deploy-once
+deploy-once:
 	@. ./project.sh && cz_assert_profile && \
 	regions=`aws ec2 describe-regions | jq -r -e '.Regions[].RegionName'` && \
 	$(MAKE) $(PACKAGED_TEMPLATE_FILE) && \
@@ -213,17 +209,12 @@ copy-to-s3: guard-path
 
 .PHONY: deploy                                                                          ## Deploys Artifacts to S3 Bucket
 deploy:
+	@. ./project.sh && cz_assert_profile && \
 	find . -name $(APP_ZIP) -exec rm -rf {} \; && \
 	$(MAKE) package-sam-apps && \
 	$(MAKE) copy-to-s3 path=v$(SEMVER_MAJ_MIN).$(version) && \
 	[ $(version) != 'dev' ] && $(MAKE) copy-to-s3 path=latest || true
 
-.PHONY: update-dev
-update-dev:
-	@aws cloudformation update-stack \
-	--stack-name cloudzero-connected-account-alfa \
-	--template-url https://cz-provision-account.s3.amazonaws.com/v$(SEMVER_MAJ_MIN).dev/services/connected_account_dev.yaml \
-	--parameters "$$(aws cloudformation describe-stacks --stack-name cloudzero-connected-account-alfa | jq '.Stacks[0].Parameters' | jq 'del(.[] | select (.ParameterKey == "Version"))' | jq '. += [{"ParameterKey": "Version", "ParameterValue": "v$(SEMVER_MAJ_MIN).dev"}]')"
 
 .PHONY: describe                                                                        ## Return information about SAM-created stack from AWS
 describe: $(VIRTUAL_ENV)

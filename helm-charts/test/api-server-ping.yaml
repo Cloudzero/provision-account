@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: ReplicaSet
+metadata:
+  name: api-server-ping
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      tier: api-server-ping
+  template:
+    metadata:
+      labels:
+        tier: api-server-ping
+    spec:
+      containers:
+      - name: alpine
+        image: alpine:latest
+        resources:
+          requests:
+            cpu: "25m"
+          limits:
+            cpu: "50m"
+        command: ["/bin/sh"]
+        args:
+        - -c
+        - >-
+            echo "Set Up" &&
+            apk add curl &&
+            export APISERVER=https://kubernetes.default.svc &&
+            export SERVICEACCOUNT=/var/run/secrets/kubernetes.io/serviceaccount &&
+            export NAMESPACE=$(cat ${SERVICEACCOUNT}/namespace) &&
+            export TOKEN=$(cat ${SERVICEACCOUNT}/token) &&
+            export CACERT=${SERVICEACCOUNT}/ca.crt &&
+            echo "Looping" &&
+            while true
+              do 
+              TRAP "exit" SIGTERM SIGKILL
+              echo "static sleeping: ${STATIC_SLEEP}" 
+              sleep  ${STATIC_SLEEP}
+              JITTER=$(shuf -i10-60 -n1)
+              echo "jitter sleep = ${JITTER}"
+              sleep ${JITTER}
+              echo $(date) "pinging"
+              curl --cacert ${CACERT} --header "Authorization: Bearer ${TOKEN}" -X GET ${APISERVER}/api
+              echo ""
+            done
+        env:
+          - name: STATIC_SLEEP
+            value: "300"

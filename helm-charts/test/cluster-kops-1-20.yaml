@@ -1,0 +1,232 @@
+apiVersion: kops.k8s.io/v1alpha2
+kind: Cluster
+metadata:
+  creationTimestamp: null
+  name: k8s-cluster.k8s.local
+spec:
+  api:
+    loadBalancer:
+      class: Classic
+      type: Public
+  authorization:
+    rbac: {}
+  channel: stable
+  cloudProvider: aws
+  configBase: s3://cz-kops-base/k8s-cluster.k8s.local
+  containerRuntime: containerd
+  etcdClusters:
+  - cpuRequest: 200m
+    etcdMembers:
+    - encryptedVolume: true
+      instanceGroup: master-us-east-1a
+      name: a
+    - encryptedVolume: true
+      instanceGroup: master-us-east-1b
+      name: b
+    - encryptedVolume: true
+      instanceGroup: master-us-east-1c
+      name: c
+    memoryRequest: 100Mi
+    name: main
+  - cpuRequest: 100m
+    etcdMembers:
+    - encryptedVolume: true
+      instanceGroup: master-us-east-1a
+      name: a
+    - encryptedVolume: true
+      instanceGroup: master-us-east-1b
+      name: b
+    - encryptedVolume: true
+      instanceGroup: master-us-east-1c
+      name: c
+    memoryRequest: 100Mi
+    name: events
+  externalPolicies:
+    node:
+    - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+    - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+    master:
+    - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+  iam:
+    allowContainerRegistry: true
+    legacy: false
+  kubelet:
+    anonymousAuth: true
+    authorizationMode: Webhook
+    maxPods: 30
+  kubeAPIServer:
+    enableAdmissionPlugins:
+    - NamespaceLifecycle
+    - LimitRanger
+    - ServiceAccount
+    - PersistentVolumeLabel
+    - DefaultStorageClass
+    - DefaultTolerationSeconds
+    - MutatingAdmissionWebhook
+    - ValidatingAdmissionWebhook
+    - NodeRestriction
+    - Priority
+    - ResourceQuota
+  kubernetesApiAccess:
+  - 0.0.0.0/0
+  - ::/0
+  kubernetesVersion: 1.20.9
+  masterPublicName: api.k8s-cluster.k8s.local
+  networkCIDR: 172.31.0.0/16
+  networkID: vpc-d4b483af
+  networking:
+    amazonvpc:
+      env:
+      - name: WARM_ENI_TARGET
+        value: "0"
+      - name: WARM_IP_TARGET
+        value: "2"
+      - name: MINIMUM_IP_TARGET
+        value: "25"
+  nonMasqueradeCIDR: 172.31.0.0/16
+  sshAccess:
+  - 0.0.0.0/0
+  - ::/0
+  subnets:
+  - cidr: 172.31.96.0/19
+    id: subnet-05d6d6c02cacf4474
+    name: us-east-1a
+    type: Public
+    zone: us-east-1a
+  - cidr: 172.31.128.0/19
+    id: subnet-0c1a3896519b2dcf0
+    name: us-east-1b
+    type: Public
+    zone: us-east-1b
+  - cidr: 172.31.160.0/19
+    id: subnet-046596eb985492dfb
+    name: us-east-1c
+    type: Public
+    zone: us-east-1c
+  topology:
+    dns:
+      type: Public
+    masters: public
+    nodes: public
+
+---
+
+apiVersion: kops.k8s.io/v1alpha2
+kind: InstanceGroup
+metadata:
+  creationTimestamp: null
+  labels:
+    kops.k8s.io/cluster: k8s-cluster.k8s.local
+  name: master-us-east-1a
+spec:
+  image: 099720109477/ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-20211118
+  machineType: c5.2xlarge
+  maxSize: 1
+  minSize: 1
+  nodeLabels:
+    kops.k8s.io/instancegroup: master-us-east-1a
+  role: Master
+  subnets:
+  - us-east-1a
+
+---
+
+apiVersion: kops.k8s.io/v1alpha2
+kind: InstanceGroup
+metadata:
+  creationTimestamp: null
+  labels:
+    kops.k8s.io/cluster: k8s-cluster.k8s.local
+  name: master-us-east-1b
+spec:
+  image: 099720109477/ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-20211118
+  machineType: c5.2xlarge
+  maxSize: 0
+  minSize: 0
+  nodeLabels:
+    kops.k8s.io/instancegroup: master-us-east-1b
+  role: Master
+  subnets:
+  - us-east-1b
+
+---
+
+apiVersion: kops.k8s.io/v1alpha2
+kind: InstanceGroup
+metadata:
+  creationTimestamp: null
+  labels:
+    kops.k8s.io/cluster: k8s-cluster.k8s.local
+  name: master-us-east-1c
+spec:
+  image: 099720109477/ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-20211118
+  machineType: c5.2xlarge
+  maxSize: 0
+  minSize: 0
+  nodeLabels:
+    kops.k8s.io/instancegroup: master-us-east-1c
+  role: Master
+  subnets:
+  - us-east-1c
+
+---
+
+apiVersion: kops.k8s.io/v1alpha2
+kind: InstanceGroup
+metadata:
+  creationTimestamp: null
+  labels:
+    kops.k8s.io/cluster: k8s-cluster.k8s.local
+  name: nodes-us-east-1a
+spec:
+  image: 099720109477/ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-20211118
+  machineType: c5.xlarge
+  maxSize: 1
+  minSize: 1
+  nodeLabels:
+    kops.k8s.io/instancegroup: nodes-us-east-1a
+  role: Node
+  subnets:
+  - us-east-1a
+
+---
+
+apiVersion: kops.k8s.io/v1alpha2
+kind: InstanceGroup
+metadata:
+  creationTimestamp: null
+  labels:
+    kops.k8s.io/cluster: k8s-cluster.k8s.local
+  name: nodes-us-east-1b
+spec:
+  image: 099720109477/ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-20211118
+  machineType: c5.xlarge
+  maxSize: 0
+  minSize: 0
+
+  nodeLabels:
+    kops.k8s.io/instancegroup: nodes-us-east-1b
+  role: Node
+  subnets:
+  - us-east-1b
+
+---
+
+apiVersion: kops.k8s.io/v1alpha2
+kind: InstanceGroup
+metadata:
+  creationTimestamp: null
+  labels:
+    kops.k8s.io/cluster: k8s-cluster.k8s.local
+  name: nodes-us-east-1c
+spec:
+  image: 099720109477/ubuntu/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-20211118
+  machineType: c5.xlarge
+  maxSize: 0
+  minSize: 0
+
+  nodeLabels:
+    kops.k8s.io/instancegroup: nodes-us-east-1c
+  role: Node
+  subnets:
+  - us-east-1c

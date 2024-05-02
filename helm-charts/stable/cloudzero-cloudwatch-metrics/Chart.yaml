@@ -1,0 +1,16 @@
+apiVersion: v1
+name: cloudzero-cloudwatch-metrics
+description: A Helm chart to deploy cloudzero-cloudwatch-metrics project
+version: 0.0.8
+appVersion: "cz-cloudwatchagent-0853e59.1"
+
+home: https://github.com/Cloudzero/provision-account/helm-charts
+icon: https://raw.githubusercontent.com/cloudzero/provision-account/helm-charts/docs/logo/cloudZerologo.png
+sources:
+- https://github.com/cloudzero/provision-account
+keywords:
+- eks
+- cloudwatch
+- cloudwatch-metrics
+- containerinsights
+- cloudzero

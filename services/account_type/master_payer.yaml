@@ -140,7 +140,7 @@ Resources:
     Properties:
       Description: Create/Delete Cost and Usage Report
       Handler: index.handler
-      Runtime: python3.11
+      Runtime: python3.8
       Role: !GetAtt CostAndUsageReportRole.Arn
       Timeout: 120
       Code:
@@ -270,7 +270,7 @@ Resources:
                   - 'arn:aws:s3:::${BucketName}-${Id}/*'
                   - { BucketName: !FindInMap [ Defaults, Cur, BucketName ],
                       Id: !Select [ 2, !Split [ '/', !Ref 'AWS::StackId' ] ] }
-          - Sid: CZCostMonitoring20240422
+          - Sid: CZCostMonitoring20230119
             Effect: Allow
             Action:
               - account:GetAccountInformation
@@ -285,7 +285,6 @@ Resources:
               - cur:Describe*
               - cur:Get*
               - cur:Validate*
-              - cur:List*
               - freetier:Get*
               - invoicing:Get*
               - invoicing:List*

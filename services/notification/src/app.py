@@ -365,10 +365,9 @@ def effects_reactor_callback(world):
     data_string = json.dumps(data)
     logger.info(f'Posting to {url} this data: {data_string}')
     response = http.request('POST', url, body=data_string.encode('utf-8'))
-    response_text = response.data.decode('utf-8')
-    logger.info(f'response {response.status}; text {response_text}')
-    assert response.status == 200
-    return response_text
+    logger.info(f'response {response.status_code}; text {response.text}')
+    assert response.status_code == 200
+    return response.text
 
 
 #####################
