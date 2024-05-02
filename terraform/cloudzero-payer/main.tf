@@ -61,6 +61,7 @@ resource "aws_iam_role_policy" "CloudZero" {
             "cur:Describe*",
             "cur:Get*",
             "cur:Validate*",
+            "cur:List*",
             "freetier:Get*",
             "invoicing:Get*",
             "invoicing:List*",
