@@ -2,7 +2,7 @@
 # Unauthorized copying of this file and/or project, via any medium is strictly prohibited.
 # Direct all questions to legal@cloudzero.com
 
-# This workflow installs dependencies for a deployable SAM Python Application, caching them for downstream jobs.
+# This action installs dependencies for a deployable SAM Python Application, caching them for downstream jobs.
 
 name: Init
 description: Initialize Python environment
