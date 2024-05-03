@@ -49,4 +49,6 @@ jobs:
           from-branch: develop
           from-sha: ${{ github.sha }}
           to: master
+          app_id: ${{ secrets.PUBLIC_GITHUB_ACTIONS_APP_ID }}
+          private_key: ${{ secrets.PUBLIC_GITHUB_ACTIONS_APP_PRIVATE_KEY }}
         
