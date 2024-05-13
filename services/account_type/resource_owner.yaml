@@ -44,7 +44,6 @@ Resources:
         - arn:aws:iam::aws:policy/CloudWatchReadOnlyAccess
         - arn:aws:iam::aws:policy/SecurityAudit
         - arn:aws:iam::aws:policy/job-function/ViewOnlyAccess
-        - arn:aws:iam::aws:policy/job-function/Billing
         - arn:aws:iam::aws:policy/AWSBillingReadOnlyAccess
 
   RolePolicy:
