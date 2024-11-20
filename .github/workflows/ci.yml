@@ -5,6 +5,7 @@ name: CI
 
 on:
   workflow_dispatch:
+  push:
   pull_request:
     branches:
       - develop
@@ -22,6 +23,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+      - uses: ./.github/actions/version
+        id: version
+      - name: Validate Release Notes
+        uses: Cloudzero/cloudzero-changelog-release-notes@v1
+        id: changelog
+        with:
+          version: ${{ steps.version.outputs.nextVersion }}
       - name: Init
         uses: ./.github/actions/init
         with:

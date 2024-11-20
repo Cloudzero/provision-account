@@ -1,0 +1,30 @@
+# Copyright (c) 2016-present, CloudZero, Inc. All rights reserved.
+# Licensed under the BSD-style license. See LICENSE file in the project root for full license information.
+
+name: Get Version
+description: Calculate version based on commit count and SEMVER_MAJ_MIN
+
+outputs:
+  version:
+    description: "Current version (based on commit count on origin/master)"
+    value: ${{ steps.calculate_version.outputs.version }}
+  nextVersion:
+    description: "Next version number (after merge to main). This is the version that will be used for the release. Helpful for validating release notes during CI."
+    value: ${{ steps.calculate_version.outputs.nextVersion }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Calculate Version
+      id: calculate_version
+      shell: bash
+      run: |
+        PATCH=$(git rev-list --count origin/master)
+        NEXT_PATCH=$((PATCH + 1))
+        SEMVER_MAJ_MIN=$(grep "SEMVER_MAJ_MIN" MakefileConstants.mk | awk -F':=' '{print $2}' | xargs)
+        echo "version=${SEMVER_MAJ_MIN}.${PATCH}" >> $GITHUB_OUTPUT
+        echo "nextVersion=${SEMVER_MAJ_MIN}.${NEXT_PATCH}" >> $GITHUB_OUTPUT

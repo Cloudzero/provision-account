@@ -27,7 +27,7 @@ IAM_POLICIES := $(shell find policies -name "*.json")
 #
 ####################
 regions = $(shell aws ec2 describe-regions | jq -r -e '.Regions[].RegionName')
-version = $(shell git rev-list --count HEAD)
+version = $(shell git rev-list --count origin/master)
 
 
 ####################

@@ -14,7 +14,7 @@ concurrency:
 
 permissions:
   id-token: write
-  contents: read
+  contents: write
 
 jobs:
   cd-prod:
@@ -22,7 +22,9 @@ jobs:
     environment: prod
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Setup AWS SAM
         uses: aws-actions/setup-sam@v2
         with:
@@ -35,3 +37,19 @@ jobs:
       - name: Upload S3 Artifacts
         shell: bash
         run: make deploy
+      - name: Get Version
+        uses: ./.github/actions/version
+        id: version
+      - name: Validate Release Notes
+        uses: Cloudzero/cloudzero-changelog-release-notes@v1
+        id: changelog
+        with:
+          version: ${{ steps.version.outputs.version }}
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ steps.version.outputs.version }}
+          tag_name: ${{ steps.version.outputs.version }}
+          make_latest: true
+          target_commitish: ${{ github.sha }}
+          body_path: ${{ steps.changelog.outputs.releaseNotesFile }}
