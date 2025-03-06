@@ -1,6 +1,13 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2016-present, CloudZero, Inc. All rights reserved.
 # Licensed under the Apache 2.0 license. See LICENSE file in the project root for full license information.
+#
+# This PowerShell script grants CloudZero the necessary permissions to connect
+# your Azure EA or MCA account to CloudZero.
+#
+# Use this script instead of "Step 4: Grant Access to the Azure Billing API" in the documentation:
+# - EA accounts: https://docs.cloudzero.com/docs/connections-azure-ea#step-4-grant-access-to-the-azure-billing-api
+# - MCA accounts: https://docs.cloudzero.com/docs/connections-azure-mca#step-4-grant-access-to-the-azure-billing-api
 
 [CmdletBinding()]
 param (
@@ -18,7 +25,7 @@ $resultObject = @{}
 $ErrorActionPreference = 'Stop' # Stop if we get any errors
 
 ######################################################################################################
-# Setup and validate important information
+# Set up and validate important information
 ######################################################################################################
 $currentUser = Get-AzContext
 
@@ -73,7 +80,7 @@ $resultObject.AgreementType = $billingAccountInfo.AgreementType
 #
 # There are some aspects cost data that are not present in the exported data. This includes items like
 # taxes and fees. To get these costs, the CloudZeroPlatform Service Principal must have read access
-# to the Billing Account (Microsoft Customer Agreement) or the Enrollment Account (Enterprise Agreemeent).
+# to the Billing Account (Microsoft Customer Agreement) or the Enrollment Account (Enterprise Agreement).
 # This read access gives the CloudZero platform access to invoices.
 ######################################################################################################
 
