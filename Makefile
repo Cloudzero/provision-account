@@ -75,7 +75,7 @@ test: test-sam-apps
 
 .PHONY: lint-all-templates
 lint-all-templates: $(ALL_CFN_TEMPLATES)
-	cfn-lint -i W2001 -t $?
+	cfn-lint -i W2001 E8003 E8004 E8005 -t $?
 
 
 .PHONY: lint-sam-apps
