@@ -55,28 +55,6 @@ Mappings:
     Cur:
       BucketName: 'cz-cur-hourly-csv'
 
-Conditions:
-  ValidReactorCallbackUrl: !Not
-    - !Equals [!FindInMap [CallbackConfiguration, dev, ReactorCallbackUrl], 'null']
-  CreateResourceOwnerResources: !Equals [ !GetAtt DiscoveryResource.IsResourceOwnerAccount, 'true' ]
-  CreateCloudTrailOwnerResources: !And [ !Not [ !Equals [ !GetAtt DiscoveryResource.CloudTrailSNSTopicArn, 'null' ] ], !Equals [ !GetAtt DiscoveryResource.IsCloudTrailOwnerAccount, 'true' ] ]
-  CreateAuditResources: !And
-    - !Not
-      - !Equals [ !GetAtt DiscoveryResource.AuditCloudTrailBucketName, 'null' ]
-    - !Equals [ !GetAtt DiscoveryResource.IsAuditAccount, 'true' ]
-  ValidExistingBucketName: !Not [ !Equals [ !GetAtt DiscoveryResource.MasterPayerBillingBucketName, 'null' ] ]
-  CreateMasterPayerCurAndBucketAndPolicy: !And
-    - !Not
-      - Condition: ValidExistingBucketName
-    - !Equals [ !GetAtt DiscoveryResource.IsMasterPayerAccount, 'true' ]
-  CreateMasterPayerPolicyForExistingCur: !And
-    - Condition: ValidExistingBucketName
-    - !Equals [ !GetAtt DiscoveryResource.IsMasterPayerAccount, 'true' ]
-  CreateMasterPayerRoleAndPolicy: !Or
-    - Condition: CreateMasterPayerPolicyForExistingCur
-    - Condition: CreateMasterPayerCurAndBucketAndPolicy
-
-
 Resources:
   # Discovery Resources
   DiscoveryFunction:
@@ -112,7 +90,7 @@ Resources:
   # Resource Owner Resources
   ResourceOwnerRole:
     Type: AWS::IAM::Role
-    Condition: CreateResourceOwnerResources
+    Condition: !Equals [ !GetAtt DiscoveryResource.IsResourceOwnerAccount, 'true' ]
     Properties:
       Path: '/cloudzero/'
       AssumeRolePolicyDocument:
@@ -137,7 +115,7 @@ Resources:
 
   ResourceOwnerRolePolicy:
     Type: AWS::IAM::Policy
-    Condition: CreateResourceOwnerResources
+    Condition: !Equals [ !GetAtt DiscoveryResource.IsResourceOwnerAccount, 'true' ]
     Properties:
       PolicyName: !Sub
         - 'cloudzero-resource-owner-policy-${ReactorAccountId}'
@@ -232,7 +210,7 @@ Resources:
   # CloudTrail Owner Resources
   SqsQueue:
     Type: 'AWS::SQS::Queue'
-    Condition: CreateCloudTrailOwnerResources
+    Condition: !And [ !Not [ !Equals [ !GetAtt DiscoveryResource.CloudTrailSNSTopicArn, 'null' ] ], !Equals [ !GetAtt DiscoveryResource.IsCloudTrailOwnerAccount, 'true' ] ]
     Properties:
       Tags:
         - Key: cloudzero-stack
@@ -242,7 +220,7 @@ Resources:
 
   SnsSubscription:
     Type: AWS::SNS::Subscription
-    Condition: CreateCloudTrailOwnerResources
+    Condition: !And [ !Not [ !Equals [ !GetAtt DiscoveryResource.CloudTrailSNSTopicArn, 'null' ] ], !Equals [ !GetAtt DiscoveryResource.IsCloudTrailOwnerAccount, 'true' ] ]
     Properties:
       Protocol: sqs
       Endpoint: !GetAtt SqsQueue.Arn
@@ -253,7 +231,7 @@ Resources:
 
   SqsPolicy:
     Type: 'AWS::SQS::QueuePolicy'
-    Condition: CreateCloudTrailOwnerResources
+    Condition: !And [ !Not [ !Equals [ !GetAtt DiscoveryResource.CloudTrailSNSTopicArn, 'null' ] ], !Equals [ !GetAtt DiscoveryResource.IsCloudTrailOwnerAccount, 'true' ] ]
     Properties:
       Queues:
         - !Ref SqsQueue
@@ -284,7 +262,10 @@ Resources:
 
   # Audit Resources
   AuditRole:
-    Condition: CreateAuditResources
+    Condition: !And
+    - !Not
+      - !Equals [ !GetAtt DiscoveryResource.AuditCloudTrailBucketName, 'null' ]
+    - !Equals [ !GetAtt DiscoveryResource.IsAuditAccount, 'true' ]
     Type: 'AWS::IAM::Role'
     Properties:
       Path: '/cloudzero/'
@@ -304,7 +285,10 @@ Resources:
                 'sts:ExternalId': !Ref ExternalId
 
   AuditRolePolicy:
-    Condition: CreateAuditResources
+    Condition: !And
+    - !Not
+      - !Equals [ !GetAtt DiscoveryResource.AuditCloudTrailBucketName, 'null' ]
+    - !Equals [ !GetAtt DiscoveryResource.IsAuditAccount, 'true' ]
     Type: 'AWS::IAM::Policy'
     Properties:
       PolicyName: !Sub
@@ -330,7 +314,7 @@ Resources:
 
   # Master Payer Account Resources
   Role:
-    Condition: CreateMasterPayerRoleAndPolicy
+    Condition: !Or [Condition: !And [Condition: !Not [ !Equals [ !GetAtt DiscoveryResource.MasterPayerBillingBucketName, 'null' ]], !Equals [ !GetAtt DiscoveryResource.IsMasterPayerAccount, 'true' ]], Condition: !And [!Not [Condition: !Not [ !Equals [ !GetAtt DiscoveryResource.MasterPayerBillingBucketName, 'null' ] ]], !Equals [ !GetAtt DiscoveryResource.IsMasterPayerAccount, 'true' ]]
     Type: 'AWS::IAM::Role'
     Properties:
       Path: '/cloudzero/'
@@ -356,7 +340,7 @@ Resources:
         - arn:aws:iam::aws:policy/AWSBillingReadOnlyAccess
 
   CostAndUsageReportResource:
-    Condition: CreateMasterPayerCurAndBucketAndPolicy
+    Condition: !And [!Not [Condition: !Not [ !Equals [ !GetAtt DiscoveryResource.MasterPayerBillingBucketName, 'null' ] ]], !Equals [ !GetAtt DiscoveryResource.IsMasterPayerAccount, 'true' ]]
     Type: 'Custom::CostAndUsageReport'
     Properties:
       ServiceToken: !GetAtt CostAndUsageReportLambda.Arn
@@ -367,7 +351,7 @@ Resources:
             Id: !Select [ 2, !Split [ '/', !Ref 'AWS::StackId' ] ] }
 
   CostAndUsageReportRole:
-    Condition: CreateMasterPayerCurAndBucketAndPolicy
+    Condition: !And [!Not [Condition: !Not [ !Equals [ !GetAtt DiscoveryResource.MasterPayerBillingBucketName, 'null' ] ]], !Equals [ !GetAtt DiscoveryResource.IsMasterPayerAccount, 'true' ]]
     Type: 'AWS::IAM::Role'
     Properties:
       AssumeRolePolicyDocument:
@@ -409,7 +393,7 @@ Resources:
                         Id: !Select [ 2, !Split [ '/', !Ref 'AWS::StackId' ] ] }
 
   CostAndUsageReportLambda:
-    Condition: CreateMasterPayerCurAndBucketAndPolicy
+    Condition: !And [!Not [Condition: !Not [ !Equals [ !GetAtt DiscoveryResource.MasterPayerBillingBucketName, 'null' ] ]], !Equals [ !GetAtt DiscoveryResource.IsMasterPayerAccount, 'true' ]]
     Type: 'AWS::Lambda::Function'
     Properties:
       Description: Create/Delete Cost and Usage Report
@@ -513,7 +497,7 @@ Resources:
                   cfnresponse.send(event, context, result, {'ReportS3Bucket': bucket_name, 'ReportS3Prefix': report_s3_prefix})
 
   RolePolicy:
-    Condition: CreateMasterPayerRoleAndPolicy
+    Condition: !Or [Condition: !And [Condition: !Not [ !Equals [ !GetAtt DiscoveryResource.MasterPayerBillingBucketName, 'null' ]], !Equals [ !GetAtt DiscoveryResource.IsMasterPayerAccount, 'true' ]], Condition: !And [!Not [Condition: !Not [ !Equals [ !GetAtt DiscoveryResource.MasterPayerBillingBucketName, 'null' ] ]], !Equals [ !GetAtt DiscoveryResource.IsMasterPayerAccount, 'true' ]]
     Type: 'AWS::IAM::Policy'
     Properties:
       PolicyName: !Sub
@@ -530,7 +514,7 @@ Resources:
               - s3:Get*
               - s3:List*
             Resource: !If
-              - CreateMasterPayerPolicyForExistingCur
+              - !And [Condition: !Not [ !Equals [ !GetAtt DiscoveryResource.MasterPayerBillingBucketName, 'null' ]], !Equals [ !GetAtt DiscoveryResource.IsMasterPayerAccount, 'true' ]]
               -
                 - !Sub
                   - 'arn:aws:s3:::${BucketName}'
@@ -632,7 +616,8 @@ Resources:
   # Notification Function Resources
   NotificationFunction:
     Type: AWS::Serverless::Function
-    Condition: ValidReactorCallbackUrl
+    Condition: !Not
+    - !Equals [!FindInMap [CallbackConfiguration, dev, ReactorCallbackUrl], 'null']
     Properties:
       Runtime: python3.11
       MemorySize: 512
@@ -650,7 +635,8 @@ Resources:
 
   NotifyCloudZeroReactor:
     Type: Custom::NotifyCloudZero
-    Condition: ValidReactorCallbackUrl
+    Condition: !Not
+    - !Equals [!FindInMap [CallbackConfiguration, dev, ReactorCallbackUrl], 'null']
     Properties:
       Tags:
       - Key: cloudzero-stack
@@ -724,36 +710,37 @@ Outputs:
     Value: !GetAtt DiscoveryResource.IsAccountOutsideOrganization
   # Resource Owner Outputs
   ResourceOwnerRoleArn:
-    Condition: CreateResourceOwnerResources
+    Condition: !Equals [ !GetAtt DiscoveryResource.IsResourceOwnerAccount, 'true' ]
     Value: !GetAtt ResourceOwnerRole.Arn
     Description: Resource Owner Cross Account Role ARN
   RoleArn:
     Description: Resource owner role ARN (for notification compatibility)
-    Value: !If [ CreateResourceOwnerResources, !GetAtt ResourceOwnerRole.Arn, 'null' ]
+    Value: !If [ !Equals [ !GetAtt DiscoveryResource.IsResourceOwnerAccount, 'true' ], !GetAtt ResourceOwnerRole.Arn, 'null' ]
   # CloudTrail Owner Outputs
   SQSQueueArn:
     Description: The CloudZero SQS queue
-    Value: !If [ CreateCloudTrailOwnerResources, !GetAtt SqsQueue.Arn, 'null' ]
+    Value: !If [ !And [ !Not [ !Equals [ !GetAtt DiscoveryResource.CloudTrailSNSTopicArn, 'null' ] ], !Equals [ !GetAtt DiscoveryResource.IsCloudTrailOwnerAccount, 'true' ] ], !GetAtt SqsQueue.Arn, 'null' ]
   SQSQueuePolicyName:
     Description: The CloudZero SQS queue policy
-    Value: !If [ CreateCloudTrailOwnerResources, !Ref SqsPolicy, 'null' ]
+    Value: !If [ !And [ !Not [ !Equals [ !GetAtt DiscoveryResource.CloudTrailSNSTopicArn, 'null' ] ], !Equals [ !GetAtt DiscoveryResource.IsCloudTrailOwnerAccount, 'true' ] ], !Ref SqsPolicy, 'null' ]
   # Audit Outputs
   AuditRoleArn:
     Description: The cloudzero cross account role ARN
-    Value: !If [ CreateAuditResources, !GetAtt AuditRole.Arn, 'null' ]
+    Value: !If [ !And [!Not [!Equals [ !GetAtt DiscoveryResource.AuditCloudTrailBucketName, 'null' ]], !Equals [ !GetAtt DiscoveryResource.IsAuditAccount, 'true' ]], !GetAtt AuditRole.Arn, 'null' ]
   # Master Payer Outputs
   MasterPayerRoleArn:
     Description: The cloudzero master payer role ARN
-    Value: !If [ CreateMasterPayerRoleAndPolicy, !GetAtt Role.Arn, 'null' ]
+    Value: !If [ !Or [Condition: !And [Condition: !Not [ !Equals [ !GetAtt DiscoveryResource.MasterPayerBillingBucketName, 'null' ]], !Equals [ !GetAtt DiscoveryResource.IsMasterPayerAccount, 'true' ]], Condition: !And [!Not [Condition: !Not [ !Equals [ !GetAtt DiscoveryResource.MasterPayerBillingBucketName, 'null' ] ]], !Equals [ !GetAtt DiscoveryResource.IsMasterPayerAccount, 'true' ]], !GetAtt Role.Arn, 'null' ]
   ReportS3Bucket:
     Description: The CUR bucket if it was created
-    Value: !If [ CreateMasterPayerCurAndBucketAndPolicy, !GetAtt CostAndUsageReportResource.ReportS3Bucket, 'null' ]
+    Value: !If [ !And [!Not [Condition: !Not [ !Equals [ !GetAtt DiscoveryResource.MasterPayerBillingBucketName, 'null' ] ]], !Equals [ !GetAtt DiscoveryResource.IsMasterPayerAccount, 'true' ]], !GetAtt CostAndUsageReportResource.ReportS3Bucket, 'null' ]
   ReportS3Prefix:
     Description: The CUR bucket prefix if it was created
-    Value: !If [ CreateMasterPayerCurAndBucketAndPolicy, !GetAtt CostAndUsageReportResource.ReportS3Prefix, 'null' ]
+    Value: !If [ !And [!Not [Condition: !Not [ !Equals [ !GetAtt DiscoveryResource.MasterPayerBillingBucketName, 'null' ] ]], !Equals [ !GetAtt DiscoveryResource.IsMasterPayerAccount, 'true' ]], !GetAtt CostAndUsageReportResource.ReportS3Prefix, 'null' ]
   # Notification Outputs
   NotificationFunctionArn:
-    Condition: ValidReactorCallbackUrl
+    Condition: !Not
+    - !Equals [!FindInMap [CallbackConfiguration, dev, ReactorCallbackUrl], 'null']
     Value: !GetAtt NotificationFunction.Arn
     Description: Notification Function ARN
   NotifyCloudZeroReactor:
