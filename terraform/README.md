@@ -16,8 +16,8 @@ At a minimum you must connect your AWS Management account for CloudZero to funct
 provide additional insight into AWS Infrastructure, EKS or Kubernetes spend beyond the data is only
 present in the AWS cost and usage data, you must connect the accounts you wish to monitor as resource
 accounts.
- * For AWS Management (also called payer) accounts, use `cloudzero_payer_role.tf` 
- * For AWS Resource (or child) accounts, use `cloudzero_resource_role.tf`
+ * For AWS Management (also called payer) accounts, use `terraform/cloudzero-payer/main.tf` 
+ * For AWS Resource (or child) accounts, use `terraform/cloudzero-resource/main.tf`
 
 ### Pre-requisites for Connecting your AWS Accounts
  * Before connection ensure you have made note of the CloudZero provided External ID for your account (available from
