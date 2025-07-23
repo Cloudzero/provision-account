@@ -1,0 +1,105 @@
+# -*- coding: utf-8 -*-
+# Copyright (c) 2016-present, CloudZero, Inc. All rights reserved.
+# Licensed under the BSD-style license. See LICENSE file in the project root for full license information.
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudZero Resource Owner StackSet Deployment Wrapper
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+    - Label:
+        default: StackSet Configuration
+      Parameters:
+        - StackSetName
+        - OrganizationRootId
+    - Label:
+        default: Required Parameters for Resource Owner Stack
+      Parameters:
+        - AccountName
+        - ExternalId
+    - Label:
+        default: Optional Parameters
+      Parameters:
+        - Version
+    ParameterLabels:
+      StackSetName:
+        default: Name for the StackSet
+      OrganizationRootId:
+        default: Organization Root ID (required for auto-deployment)
+      AccountName:
+        default: Descriptive Alias for your AWS Account
+      ExternalId:
+        default: Unique ExternalId for your Organization
+      Version:
+        default: Version to deploy
+
+Parameters:
+  StackSetName:
+    Type: String
+    Default: CloudZero-ResourceOwner-StackSet
+    Description: Name for the StackSet
+  
+  OrganizationRootId:
+    Type: String
+    Description: |
+      Your AWS Organization root ID (e.g., r-abcd).
+      Required for automatic deployment via CloudFormation.
+      Find this in AWS Organizations console → Organize accounts tab.
+  
+  AccountName:
+    Type: String
+    Default: ''
+    Description: |
+      Optional Name you can set for your AWS Account; you can use this as a
+      descriptive alias for AccountId. It's useful to set this here when you
+      are automating provisioning many accounts with this template.
+  
+  ExternalId:
+    Type: String
+    Description: |
+      Unique ExternalId for Customer Organization; for cross-account Role Access and
+      associating this template with a Customer Organization
+  
+  Version:
+    Type: String
+    Default: 'latest'
+    Description: |
+      Version to target when deploying the stack. `latest` should be used by default.
+  
+Resources:
+  ResourceOwnerStackSet:
+    Type: AWS::CloudFormation::StackSet
+    Properties:
+      StackSetName: !Ref StackSetName
+      Description: CloudZero Resource Owner Account StackSet
+      TemplateURL: !Sub https://cz-provision-account.s3.amazonaws.com/${Version}/services/resource_member_stackset_dev.yaml
+      Parameters:
+        - ParameterKey: ExternalId
+          ParameterValue: !Ref ExternalId
+      Capabilities:
+        - CAPABILITY_IAM
+        - CAPABILITY_NAMED_IAM
+      PermissionModel: SERVICE_MANAGED
+      AutoDeployment:
+        Enabled: true
+        RetainStacksOnAccountRemoval: false
+      StackInstancesGroup:
+        - DeploymentTargets:
+            OrganizationalUnitIds:
+              - !Ref OrganizationRootId
+          Regions:
+            - us-east-1
+          ParameterOverrides:
+            - ParameterKey: ExternalId
+              ParameterValue: !Ref ExternalId
+            - ParameterKey: Version
+              ParameterValue: !Ref Version
+
+Outputs:
+  StackSetId:
+    Description: ID of the created StackSet
+    Value: !Ref ResourceOwnerStackSet
+  StackSetName:
+    Description: Name of the created StackSet
+    Value: !Ref StackSetName

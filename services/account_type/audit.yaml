@@ -73,6 +73,6 @@ Resources:
               - !Sub 'arn:aws:s3:::${AuditCloudTrailBucketName}/*'
 
 Outputs:
-  RoleArn:
+  AuditRoleArn:
     Description: The cloudzero cross account role ARN
     Value: !If [ CreateResources, !GetAtt Role.Arn, 'null' ]

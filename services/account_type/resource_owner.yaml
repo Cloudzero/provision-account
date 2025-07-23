@@ -139,7 +139,7 @@ Resources:
         - !Ref Role
 
 Outputs:
-  RoleArn:
+  ResourceOwnerRoleArn:
     Condition: CreateResources
     Value: !GetAtt Role.Arn
     Description: Resource Owner Cross Account Role ARN
