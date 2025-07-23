@@ -222,7 +222,7 @@ deploy:
 update-dev:
 	@aws cloudformation update-stack \
 	--stack-name cloudzero-connected-account-alfa \
-	--template-url https://cz-provision-account.s3.amazonaws.com/v$(SEMVER_MAJ_MIN).dev/services/connected_account_dev_single.yaml \
+	--template-url https://cz-provision-account.s3.amazonaws.com/v$(SEMVER_MAJ_MIN).dev/services/connected_account_dev.yaml \
 	--parameters "$$(aws cloudformation describe-stacks --stack-name cloudzero-connected-account-alfa | jq '.Stacks[0].Parameters' | jq 'del(.[] | select (.ParameterKey == "Version"))' | jq '. += [{"ParameterKey": "Version", "ParameterValue": "v$(SEMVER_MAJ_MIN).dev"}]')"
 
 .PHONY: describe                                                                        ## Return information about SAM-created stack from AWS
