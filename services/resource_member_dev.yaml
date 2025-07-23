@@ -42,6 +42,7 @@ Parameters:
   
   OrganizationRootId:
     Type: String
+    AllowedPattern: ".+"
     Description: |
       Your AWS Organization root ID (e.g., r-abcd).
       Required for automatic deployment via CloudFormation.
