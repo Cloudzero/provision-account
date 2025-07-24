@@ -82,7 +82,7 @@ Resources:
     Properties:
       StackSetName: !Ref StackSetName
       Description: CloudZero Resource Owner Account StackSet
-      TemplateURL: !Sub https://cz-provision-account.s3.amazonaws.com/${Version}/services/resource_member_stackset_dev.yaml
+      TemplateURL: !Sub https://cz-provision-account.s3.amazonaws.com/${Version}/services/resource_member_stackset.yaml
       Parameters:
         - ParameterKey: ExternalId
           ParameterValue: !Ref ExternalId
