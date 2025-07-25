@@ -352,7 +352,7 @@ Resources:
             Resource: "*"
 
 Outputs:
-  MasterPayerRoleArn:
+  RoleArn:
     Description: The cloudzero cross account role ARN
     Value: !If [ CreateRoleAndPolicy, !GetAtt Role.Arn, 'null' ]
   ReportS3Bucket:

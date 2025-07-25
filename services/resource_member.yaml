@@ -36,11 +36,11 @@ Metadata:
 
 Mappings:
   CallbackConfiguration:
-    dev:
+    prod:
       # TODO: Get dynamically for namespaces
-      ReactorAccountId: '998146006915'
-      ReactorId: '67ad3e83-1ec5-4f4f-b505-c27e2758b990'
-      ReactorCallbackUrl: 'https://qc8rbx9mcg.execute-api.us-east-1.amazonaws.com/alfa/v1/link'
+      ReactorAccountId: '061190967865'
+      ReactorId: 'f7a07d02-d509-4e8d-9fb9-69c7985a6bd8'
+      ReactorCallbackUrl: 'https://api.cloudzero.com/accounts/v1/link'
 
 Parameters:
   StackSetName:
@@ -98,7 +98,7 @@ Resources:
             Principal:
               AWS: !Sub
                 - 'arn:aws:iam::${ReactorAccountId}:root'
-                - ReactorAccountId: !FindInMap [ CallbackConfiguration, dev, ReactorAccountId ]
+                - ReactorAccountId: !FindInMap [ CallbackConfiguration, prod, ReactorAccountId ]
             Action:
               - 'sts:AssumeRole'
             Condition:
@@ -114,7 +114,7 @@ Resources:
     Properties:
       PolicyName: !Sub
         - 'cloudzero-resource-owner-policy-${ReactorAccountId}'
-        - ReactorAccountId: !FindInMap [ CallbackConfiguration, dev, ReactorAccountId ]
+        - ReactorAccountId: !FindInMap [ CallbackConfiguration, prod, ReactorAccountId ]
       PolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -238,16 +238,16 @@ Resources:
         - Key: cloudzero-stack
           Value: !Ref AWS::StackName
         - Key: cloudzero-reactor-account-id
-          Value: !FindInMap [ CallbackConfiguration, dev, ReactorAccountId ]
+          Value: !FindInMap [ CallbackConfiguration, prod, ReactorAccountId ]
       ServiceToken: !GetAtt NotificationFunction.Arn
       AccountId: !Ref AWS::AccountId
       Version: '1'
       # Parameters from Other Resources in this Stack
       ExternalId: !Ref ExternalId
-      ReactorCallbackUrl: !FindInMap [ CallbackConfiguration, dev, ReactorCallbackUrl ]
+      ReactorCallbackUrl: !FindInMap [ CallbackConfiguration, prod, ReactorCallbackUrl ]
       AccountName: !Ref AWS::AccountId
       Region: !Ref AWS::Region
-      ReactorId: !FindInMap [ CallbackConfiguration, dev, ReactorId ]
+      ReactorId: !FindInMap [ CallbackConfiguration, prod, ReactorId ]
       # References to other stacks; it's easier for _this_ Resource to simply grab the outputs
       # programmatically b/c some of the outputs are conditional.
       ResourceOwnerRoleArn: !GetAtt ResourceOwnerRole.Arn
@@ -257,7 +257,7 @@ Resources:
     Properties:
       StackSetName: !Ref StackSetName
       Description: CloudZero Resource Owner Account StackSet
-      TemplateURL: !Sub https://cz-provision-account.s3.amazonaws.com/${Version}/services/resource_member_stackset_dev.yaml
+      TemplateURL: !Sub https://cz-provision-account.s3.amazonaws.com/${Version}/services/resource_member_stackset.yaml
       Parameters:
         - ParameterKey: ExternalId
           ParameterValue: !Ref ExternalId

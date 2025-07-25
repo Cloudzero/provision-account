@@ -20,7 +20,7 @@ logger.setLevel(logging.INFO)
 
 DEFAULT_CFN_COEFFECT = {
     'AuditAccount': {
-        'AuditRoleArn': 'null',
+        'RoleArn': 'null',
     },
     'CloudTrailOwnerAccount': {
         'SQSQueueArn': 'null',
@@ -43,15 +43,15 @@ DEFAULT_CFN_COEFFECT = {
         'RemoteCloudTrailBucket': 'true',
     },
     'MasterPayerAccount': {
-        'MasterPayerRoleArn': 'null',
+        'RoleArn': 'null',
         'ReportS3Bucket': 'null',
         'ReportS3Prefix': 'null',
     },
     'ResourceOwnerAccount': {
-        'ResourceOwnerRoleArn': 'null'
+        'RoleArn': 'null'
     },
     'LegacyAccount': {
-        'ResourceOwnerRoleArn': 'null'
+        'RoleArn': 'null'
     }
 }
 
@@ -93,7 +93,7 @@ NULLABLE_STRING = Schema(Any('null', str))
 
 CFN_COEFFECT_SCHEMA = Schema({
     'AuditAccount': {
-        'AuditRoleArn': NULLABLE_ARN
+        'RoleArn': NULLABLE_ARN
     },
     'CloudTrailOwnerAccount': {
         'SQSQueueArn': NULLABLE_ARN,
@@ -116,15 +116,15 @@ CFN_COEFFECT_SCHEMA = Schema({
         'RemoteCloudTrailBucket': BOOLEAN_STRING,
     },
     'MasterPayerAccount': {
-        'MasterPayerRoleArn': NULLABLE_ARN,
+        'RoleArn': NULLABLE_ARN,
         'ReportS3Bucket': NULLABLE_STRING,
         'ReportS3Prefix': NULLABLE_STRING,
     },
     'ResourceOwnerAccount': {
-        'ResourceOwnerRoleArn': NULLABLE_ARN,
+        'RoleArn': NULLABLE_ARN,
     },
     'LegacyAccount': {
-        'ResourceOwnerRoleArn': NULLABLE_ARN,
+        'RoleArn': NULLABLE_ARN,
     }
 }, required=True, extra=ALLOW_EXTRA)
 
@@ -304,14 +304,14 @@ def prepare_output(world):
                 'reactor_callback_url': metadata['ReactorCallbackUrl'],
             },
             'links': {
-                'audit': {'role_arn': null_to_none(get_in(['AuditAccount', 'AuditRoleArn'], valid_cfn))},
+                'audit': {'role_arn': null_to_none(get_in(['AuditAccount', 'RoleArn'], valid_cfn))},
                 'cloudtrail_owner': {
                     'sqs_queue_arn': null_to_none(get_in(['CloudTrailOwnerAccount', 'SQSQueueArn'], valid_cfn)),
                     'sqs_queue_policy_name': null_to_none(get_in(['CloudTrailOwnerAccount', 'SQSQueuePolicyName'], valid_cfn)),
                 },
-                'master_payer': {'role_arn': null_to_none(get_in(['MasterPayerAccount', 'MasterPayerRoleArn'], valid_cfn))},
-                'resource_owner': {'role_arn': null_to_none(get_in(['ResourceOwnerAccount', 'ResourceOwnerRoleArn'], valid_cfn))},
-                'legacy': {'role_arn': null_to_none(get_in(['LegacyAccount', 'ResourceOwnerRoleArn'], valid_cfn))},
+                'master_payer': {'role_arn': null_to_none(get_in(['MasterPayerAccount', 'RoleArn'], valid_cfn))},
+                'resource_owner': {'role_arn': null_to_none(get_in(['ResourceOwnerAccount', 'RoleArn'], valid_cfn))},
+                'legacy': {'role_arn': null_to_none(get_in(['LegacyAccount', 'RoleArn'], valid_cfn))},
             },
             'discovery': {
                 'audit_cloudtrail_bucket_name': null_to_none(get_in(['Discovery', 'AuditCloudTrailBucketName'], valid_cfn)),
