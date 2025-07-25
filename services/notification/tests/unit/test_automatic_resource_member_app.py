@@ -234,7 +234,7 @@ def test_effect_decorator(context):
     @app.effect('test_effect')
     def test_function(world):
         return {'result': 'success'}
-    
+
     world = {}
     result = test_function(world)
     assert 'effects' in result
@@ -247,7 +247,7 @@ def test_effect_decorator_with_exception(context):
     @app.effect('test_effect')
     def test_function(world):
         raise Exception('Test exception')
-    
+
     world = {}
     result = test_function(world)
     assert 'effects' in result
