@@ -38,11 +38,11 @@ Parameters:
 
 Mappings:
   CallbackConfiguration:
-    prod:
+    dev:
       # TODO: Get dynamically for namespaces
-      ReactorAccountId: '061190967865'
-      ReactorId: 'f7a07d02-d509-4e8d-9fb9-69c7985a6bd8'
-      ReactorCallbackUrl: 'https://api.cloudzero.com/accounts/v1/link'
+      ReactorAccountId: '998146006915'
+      ReactorId: '67ad3e83-1ec5-4f4f-b505-c27e2758b990'
+      ReactorCallbackUrl: 'https://qc8rbx9mcg.execute-api.us-east-1.amazonaws.com/alfa/v1/link'
 
 Resources:
   ResourceOwnerRole:
@@ -56,7 +56,7 @@ Resources:
             Principal:
               AWS: !Sub
                 - 'arn:aws:iam::${ReactorAccountId}:root'
-                - ReactorAccountId: !FindInMap [CallbackConfiguration, prod, ReactorAccountId]
+                - ReactorAccountId: !FindInMap [CallbackConfiguration, dev, ReactorAccountId]
             Action:
               - 'sts:AssumeRole'
             Condition:
@@ -72,7 +72,7 @@ Resources:
     Properties:
       PolicyName: !Sub
         - 'cloudzero-resource-owner-policy-${ReactorAccountId}'
-        - ReactorAccountId: !FindInMap [CallbackConfiguration, prod, ReactorAccountId]
+        - ReactorAccountId: !FindInMap [CallbackConfiguration, dev, ReactorAccountId]
       PolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -180,7 +180,7 @@ Resources:
       Code:
         S3Bucket: !Sub 'cz-provision-account-${AWS::Region}'
         S3Key: !Sub ${Version}/services/notification.zip
-      Handler: src.app.handler
+      Handler: src.automatic_resource_member_app.handler
       Runtime: python3.11
       MemorySize: 512
       Timeout: 30
@@ -191,75 +191,26 @@ Resources:
 
   NotifyCloudZeroReactor:
     Type: Custom::NotifyCloudZero
-    DependsOn: ResourceOwnerRole
     Properties:
       Tags:
         - Key: cloudzero-stack
           Value: !Ref AWS::StackName
         - Key: cloudzero-reactor-account-id
-          Value: !FindInMap [ CallbackConfiguration, prod, ReactorAccountId ]
+          Value: !FindInMap [ CallbackConfiguration, dev, ReactorAccountId ]
       ServiceToken: !GetAtt NotificationFunction.Arn
       AccountId: !Ref AWS::AccountId
       Version: '1'
       # Parameters from Other Resources in this Stack
       ExternalId: !Ref ExternalId
-      ReactorCallbackUrl: !FindInMap [ CallbackConfiguration, prod, ReactorCallbackUrl ]
+      ReactorCallbackUrl: !FindInMap [ CallbackConfiguration, dev, ReactorCallbackUrl ]
       AccountName: !Ref AWS::AccountId
       Region: !Ref AWS::Region
-      ReactorId: !FindInMap [ CallbackConfiguration, prod, ReactorId ]
+      ReactorId: !FindInMap [ CallbackConfiguration, dev, ReactorId ]
       # References to other stacks; it's easier for _this_ Resource to simply grab the outputs
       # programmatically b/c some of the outputs are conditional.
-      Stacks:
-        Discovery: !Ref 'AWS::StackId'
-        ResourceOwnerAccount: !Ref 'AWS::StackId'
-        CloudTrailOwnerAccount: !Ref 'AWS::StackId'
-        AuditAccount: !Ref 'AWS::StackId'
-        MasterPayerAccount: !Ref 'AWS::StackId'
-        LegacyAccount: !Ref 'AWS::StackId'
+      ResourceOwnerRoleArn: !GetAtt ResourceOwnerRole.Arn
 
 Outputs:
-  AuditRoleArn:
-    Value: 'null'
-  SQSQueueArn:
-    Value: 'null'
-  SQSQueuePolicyName:
-    Value: 'null'
-  AuditCloudTrailBucketName:
-    Value: 'null'
-  AuditCloudTrailBucketPrefix:
-    Value: 'null'
-  CloudTrailSNSTopicArn:
-    Value: 'null'
-  CloudTrailTrailArn:
-    Value: 'null'
-  VisibleCloudTrailArns:
-    Value: 'null'
-  IsAuditAccount:
-    Value: 'false'
-  IsCloudTrailOwnerAccount:
-    Value: 'null'
-  IsMasterPayerAccount:
-    Value: 'null'
-  IsOrganizationMasterAccount:
-    Value: 'null'
-  IsOrganizationTrail:
-    Value: 'null'
-  IsResourceOwnerAccount:
-    Value: 'null'
-  MasterPayerBillingBucketName:
-    Value: 'null'
-  MasterPayerBillingBucketPath:
-    Value: 'null'
-  RemoteCloudTrailBucket:
-    Value: 'null'
-  MasterPayerRoleArn:
-    Value: 'null'
-  ReportS3Bucket:
-    Value: 'null'
-  ReportS3Prefix:
-    Value: 'null'
-  LegacyRoleArn:
-    Value: !GetAtt ResourceOwnerRole.Arn
   ResourceOwnerRoleArn:
     Description: CloudZero Resource Owner Role ARN
     Value: !GetAtt ResourceOwnerRole.Arn

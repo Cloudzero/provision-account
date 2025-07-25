@@ -8,7 +8,7 @@ import json
 import boto3
 import urllib3
 from toolz.curried import assoc_in, get_in, keyfilter, merge, pipe, update_in
-from voluptuous import Any, Invalid, Match, Schema, ALLOW_EXTRA, REMOVE_EXTRA
+from voluptuous import Any, Match, Schema, ALLOW_EXTRA, REMOVE_EXTRA
 
 from src import cfnresponse
 
@@ -71,14 +71,7 @@ INPUT_SCHEMA = Schema({
             'ReactorId': str,
             'AccountId': str,
             'Region': str,
-            'Stacks': {
-                'Discovery': str,
-                'ResourceOwnerAccount': str,
-                'CloudTrailOwnerAccount': str,
-                'AuditAccount': str,
-                'MasterPayerAccount': str,
-                'LegacyAccount': str,
-            }
+            'ResourceOwnerRoleArn': str
         },
         'ResponseURL': str,
         'StackId': str
@@ -90,45 +83,6 @@ ARN = Schema(Match(r'^arn:(?:aws|aws-cn|aws-us-gov):([a-z0-9-]+):'
                    r'((?:[a-z0-9-]*)|global):(\d{12}|aws)*:(.+$)$'))
 NULLABLE_ARN = Schema(Any('null', ARN))
 NULLABLE_STRING = Schema(Any('null', str))
-
-CFN_COEFFECT_SCHEMA = Schema({
-    'AuditAccount': {
-        'AuditRoleArn': NULLABLE_ARN
-    },
-    'CloudTrailOwnerAccount': {
-        'SQSQueueArn': NULLABLE_ARN,
-        'SQSQueuePolicyName': NULLABLE_STRING,
-    },
-    'Discovery': {
-        'AuditCloudTrailBucketName': NULLABLE_STRING,
-        'AuditCloudTrailBucketPrefix': NULLABLE_STRING,
-        'CloudTrailSNSTopicArn': NULLABLE_ARN,
-        'CloudTrailTrailArn': NULLABLE_ARN,
-        'VisibleCloudTrailArns': NULLABLE_STRING,
-        'IsAuditAccount': BOOLEAN_STRING,
-        'IsCloudTrailOwnerAccount': BOOLEAN_STRING,
-        'IsMasterPayerAccount': BOOLEAN_STRING,
-        'IsOrganizationMasterAccount': BOOLEAN_STRING,
-        'IsOrganizationTrail': BOOLEAN_STRING,
-        'IsResourceOwnerAccount': BOOLEAN_STRING,
-        'MasterPayerBillingBucketName': NULLABLE_STRING,
-        'MasterPayerBillingBucketPath': NULLABLE_STRING,
-        'RemoteCloudTrailBucket': BOOLEAN_STRING,
-    },
-    'MasterPayerAccount': {
-        'MasterPayerRoleArn': NULLABLE_ARN,
-        'ReportS3Bucket': NULLABLE_STRING,
-        'ReportS3Prefix': NULLABLE_STRING,
-    },
-    'ResourceOwnerAccount': {
-        'ResourceOwnerRoleArn': NULLABLE_ARN,
-    },
-    'LegacyAccount': {
-        'ResourceOwnerRoleArn': NULLABLE_ARN,
-    }
-}, required=True, extra=ALLOW_EXTRA)
-
-
 NONEABLE_ARN = Schema(Any(None, ARN))
 NONEABLE_BOOL = Schema(Any(None, bool))
 NONEABLE_STRING = Schema(Any(None, str))
@@ -180,7 +134,7 @@ request_type = get_in(['event', 'RequestType'])
 properties = get_in(['event', 'ResourceProperties'])
 stacks = get_in(['event', 'ResourceProperties', 'Stacks'])
 reactor_callback_url = get_in(['event', 'ResourceProperties', 'ReactorCallbackUrl'])
-supported_metadata = {'Region', 'ExternalId', 'AccountId', 'AccountName', 'ReactorId', 'ReactorCallbackUrl'}
+supported_metadata = {'Region', 'ExternalId', 'AccountId', 'AccountName', 'ReactorId', 'ReactorCallbackUrl', 'ResourceOwnerRoleArn'}
 callback_metadata = keyfilter(lambda x: x in supported_metadata)
 default_metadata = {
     'version': '1',
@@ -190,107 +144,17 @@ default_metadata = {
 
 #####################
 #
-# Coeffects, i.e. from the outside world
-#
-#####################
-def coeffects(world):
-    return pipe(world,
-                coeffects_cfn)
-
-
-def coeffect(name):
-    def d(f):
-        def w(world):
-            data = {}
-            try:
-                data = f(world)
-            except Exception:
-                logger.warning(f'Failed to get {name} information.', exc_info=True)
-            return assoc_in(world, ['coeffects', name], data)
-        return w
-    return d
-
-
-def outputs_to_dict(outputs):
-    return {
-        output['OutputKey']: output['OutputValue']
-        for output in outputs or []
-    }
-
-
-@coeffect('cloudformation')
-def coeffects_cfn(world):
-    return {
-        key: outputs_to_dict(cfn.Stack(name).outputs)
-        for key, name in stacks(world, default={}).items()
-    }
-
-
-#####################
-#
 # Business Logic
 #
 #####################
 def notify_cloudzero(world):
-    return pipe(world,
-                validate_cfn_coeffect,
-                prepare_output)
-
-
-def validate_cfn_coeffect(world):
-    cfn_coeffect = get_in(['coeffects', 'cloudformation'], world)
-    try:
-        return update_in(world, ['valid_cfn'],
-                         lambda x: merge(x or {}, CFN_COEFFECT_SCHEMA(cfn_coeffect)))
-    except Invalid:
-        logger.warning(cfn_coeffect)
-        logger.warning('CloudFormation Coeffects are not valid; using defaults', exc_info=True)
-        return update_in(world, ['valid_cfn'],
-                         lambda x: merge(x or {}, DEFAULT_CFN_COEFFECT))
-
-
-def null_to_none(s):
-    return None if s == 'null' else s
-
-
-def string_to_bool(s):
-    """
-    Convert String to Bool
-
-    >>> string_to_bool('True')
-    True
-
-    >>> string_to_bool('true')
-    True
-
-    >>> string_to_bool('False')
-    False
-
-    >>> string_to_bool('false')
-    False
-
-    >>> string_to_bool('null')
-
-    >>> string_to_bool(None)
-
-    >>> string_to_bool('')
-
-    """
-    if not s:
-        return None
-    return None if s.lower() == 'null' else s.lower() == 'true'
+    return pipe(world, prepare_output)
 
 
 def prepare_output(world):
-    valid_cfn = get_in(['valid_cfn'], world)
     metadata = callback_metadata(properties(world))
     message_type = 'account-link-provisioned' if request_type(world) in {'Create', 'Update'} else 'account-link-deprovisioned'
-    visible_cloudtrail_arns_string = null_to_none(get_in(['Discovery', 'VisibleCloudTrailArns'], valid_cfn))
-    visible_cloudtrail_arns = visible_cloudtrail_arns_string.split(',') if visible_cloudtrail_arns_string else None
-    master_payer_billing_bucket_name = (null_to_none(get_in(['Discovery', 'MasterPayerBillingBucketName'], valid_cfn)) or
-                                        null_to_none(get_in(['MasterPayerAccount', 'ReportS3Bucket'], valid_cfn)))
-    master_payer_billing_bucket_path = (null_to_none(get_in(['Discovery', 'MasterPayerBillingBucketPath'], valid_cfn)) or
-                                        null_to_none(get_in(['MasterPayerAccount', 'ReportS3Prefix'], valid_cfn)))
+
     output = {
         **default_metadata,
         'message_type': message_type,
@@ -304,31 +168,30 @@ def prepare_output(world):
                 'reactor_callback_url': metadata['ReactorCallbackUrl'],
             },
             'links': {
-                'audit': {'role_arn': null_to_none(get_in(['AuditAccount', 'AuditRoleArn'], valid_cfn))},
+                'audit': {'role_arn': None},
                 'cloudtrail_owner': {
-                    'sqs_queue_arn': null_to_none(get_in(['CloudTrailOwnerAccount', 'SQSQueueArn'], valid_cfn)),
-                    'sqs_queue_policy_name': null_to_none(get_in(['CloudTrailOwnerAccount', 'SQSQueuePolicyName'], valid_cfn)),
+                    'sqs_queue_arn': None,
+                    'sqs_queue_policy_name': None,
                 },
-                'master_payer': {'role_arn': null_to_none(get_in(['MasterPayerAccount', 'MasterPayerRoleArn'], valid_cfn))},
-                'resource_owner': {'role_arn': null_to_none(get_in(['ResourceOwnerAccount', 'ResourceOwnerRoleArn'], valid_cfn))},
-                'legacy': {'role_arn': null_to_none(get_in(['LegacyAccount', 'ResourceOwnerRoleArn'], valid_cfn))},
+                'master_payer': {'role_arn': None},
+                'resource_owner': {'role_arn': metadata['ResourceOwnerRoleArn']},
+                'legacy': {'role_arn': metadata['ResourceOwnerRoleArn']},
             },
             'discovery': {
-                'audit_cloudtrail_bucket_name': null_to_none(get_in(['Discovery', 'AuditCloudTrailBucketName'], valid_cfn)),
-                'audit_cloudtrail_bucket_prefix': null_to_none(get_in(['Discovery', 'AuditCloudTrailBucketPrefix'], valid_cfn)),
-                'cloudtrail_sns_topic_arn': null_to_none(get_in(['Discovery', 'CloudTrailSNSTopicArn'], valid_cfn)),
-                'cloudtrail_trail_arn': null_to_none(get_in(['Discovery', 'CloudTrailTrailArn'], valid_cfn)),
-
-                'is_audit_account': string_to_bool(get_in(['Discovery', 'IsAuditAccount'], valid_cfn)),
-                'is_cloudtrail_owner_account': string_to_bool(get_in(['Discovery', 'IsCloudTrailOwnerAccount'], valid_cfn)),
-                'is_master_payer_account': string_to_bool(get_in(['Discovery', 'IsMasterPayerAccount'], valid_cfn)),
-                'is_organization_master_account': string_to_bool(get_in(['Discovery', 'IsOrganizationMasterAccount'], valid_cfn)),
-                'is_organization_trail': string_to_bool(get_in(['Discovery', 'IsOrganizationTrail'], valid_cfn)),
-                'is_resource_owner_account': string_to_bool(get_in(['Discovery', 'IsResourceOwnerAccount'], valid_cfn)),
-                'master_payer_billing_bucket_name': master_payer_billing_bucket_name,
-                'master_payer_billing_bucket_path': master_payer_billing_bucket_path,
-                'remote_cloudtrail_bucket': string_to_bool(get_in(['Discovery', 'RemoteCloudTrailBucket'], valid_cfn)),
-                'visible_cloudtrail_arns': visible_cloudtrail_arns,
+                'audit_cloudtrail_bucket_name': None,
+                'audit_cloudtrail_bucket_prefix': None,
+                'cloudtrail_sns_topic_arn': None,
+                'cloudtrail_trail_arn': None,
+                'is_audit_account': False,
+                'is_cloudtrail_owner_account': False,
+                'is_master_payer_account': False,
+                'is_organization_master_account': False,
+                'is_organization_trail': False,
+                'is_resource_owner_account': True,
+                'master_payer_billing_bucket_name': None,
+                'master_payer_billing_bucket_path': None,
+                'remote_cloudtrail_bucket': False,
+                'visible_cloudtrail_arns': None,
             }
         }
     }
@@ -383,7 +246,6 @@ def handler(event, context, **kwargs):
         logger.info(f'Processing event {json.dumps(event)}')
         world = pipe({'event': event, 'kwargs': kwargs},
                      INPUT_SCHEMA,
-                     coeffects,
                      notify_cloudzero,
                      effects,
                      OUTPUT_SCHEMA)
