@@ -21,6 +21,7 @@ Metadata:
           default: Optional Parameters
         Parameters:
           - Version
+          - ResourceRoleName
     ParameterLabels:
       StackSetName:
         default: Name for the StackSet
@@ -30,6 +31,8 @@ Metadata:
         default: Unique ExternalId for your Organization
       Version:
         default: Version to deploy
+      ResourceRoleName:
+        default: Name for the resource owner role
 
 Mappings:
   CallbackConfiguration:
@@ -61,6 +64,12 @@ Parameters:
     Description: "List of AWS regions to deploy to"
     ConstraintDescription: "Must be valid AWS region names separated by commas"
 
+  ResourceRoleName:
+    Type: String
+    Default: "cloudzero-resource-owner-role"
+    Description: |
+      Name for the resource owner role. Defaults to 'cloudzero-resource-owner-role'.
+
 Resources:
   ResourceOwnerStackSet:
     Type: AWS::CloudFormation::StackSet
@@ -71,6 +80,8 @@ Resources:
       Parameters:
         - ParameterKey: ExternalId
           ParameterValue: !Ref ExternalId
+        - ParameterKey: ResourceRoleName
+          ParameterValue: !Ref ResourceRoleName
       Capabilities:
         - CAPABILITY_IAM
         - CAPABILITY_NAMED_IAM
@@ -88,6 +99,8 @@ Resources:
               ParameterValue: !Ref ExternalId
             - ParameterKey: Version
               ParameterValue: !Ref Version
+            - ParameterKey: ResourceRoleName
+              ParameterValue: !Ref ResourceRoleName
 
 Outputs:
   StackSetId:
