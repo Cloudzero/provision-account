@@ -2,33 +2,30 @@
 # Copyright (c) 2016-present, CloudZero, Inc. All rights reserved.
 # Licensed under the BSD-style license. See LICENSE file in the project root for full license information.
 
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: "2010-09-09"
 Description: CloudZero Resource Owner StackSet Deployment Wrapper
 
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
-    - Label:
-        default: StackSet Configuration
-      Parameters:
-        - StackSetName
-        - OrganizationRootId
-    - Label:
-        default: Required Parameters for Resource Owner Stack
-      Parameters:
-        - AccountName
-        - ExternalId
-    - Label:
-        default: Optional Parameters
-      Parameters:
-        - Version
+      - Label:
+          default: StackSet Configuration
+        Parameters:
+          - StackSetName
+          - OrganizationRootId
+      - Label:
+          default: Required Parameters for Resource Owner Stack
+        Parameters:
+          - ExternalId
+      - Label:
+          default: Optional Parameters
+        Parameters:
+          - Version
     ParameterLabels:
       StackSetName:
         default: Name for the StackSet
       OrganizationRootId:
         default: Organization Root ID (required for auto-deployment)
-      AccountName:
-        default: Descriptive Alias for your AWS Account
       ExternalId:
         default: Unique ExternalId for your Organization
       Version:
@@ -38,16 +35,16 @@ Mappings:
   CallbackConfiguration:
     prod:
       # TODO: Get dynamically for namespaces
-      ReactorAccountId: '061190967865'
-      ReactorId: 'f7a07d02-d509-4e8d-9fb9-69c7985a6bd8'
-      ReactorCallbackUrl: 'https://api.cloudzero.com/accounts/v1/link'
+      ReactorAccountId: "061190967865"
+      ReactorId: "f7a07d02-d509-4e8d-9fb9-69c7985a6bd8"
+      ReactorCallbackUrl: "https://api.cloudzero.com/accounts/v1/link"
 
 Parameters:
   StackSetName:
     Type: String
     Default: CloudZero-ResourceOwner-StackSet
     Description: Name for the StackSet
-  
+
   OrganizationRootId:
     Type: String
     AllowedPattern: ".+"
@@ -56,26 +53,6 @@ Parameters:
       Required for automatic deployment via CloudFormation.
       Find this in AWS Organizations console → Organize accounts tab.
     ConstraintDescription: "Must provide the AWS Organization root ID (e.g., r-abcd)."
-  
-  AccountName:
-    Type: String
-    Default: ''
-    Description: |
-      Optional Name you can set for your AWS Account; you can use this as a
-      descriptive alias for AccountId. It's useful to set this here when you
-      are automating provisioning many accounts with this template.
-  
-  ExternalId:
-    Type: String
-    Description: |
-      Unique ExternalId for Customer Organization; for cross-account Role Access and
-      associating this template with a Customer Organization
-  
-  Version:
-    Type: String
-    Default: 'latest'
-    Description: |
-      Version to target when deploying the stack. `latest` should be used by default.
 
   Regions:
     Type: CommaDelimitedList
@@ -83,175 +60,8 @@ Parameters:
     Default: "us-east-1"
     Description: "List of AWS regions to deploy to"
     ConstraintDescription: "Must be valid AWS region names separated by commas"
-  
+
 Resources:
-  # Unfortunately, the stack defined in the StackSet does not deploy the stack in the same account the StackSet is
-  # deployed in, so I am redefining them here as well.
-  ResourceOwnerRole:
-    Type: AWS::IAM::Role
-    Properties:
-      Path: '/cloudzero/'
-      AssumeRolePolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Principal:
-              AWS: !Sub
-                - 'arn:aws:iam::${ReactorAccountId}:root'
-                - ReactorAccountId: !FindInMap [ CallbackConfiguration, prod, ReactorAccountId ]
-            Action:
-              - 'sts:AssumeRole'
-            Condition:
-              StringEquals:
-                'sts:ExternalId': !Ref ExternalId
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/CloudWatchReadOnlyAccess
-        - arn:aws:iam::aws:policy/SecurityAudit
-        - arn:aws:iam::aws:policy/job-function/ViewOnlyAccess
-        - arn:aws:iam::aws:policy/AWSBillingReadOnlyAccess
-  ResourceOwnerRolePolicy:
-    Type: AWS::IAM::Policy
-    Properties:
-      PolicyName: !Sub
-        - 'cloudzero-resource-owner-policy-${ReactorAccountId}'
-        - ReactorAccountId: !FindInMap [ CallbackConfiguration, prod, ReactorAccountId ]
-      PolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Sid: CZCostMonitoring20240422
-            Effect: Allow
-            Action:
-              - account:GetAccountInformation
-              - billing:Get*
-              - budgets:Describe*
-              - budgets:View*
-              - ce:Describe*
-              - ce:Get*
-              - ce:List*
-              - consolidatedbilling:Get*
-              - consolidatedbilling:List*
-              - cur:Describe*
-              - cur:Get*
-              - cur:Validate*
-              - cur:List*
-              - freetier:Get*
-              - invoicing:Get*
-              - invoicing:List*
-              - organizations:Describe*
-              - organizations:List*
-              - payments:Get*
-              - payments:List*
-              - pricing:*
-              - tax:Get*
-              - tax:List*
-            Resource: "*"
-          - Sid: CZActivityMonitoring20210423
-            Effect: Allow
-            Action:
-              - cloudtrail:Get*
-              - cloudtrail:List*
-              - cloudtrail:Describe*
-              - health:Describe*
-              - support:DescribeTrustedAdvisor*
-              - servicequotas:Get*
-              - servicequotas:List*
-              - resource-groups:Get*
-              - resource-groups:List*
-              - resource-groups:Search*
-              - cloudformation:DescribeStacks
-              - cloudformation:ListStackResources
-              - tag:Get*
-              - tag:Describe*
-              - resource-explorer:List*
-              - account:ListRegions
-            Resource: "*"
-          - Sid: CZReservedCapacity20190912
-            Effect: Allow
-            Action:
-              - dynamodb:DescribeReserved*
-              - ec2:DescribeReserved*
-              - elasticache:DescribeReserved*
-              - es:DescribeReserved*
-              - rds:DescribeReserved*
-              - redshift:DescribeReserved*
-            Resource: "*"
-          - Sid: CloudZeroContainerInsightsAccess20210423
-            Effect: Allow
-            Action:
-              - logs:List*
-              - logs:Describe*
-              - logs:StartQuery
-              - logs:StopQuery
-              - logs:Filter*
-              - logs:Get*
-            Resource: arn:aws:logs:*:*:log-group:/aws/containerinsights/*
-          - Sid: CloudZeroCloudWatchContainerLogStreamAccess20210906
-            Effect: Allow
-            Action:
-              - logs:GetQueryResults
-              - logs:DescribeLogGroups
-            Resource: arn:aws:logs:*:*:log-group::log-stream:*
-          - Sid: CloudZeroCloudWatchMetricsAccess20210423
-            Effect: Allow
-            Action:
-              - autoscaling:Describe*
-              - cloudwatch:Describe*
-              - cloudwatch:Get*
-              - cloudwatch:List*
-            Resource: "*"
-      Roles:
-        - !Ref ResourceOwnerRole
-
-  NotificationFunctionRole:
-    Type: AWS::IAM::Role
-    Properties:
-      AssumeRolePolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Principal:
-              Service: lambda.amazonaws.com
-            Action: sts:AssumeRole
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
-        - arn:aws:iam::aws:policy/AWSCloudFormationReadOnlyAccess
-
-  NotificationFunction:
-    Type: AWS::Lambda::Function
-    Properties:
-      Code:
-        S3Bucket: !Sub 'cz-provision-account-${AWS::Region}'
-        S3Key: !Sub ${Version}/services/notification.zip
-      Handler: src.automatic_resource_member_app.handler
-      Runtime: python3.11
-      MemorySize: 512
-      Timeout: 30
-      Role: !GetAtt NotificationFunctionRole.Arn
-      Environment:
-        Variables:
-          VERSION: '1'
-
-  NotifyCloudZeroReactor:
-    Type: Custom::NotifyCloudZero
-    Properties:
-      Tags:
-        - Key: cloudzero-stack
-          Value: !Ref AWS::StackName
-        - Key: cloudzero-reactor-account-id
-          Value: !FindInMap [ CallbackConfiguration, prod, ReactorAccountId ]
-      ServiceToken: !GetAtt NotificationFunction.Arn
-      AccountId: !Ref AWS::AccountId
-      Version: '1'
-      # Parameters from Other Resources in this Stack
-      ExternalId: !Ref ExternalId
-      ReactorCallbackUrl: !FindInMap [ CallbackConfiguration, prod, ReactorCallbackUrl ]
-      AccountName: !Ref AWS::AccountId
-      Region: !Ref AWS::Region
-      ReactorId: !FindInMap [ CallbackConfiguration, prod, ReactorId ]
-      # References to other stacks; it's easier for _this_ Resource to simply grab the outputs
-      # programmatically b/c some of the outputs are conditional.
-      ResourceOwnerRoleArn: !GetAtt ResourceOwnerRole.Arn
-
   ResourceOwnerStackSet:
     Type: AWS::CloudFormation::StackSet
     Properties:

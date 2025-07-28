@@ -2,20 +2,20 @@
 # Copyright (c) 2016-present, CloudZero, Inc. All rights reserved.
 # Licensed under the BSD-style license. See LICENSE file in the project root for full license information.
 
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: "2010-09-09"
 Description: CloudZero Resource Owner Account StackSet Template
 
 Metadata:
   AWS::CloudFormation::Interface:
     ParameterGroups:
-    - Label:
-        default: CloudZero Cross Account Access
-      Parameters:
-      - ExternalId
-    - Label:
-        default: Optional Parameters
-      Parameters:
-        - Version
+      - Label:
+          default: CloudZero Cross Account Access
+        Parameters:
+          - ExternalId
+      - Label:
+          default: Optional Parameters
+        Parameters:
+          - Version
     ParameterLabels:
       ExternalId:
         default: |
@@ -32,7 +32,7 @@ Parameters:
 
   Version:
     Type: String
-    Default: 'latest'
+    Default: "latest"
     Description: |
       Version to target when deploying the stack. `latest` should be used by default.
 
@@ -40,28 +40,29 @@ Mappings:
   CallbackConfiguration:
     dev:
       # TODO: Get dynamically for namespaces
-      ReactorAccountId: '998146006915'
-      ReactorId: '67ad3e83-1ec5-4f4f-b505-c27e2758b990'
-      ReactorCallbackUrl: 'https://qc8rbx9mcg.execute-api.us-east-1.amazonaws.com/alfa/v1/link'
+      ReactorAccountId: "998146006915"
+      ReactorId: "67ad3e83-1ec5-4f4f-b505-c27e2758b990"
+      ReactorCallbackUrl: "https://qc8rbx9mcg.execute-api.us-east-1.amazonaws.com/alfa/v1/link"
 
 Resources:
   ResourceOwnerRole:
     Type: AWS::IAM::Role
     Properties:
-      Path: '/cloudzero/'
+      Path: "/cloudzero/"
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
           - Effect: Allow
             Principal:
               AWS: !Sub
-                - 'arn:aws:iam::${ReactorAccountId}:root'
-                - ReactorAccountId: !FindInMap [CallbackConfiguration, dev, ReactorAccountId]
+                - "arn:aws:iam::${ReactorAccountId}:root"
+                - ReactorAccountId:
+                    !FindInMap [CallbackConfiguration, dev, ReactorAccountId]
             Action:
-              - 'sts:AssumeRole'
+              - "sts:AssumeRole"
             Condition:
               StringEquals:
-                'sts:ExternalId': !Ref ExternalId
+                "sts:ExternalId": !Ref ExternalId
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/CloudWatchReadOnlyAccess
         - arn:aws:iam::aws:policy/SecurityAudit
@@ -71,8 +72,9 @@ Resources:
     Type: AWS::IAM::Policy
     Properties:
       PolicyName: !Sub
-        - 'cloudzero-resource-owner-policy-${ReactorAccountId}'
-        - ReactorAccountId: !FindInMap [CallbackConfiguration, dev, ReactorAccountId]
+        - "cloudzero-resource-owner-policy-${ReactorAccountId}"
+        - ReactorAccountId:
+            !FindInMap [CallbackConfiguration, dev, ReactorAccountId]
       PolicyDocument:
         Version: 2012-10-17
         Statement:
@@ -179,7 +181,7 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       Code:
-        S3Bucket: !Sub 'cz-provision-account-${AWS::Region}'
+        S3Bucket: !Sub "cz-provision-account-${AWS::Region}"
         S3Key: !Sub ${Version}/services/notification.zip
       Handler: src.automatic_resource_member_app.handler
       Runtime: python3.11
@@ -188,7 +190,7 @@ Resources:
       Role: !GetAtt NotificationFunctionRole.Arn
       Environment:
         Variables:
-          VERSION: '1'
+          VERSION: "1"
 
   NotifyCloudZeroReactor:
     Type: Custom::NotifyCloudZero
@@ -197,16 +199,17 @@ Resources:
         - Key: cloudzero-stack
           Value: !Ref AWS::StackName
         - Key: cloudzero-reactor-account-id
-          Value: !FindInMap [ CallbackConfiguration, dev, ReactorAccountId ]
+          Value: !FindInMap [CallbackConfiguration, dev, ReactorAccountId]
       ServiceToken: !GetAtt NotificationFunction.Arn
       AccountId: !Ref AWS::AccountId
-      Version: '1'
+      Version: "1"
       # Parameters from Other Resources in this Stack
       ExternalId: !Ref ExternalId
-      ReactorCallbackUrl: !FindInMap [ CallbackConfiguration, dev, ReactorCallbackUrl ]
+      ReactorCallbackUrl:
+        !FindInMap [CallbackConfiguration, dev, ReactorCallbackUrl]
       AccountName: !Ref AWS::AccountId
       Region: !Ref AWS::Region
-      ReactorId: !FindInMap [ CallbackConfiguration, dev, ReactorId ]
+      ReactorId: !FindInMap [CallbackConfiguration, dev, ReactorId]
       # References to other stacks; it's easier for _this_ Resource to simply grab the outputs
       # programmatically b/c some of the outputs are conditional.
       ResourceOwnerRoleArn: !GetAtt ResourceOwnerRole.Arn
@@ -215,4 +218,3 @@ Outputs:
   ResourceOwnerRoleArn:
     Description: CloudZero Resource Owner Role ARN
     Value: !GetAtt ResourceOwnerRole.Arn
-
