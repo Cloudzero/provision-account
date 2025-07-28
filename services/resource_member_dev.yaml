@@ -34,14 +34,6 @@ Metadata:
       ResourceRoleName:
         default: Name for the resource owner role
 
-Mappings:
-  CallbackConfiguration:
-    dev:
-      # TODO: Get dynamically for namespaces
-      ReactorAccountId: "998146006915"
-      ReactorId: "67ad3e83-1ec5-4f4f-b505-c27e2758b990"
-      ReactorCallbackUrl: "https://qc8rbx9mcg.execute-api.us-east-1.amazonaws.com/alfa/v1/link"
-
 Parameters:
   StackSetName:
     Type: String
@@ -69,6 +61,17 @@ Parameters:
     Default: "cloudzero-resource-owner-role"
     Description: |
       Name for the resource owner role. Defaults to 'cloudzero-resource-owner-role'.
+
+  ExternalId:
+    Type: String
+    AllowedPattern: ".+"
+    Description: Unique ExternalId for your Organization
+    ConstraintDescription: "Must provide the ExternalId"
+
+  Version:
+    Type: String
+    Default: "latest"
+    Description: Version to deploy
 
 Resources:
   ResourceOwnerStackSet:
@@ -109,6 +112,3 @@ Outputs:
   StackSetName:
     Description: Name of the created StackSet
     Value: !Ref StackSetName
-  ResourceOwnerRoleArn:
-    Description: CloudZero Resource Owner Role ARN
-    Value: !GetAtt ResourceOwnerRole.Arn
