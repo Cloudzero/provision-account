@@ -1,8 +1,8 @@
 {
     "policies": [
         {
-            "arn": "arn:aws:iam::aws:policy/SecurityAudit",
-            "name": "SecurityAudit"
+            "arn": "arn:aws:iam::aws:policy/ComputeOptimizerReadOnlyAccess",
+            "name": "ComputeOptimizerReadOnlyAccess"
         },
         {
             "arn": "arn:aws:iam::aws:policy/job-function/ViewOnlyAccess",

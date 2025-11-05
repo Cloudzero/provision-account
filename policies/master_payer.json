@@ -57,8 +57,6 @@
         "resource-groups:Get*",
         "resource-groups:List*",
         "resource-groups:Search*",
-        "cloudformation:DescribeStacks",
-        "cloudformation:ListStackResources",
         "tag:Get*",
         "tag:Describe*",
         "resource-explorer:List*",
@@ -109,6 +107,25 @@
         "cloudwatch:Describe*",
         "cloudwatch:Get*",
         "cloudwatch:List*"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ReadOnlyOptimizationHub20251103",
+      "Effect": "Allow",
+      "Action": [
+        "aws-portal:GetOptimizationRecommendations",
+        "aws-portal:ListOptimizationRecommendations"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "CloudFormationAccess20251103",
+      "Effect": "Allow",
+      "Action": [
+        "cloudformation:Describe*",
+        "cloudformation:Get*",
+        "cloudformation:List*"
       ],
       "Resource": "*"
     }

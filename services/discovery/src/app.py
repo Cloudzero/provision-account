@@ -184,7 +184,7 @@ def discover_audit_account(world):
     local_buckets = {x['Name'] for x in coeffects_buckets(world)}
     output = {
         'IsAuditAccount': trail_bucket in local_buckets,
-        'RemoteCloudTrailBucket': not (trail_bucket in local_buckets),
+        'RemoteCloudTrailBucket': trail_bucket not in local_buckets,
         'AuditCloudTrailBucketName': trail_bucket,
         'AuditCloudTrailBucketPrefix': trail.get('S3KeyPrefix'),
     }
@@ -219,7 +219,7 @@ def discover_cloudtrail_account(world):
     return update_in(world, ['output'], lambda x: merge(x or {}, output))
 
 
-MINIMUM_BILLING_REPORT = Schema({
+IDEAL_BILLING_REPORT = Schema({
     'TimeUnit': 'HOURLY',
     'Format': 'textORcsv',
     'Compression': 'GZIP',
@@ -231,6 +231,16 @@ MINIMUM_BILLING_REPORT = Schema({
     'RefreshClosedReports': True,
 }, extra=ALLOW_EXTRA, required=True)
 
+MINIMUM_BILLING_REPORT = Schema({
+    'TimeUnit': Any('HOURLY', 'DAILY'),
+    'Format': 'textORcsv',
+    'Compression': 'GZIP',
+    'S3Bucket': str,
+    'S3Prefix': str,
+    'S3Region': str,
+    'RefreshClosedReports': bool,
+}, extra=ALLOW_EXTRA, required=True)
+
 
 def get_first_valid_report_definition(valid_report_definitions, default=None):
     return valid_report_definitions[0] if any(valid_report_definitions) else default
@@ -239,11 +249,24 @@ def get_first_valid_report_definition(valid_report_definitions, default=None):
 def get_cur_bucket_if_local(world, report_definitions):
     logger.info(f'Found these ReportDefinitions: {report_definitions}')
     local_buckets = {x['Name'] for x in coeffects_buckets(world)}
-    valid_report_definitions = keep_valid(MINIMUM_BILLING_REPORT, report_definitions)
-    logger.info(f'Found these _valid_ ReportDefinitions: {valid_report_definitions}')
-    valid_local_report_definitions = [x for x in valid_report_definitions if x['S3Bucket'] in local_buckets]
-    logger.info(f'Found these _valid local_ ReportDefinitions: {valid_local_report_definitions}')
-    first_valid_local = get_first_valid_report_definition(valid_local_report_definitions, default={})
+
+    # Try to find ideal reports first (with CREATE_NEW_REPORT)
+    ideal_report_definitions = keep_valid(IDEAL_BILLING_REPORT, report_definitions)
+    logger.info(f'Found these _ideal_ ReportDefinitions: {ideal_report_definitions}')
+    ideal_local_report_definitions = [x for x in ideal_report_definitions if x['S3Bucket'] in local_buckets]
+    logger.info(f'Found these _ideal local_ ReportDefinitions: {ideal_local_report_definitions}')
+
+    # Fall back to minimum requirements if no ideal reports found
+    if not ideal_local_report_definitions:
+        logger.info('No ideal reports found, falling back to minimum requirements')
+        valid_report_definitions = keep_valid(MINIMUM_BILLING_REPORT, report_definitions)
+        logger.info(f'Found these _valid_ ReportDefinitions: {valid_report_definitions}')
+        valid_local_report_definitions = [x for x in valid_report_definitions if x['S3Bucket'] in local_buckets]
+        logger.info(f'Found these _valid local_ ReportDefinitions: {valid_local_report_definitions}')
+        first_valid_local = get_first_valid_report_definition(valid_local_report_definitions, default={})
+    else:
+        first_valid_local = get_first_valid_report_definition(ideal_local_report_definitions, default={})
+
     bucket_name = first_valid_local.get('S3Bucket')
     bucket_path = f"{first_valid_local.get('S3Prefix', '')}/{first_valid_local.get('ReportName', '')}" if bucket_name else None
     return (bucket_name, bucket_path)
