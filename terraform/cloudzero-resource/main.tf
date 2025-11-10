@@ -134,8 +134,8 @@ resource "aws_iam_role_policy" "CloudZero" {
           "Sid": "ReadOnlyOptimizationHub20251103",
           "Effect": "Allow",
           "Action": [
-            "aws-portal:GetOptimizationRecommendations",
-            "aws-portal:ListOptimizationRecommendations"
+            "cost-optimization-hub:GetRecommendation",
+            "cost-optimization-hub:ListRecommendations"
           ],
           "Resource": "*"
         },
