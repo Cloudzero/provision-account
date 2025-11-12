@@ -42,7 +42,7 @@ Resources:
                 'sts:ExternalId': !Ref ExternalId
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/CloudWatchReadOnlyAccess
-        - arn:aws:iam::aws:policy/SecurityAudit
+        - arn:aws:iam::aws:policy/ComputeOptimizerReadOnlyAccess
         - arn:aws:iam::aws:policy/job-function/ViewOnlyAccess
         - arn:aws:iam::aws:policy/AWSBillingReadOnlyAccess
 
@@ -94,8 +94,6 @@ Resources:
               - resource-groups:Get*
               - resource-groups:List*
               - resource-groups:Search*
-              - cloudformation:DescribeStacks
-              - cloudformation:ListStackResources
               - tag:Get*
               - tag:Describe*
               - resource-explorer:List*
@@ -134,6 +132,19 @@ Resources:
               - cloudwatch:Describe*
               - cloudwatch:Get*
               - cloudwatch:List*
+            Resource: "*"
+          - Sid: ReadOnlyOptimizationHub20251103
+            Effect: Allow
+            Action:
+              - cost-optimization-hub:GetRecommendation
+              - cost-optimization-hub:ListRecommendations
+            Resource: "*"
+          - Sid: CloudFormationAccess20251103
+            Effect: Allow
+            Action:
+              - cloudformation:Describe*
+              - cloudformation:Get*
+              - cloudformation:List*
             Resource: "*"
       Roles:
         - !Ref Role

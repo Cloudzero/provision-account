@@ -20,6 +20,7 @@ packaged-template.yaml
 # Python artifacts
 __pycache__
 *.pyc
+.venv
 
 # PyCharm
 .idea

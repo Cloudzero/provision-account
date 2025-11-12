@@ -89,8 +89,6 @@ resource "aws_iam_role_policy" "CloudZero" {
             "resource-groups:Get*",
             "resource-groups:List*",
             "resource-groups:Search*",
-            "cloudformation:DescribeStacks",
-            "cloudformation:ListStackResources",
             "tag:Get*",
             "tag:Describe*",
             "resource-explorer:List*",
@@ -143,14 +141,33 @@ resource "aws_iam_role_policy" "CloudZero" {
             "cloudwatch:List*"
           ],
           "Resource": "*"
+        },
+        {
+          "Sid": "ReadOnlyOptimizationHub20251103",
+          "Effect": "Allow",
+          "Action": [
+            "cost-optimization-hub:GetRecommendation",
+            "cost-optimization-hub:ListRecommendations"
+          ],
+          "Resource": "*"
+        },
+        {
+          "Sid": "CloudFormationAccess20251103",
+          "Effect": "Allow",
+          "Action": [
+            "cloudformation:Describe*",
+            "cloudformation:Get*",
+            "cloudformation:List*"
+          ],
+          "Resource": "*"
         }
       ]
     })
 }
 
-resource "aws_iam_role_policy_attachment" "security_audit_access" {
+resource "aws_iam_role_policy_attachment" "compute_optimizer_access" {
   role       = aws_iam_role.cloudzero.name
-  policy_arn = "arn:aws:iam::aws:policy/SecurityAudit"
+  policy_arn = "arn:aws:iam::aws:policy/ComputeOptimizerReadOnlyAccess"
 }
 
 resource "aws_iam_role_policy_attachment" "view_only_access" {
