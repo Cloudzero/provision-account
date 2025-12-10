@@ -53,6 +53,8 @@ The AWS account that contains your Cost and Usage Report (CUR) and is the payer 
 - Consolidated billing information
 - Typically only one per AWS Organization
 
+**Important**: CloudZero requires an HOURLY Cost and Usage Report. Daily reports are not supported.
+
 #### Resource Owner Account
 Member accounts in your AWS Organization that own and run resources. These accounts provide:
 - Resource-level cost attribution

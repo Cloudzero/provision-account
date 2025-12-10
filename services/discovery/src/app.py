@@ -232,7 +232,7 @@ IDEAL_BILLING_REPORT = Schema({
 }, extra=ALLOW_EXTRA, required=True)
 
 MINIMUM_BILLING_REPORT = Schema({
-    'TimeUnit': Any('HOURLY', 'DAILY'),
+    'TimeUnit': 'HOURLY',
     'Format': 'textORcsv',
     'Compression': 'GZIP',
     'S3Bucket': str,
