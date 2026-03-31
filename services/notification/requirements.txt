@@ -2,6 +2,6 @@
 # Licensed under the BSD-style license. See LICENSE file in the project root for full license information.
 
 boto3>=1.34.91
-urllib3>=2.2.1
+urllib3>=2.6.3
 voluptuous>=0.14.2
 toolz>=0.12.1
