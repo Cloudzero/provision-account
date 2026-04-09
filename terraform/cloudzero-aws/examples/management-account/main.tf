@@ -12,8 +12,7 @@ module "cloudzero" {
   external_id = var.cloudzero_external_id
   create_cur  = true
 
-  # Optional: customize CUR settings
-  # cur_time_unit        = "HOURLY"
+  # Optional: customize CUR bucket name prefix
   # cur_bucket_name_prefix = "mycompany-cur-cloudzero"
 
   tags = {
