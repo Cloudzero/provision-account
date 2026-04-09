@@ -45,7 +45,6 @@ variable "cur_s3_prefix" {
   description = "S3 key prefix for CUR report files."
 }
 
-
 variable "cur_bucket_name_prefix" {
   type        = string
   default     = "cz-cur"
