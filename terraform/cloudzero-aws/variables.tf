@@ -5,7 +5,7 @@
 variable "external_id" {
   type        = string
   sensitive   = true
-  description = "The CloudZero-provided external ID for cross-account role assumption. Found at https://app.cloudzero.com/organization/onboard-accounts/connect?cztabs.connect-accounts=manual"
+  description = "The CloudZero-provided external ID for cross-account role assumption. Found at https://app.cloudzero.com/organization/connections/new/aws/resource/manual"
 }
 
 # ---------------------------------------------------------------------------------------------------------------------

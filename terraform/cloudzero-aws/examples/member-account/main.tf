@@ -18,7 +18,7 @@ module "cloudzero" {
 variable "cloudzero_external_id" {
   type        = string
   sensitive   = true
-  description = "CloudZero external ID from https://app.cloudzero.com/organization/onboard-accounts/connect?cztabs.connect-accounts=manual"
+  description = "CloudZero external ID from https://app.cloudzero.com/organization/connections/new/aws/resource/manual"
 }
 
 output "role_arn" {

@@ -30,7 +30,7 @@ See the [cloudzero-aws README](cloudzero-aws/README.md) for full documentation, 
 
 ## Prerequisites
 
-1. Obtain your CloudZero external ID from the [manual account connection page](https://app.cloudzero.com/organization/onboard-accounts/connect?cztabs.connect-accounts=manual).
+1. Obtain your CloudZero external ID from the [manual account connection page](https://app.cloudzero.com/organization/connections/new/aws/resource/manual).
 2. If using `create_cur = true`, the AWS provider must target **us-east-1**.
 
 ## After Applying
