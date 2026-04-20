@@ -254,7 +254,12 @@ resource "aws_iam_role_policy" "CloudZero" {
             "iam:GetPolicy",
             "iam:GetPolicyVersion"
           ],
-          "Resource" : "*"
+          "Resource" : [
+            "arn:aws:iam::aws:policy/AWSBillingReadOnlyAccess",
+            "arn:aws:iam::aws:policy/CloudWatchReadOnlyAccess",
+            "arn:aws:iam::aws:policy/ComputeOptimizerReadOnlyAccess",
+            "arn:aws:iam::aws:policy/job-function/ViewOnlyAccess"
+          ]
         }
       ]
     })
