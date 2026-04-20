@@ -83,7 +83,6 @@ resource "aws_iam_role_policy" "CloudZero" {
           "Effect" : "Allow",
           "Action" : [
             "savingsplans:Describe*",
-            "savingsplans:Get*",
             "savingsplans:List*"
           ],
           "Resource" : "*"

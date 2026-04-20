@@ -51,7 +51,6 @@
       "Effect": "Allow",
       "Action": [
         "savingsplans:Describe*",
-        "savingsplans:Get*",
         "savingsplans:List*"
       ],
       "Resource": "*"

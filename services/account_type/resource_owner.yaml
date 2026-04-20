@@ -97,7 +97,6 @@ Resources:
             Effect: Allow
             Action:
               - savingsplans:Describe*
-              - savingsplans:Get*
               - savingsplans:List*
             Resource: "*"
           - Sid: CZTier1Budgets20260420
