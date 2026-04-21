@@ -4,7 +4,7 @@ locals {
 
 resource "aws_iam_role" "cloudzero" {
   name               = "cloudzero-access"
-  path               = "/"
+  path               = "/cloudzero/"
   assume_role_policy = jsonencode(
     {
       "Version" : "2012-10-17",
@@ -34,11 +34,11 @@ resource "aws_iam_role_policy" "CloudZero" {
       "Version" : "2012-10-17",
       "Statement" : [
         {
-          "Sid" : "AccessCURDataBucket1",
+          "Sid" : "CZTier0BillingBucket20260420",
           "Effect" : "Allow",
           "Action" : [
-            "S3:get*",
-            "S3:list*"
+            "s3:Get*",
+            "s3:List*"
           ],
           "Resource" : [
             "arn:aws:s3:::${var.AWS_CUR_bucket}",
@@ -46,13 +46,13 @@ resource "aws_iam_role_policy" "CloudZero" {
           ]
         },
         {
-          "Sid": "CZCostMonitoring20230119",
-          "Effect": "Allow",
-          "Action": [
+          "Sid" : "CZTier0BillingDataAccess20260420",
+          "Effect" : "Allow",
+          "Action" : [
             "account:GetAccountInformation",
+            "bcm-data-exports:Get*",
+            "bcm-data-exports:List*",
             "billing:Get*",
-            "budgets:Describe*",
-            "budgets:View*",
             "ce:Describe*",
             "ce:Get*",
             "ce:List*",
@@ -60,46 +60,27 @@ resource "aws_iam_role_policy" "CloudZero" {
             "consolidatedbilling:List*",
             "cur:Describe*",
             "cur:Get*",
-            "cur:Validate*",
             "cur:List*",
+            "cur:Validate*",
             "freetier:Get*",
             "invoicing:Get*",
             "invoicing:List*",
-            "organizations:Describe*",
-            "organizations:List*",
+            "mapcredits:List*",
             "payments:Get*",
             "payments:List*",
-            "pricing:*",
+            "purchase-orders:Get*",
+            "purchase-orders:List*",
+            "purchase-orders:View*",
+            "sustainability:Get*",
             "tax:Get*",
             "tax:List*"
           ],
-          "Resource": "*"
+          "Resource" : "*"
         },
         {
-          "Sid": "CZActivityMonitoring20210423",
-          "Effect": "Allow",
-          "Action": [
-            "cloudtrail:Get*",
-            "cloudtrail:List*",
-            "cloudtrail:Describe*",
-            "health:Describe*",
-            "support:DescribeTrustedAdvisor*",
-            "servicequotas:Get*",
-            "servicequotas:List*",
-            "resource-groups:Get*",
-            "resource-groups:List*",
-            "resource-groups:Search*",
-            "tag:Get*",
-            "tag:Describe*",
-            "resource-explorer:List*",
-            "account:ListRegions"
-          ],
-          "Resource": "*"
-        },
-        {
-          "Sid": "CZReservedCapacity20190912",
-          "Effect": "Allow",
-          "Action": [
+          "Sid" : "CZTier0ReservedCapacity20260420",
+          "Effect" : "Allow",
+          "Action" : [
             "dynamodb:DescribeReserved*",
             "ec2:DescribeReserved*",
             "elasticache:DescribeReserved*",
@@ -107,59 +88,177 @@ resource "aws_iam_role_policy" "CloudZero" {
             "rds:DescribeReserved*",
             "redshift:DescribeReserved*"
           ],
-          "Resource": "*"
+          "Resource" : "*"
         },
         {
-          "Sid": "CloudZeroContainerInsightsAccess20210423",
-          "Effect": "Allow",
-          "Action": [
-            "logs:List*",
+          "Sid" : "CZTier0SavingsPlans20260420",
+          "Effect" : "Allow",
+          "Action" : [
+            "savingsplans:Describe*",
+            "savingsplans:List*"
+          ],
+          "Resource" : "*"
+        },
+        {
+          "Sid" : "CZTier1Budgets20260420",
+          "Effect" : "Allow",
+          "Action" : [
+            "budgets:Describe*",
+            "budgets:View*"
+          ],
+          "Resource" : "*"
+        },
+        {
+          "Sid" : "CZTier1BillingConductor20260420",
+          "Effect" : "Allow",
+          "Action" : [
+            "billingconductor:Get*",
+            "billingconductor:List*"
+          ],
+          "Resource" : "*"
+        },
+        {
+          "Sid" : "CZTier1PricingAndForecasting20260420",
+          "Effect" : "Allow",
+          "Action" : [
+            "bcm-pricing-calculator:Get*",
+            "bcm-pricing-calculator:List*",
+            "pricing:*"
+          ],
+          "Resource" : "*"
+        },
+        {
+          "Sid" : "CZTier1OrganizationsAndTags20260420",
+          "Effect" : "Allow",
+          "Action" : [
+            "account:ListRegions",
+            "organizations:Describe*",
+            "organizations:List*",
+            "resource-explorer:List*",
+            "resource-groups:Get*",
+            "resource-groups:List*",
+            "resource-groups:Search*",
+            "tag:Describe*",
+            "tag:Get*"
+          ],
+          "Resource" : "*"
+        },
+        {
+          "Sid" : "CZTier1ComputeOptimizer20260420",
+          "Effect" : "Allow",
+          "Action" : [
+            "compute-optimizer:Describe*",
+            "compute-optimizer:Get*"
+          ],
+          "Resource" : "*"
+        },
+        {
+          "Sid" : "CZTier1CostOptimizationHub20260420",
+          "Effect" : "Allow",
+          "Action" : [
+            "cost-optimization-hub:Get*",
+            "cost-optimization-hub:List*"
+          ],
+          "Resource" : "*"
+        },
+        {
+          "Sid" : "CZTier1TrustedAdvisorAndHealth20260420",
+          "Effect" : "Allow",
+          "Action" : [
+            "health:Describe*",
+            "support:DescribeTrustedAdvisor*"
+          ],
+          "Resource" : "*"
+        },
+        {
+          "Sid" : "CZTier1ContainerInsightsLogs20260420",
+          "Effect" : "Allow",
+          "Action" : [
             "logs:Describe*",
-            "logs:StartQuery",
-            "logs:StopQuery",
             "logs:Filter*",
-            "logs:Get*"
+            "logs:Get*",
+            "logs:List*",
+            "logs:StartQuery",
+            "logs:StopQuery"
           ],
-          "Resource": "arn:aws:logs:*:*:log-group:/aws/containerinsights/*"
+          "Resource" : "arn:aws:logs:*:*:log-group:/aws/containerinsights/*"
         },
         {
-          "Sid": "CloudZeroCloudWatchContainerLogStreamAccess20210906",
-          "Effect": "Allow",
-          "Action": [
-            "logs:GetQueryResults",
-            "logs:DescribeLogGroups"
+          "Sid" : "CZTier1ContainerInsightsLogQuery20260420",
+          "Effect" : "Allow",
+          "Action" : [
+            "logs:DescribeLogGroups",
+            "logs:GetQueryResults"
           ],
-          "Resource": "arn:aws:logs:*:*:log-group::log-stream:*"
+          "Resource" : "arn:aws:logs:*:*:log-group:*"
         },
         {
-          "Sid": "CloudZeroCloudWatchMetricsAccess20210423",
-          "Effect": "Allow",
-          "Action": [
+          "Sid" : "CZTier2CloudTrail20260420",
+          "Effect" : "Allow",
+          "Action" : [
+            "cloudtrail:Describe*",
+            "cloudtrail:Get*",
+            "cloudtrail:List*",
+            "cloudtrail:LookupEvents"
+          ],
+          "Resource" : "*"
+        },
+        {
+          "Sid" : "CZTier2ServiceQuotas20260420",
+          "Effect" : "Allow",
+          "Action" : [
+            "servicequotas:Get*",
+            "servicequotas:List*"
+          ],
+          "Resource" : "*"
+        },
+        {
+          "Sid" : "CZTier2CloudWatchMetrics20260420",
+          "Effect" : "Allow",
+          "Action" : [
             "autoscaling:Describe*",
             "cloudwatch:Describe*",
             "cloudwatch:Get*",
             "cloudwatch:List*"
           ],
-          "Resource": "*"
+          "Resource" : "*"
         },
         {
-          "Sid": "ReadOnlyOptimizationHub20251103",
-          "Effect": "Allow",
-          "Action": [
-            "cost-optimization-hub:GetRecommendation",
-            "cost-optimization-hub:ListRecommendations"
-          ],
-          "Resource": "*"
-        },
-        {
-          "Sid": "CloudFormationAccess20251103",
-          "Effect": "Allow",
-          "Action": [
+          "Sid" : "CZTier2CloudFormation20260420",
+          "Effect" : "Allow",
+          "Action" : [
             "cloudformation:Describe*",
             "cloudformation:Get*",
             "cloudformation:List*"
           ],
-          "Resource": "*"
+          "Resource" : "*"
+        },
+        {
+          "Sid" : "CZTier2SelfInspection20260420",
+          "Effect" : "Allow",
+          "Action" : [
+            "iam:GetRole",
+            "iam:GetRolePolicy",
+            "iam:ListAttachedRolePolicies",
+            "iam:ListRolePolicies",
+            "iam:ListRoleTags",
+            "iam:SimulatePrincipalPolicy"
+          ],
+          "Resource" : "arn:aws:iam::*:role/cloudzero/*"
+        },
+        {
+          "Sid" : "CZTier2SelfInspectionPolicies20260420",
+          "Effect" : "Allow",
+          "Action" : [
+            "iam:GetPolicy",
+            "iam:GetPolicyVersion"
+          ],
+          "Resource" : [
+            "arn:aws:iam::aws:policy/AWSBillingReadOnlyAccess",
+            "arn:aws:iam::aws:policy/CloudWatchReadOnlyAccess",
+            "arn:aws:iam::aws:policy/ComputeOptimizerReadOnlyAccess",
+            "arn:aws:iam::aws:policy/job-function/ViewOnlyAccess"
+          ]
         }
       ]
     })

@@ -40,3 +40,6 @@ packaged.yaml
 /services/discovery/.vscode/
 /services/notification/.vscode/
 temp
+
+# Internal-only documentation (not shipped with the public repo)
+docs/internal/
