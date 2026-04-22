@@ -82,10 +82,12 @@ These are core permissions required for CloudZero to function:
 
 ### Managed policies
 
-- `ComputeOptimizerReadOnlyAccess`
-- `ViewOnlyAccess`
-- `AWSBillingReadOnlyAccess`
-- `CloudWatchReadOnlyAccess`
+- `AWSBillingReadOnlyAccess` — always attached (Tier 0)
+- `ViewOnlyAccess` — always attached (Tier 0)
+- `ComputeOptimizerReadOnlyAccess` — controlled by `enable_tier1_compute_optimizer`
+- `CloudWatchReadOnlyAccess` — controlled by `enable_tier2_cloudwatch_metrics`
+
+Feature toggles control both the inline policy statement and the corresponding managed policy attachment. Setting a toggle to `false` removes both.
 
 ## Inputs
 

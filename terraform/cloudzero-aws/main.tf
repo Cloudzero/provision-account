@@ -7,6 +7,14 @@ data "aws_caller_identity" "current" {}
 locals {
   is_management = var.create_cur || var.cur_bucket_name != ""
   cur_bucket    = var.create_cur ? aws_s3_bucket.cur[0].id : var.cur_bucket_name
+
+  # Managed policy ARNs that are actually attached — used by self-inspection statement
+  attached_managed_policy_arns = concat(
+    ["arn:aws:iam::aws:policy/AWSBillingReadOnlyAccess"],
+    ["arn:aws:iam::aws:policy/job-function/ViewOnlyAccess"],
+    var.enable_tier1_compute_optimizer ? ["arn:aws:iam::aws:policy/ComputeOptimizerReadOnlyAccess"] : [],
+    var.enable_tier2_cloudwatch_metrics ? ["arn:aws:iam::aws:policy/CloudWatchReadOnlyAccess"] : [],
+  )
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -351,12 +359,7 @@ data "aws_iam_policy_document" "cloudzero" {
         "iam:GetPolicy",
         "iam:GetPolicyVersion",
       ]
-      resources = [
-        "arn:aws:iam::aws:policy/AWSBillingReadOnlyAccess",
-        "arn:aws:iam::aws:policy/CloudWatchReadOnlyAccess",
-        "arn:aws:iam::aws:policy/ComputeOptimizerReadOnlyAccess",
-        "arn:aws:iam::aws:policy/job-function/ViewOnlyAccess",
-      ]
+      resources = local.attached_managed_policy_arns
     }
   }
 }
@@ -371,9 +374,10 @@ resource "aws_iam_role_policy" "cloudzero" {
 # Managed Policy Attachments
 # ---------------------------------------------------------------------------------------------------------------------
 
-resource "aws_iam_role_policy_attachment" "compute_optimizer" {
+# Tier 0: always attached — core CloudZero functionality
+resource "aws_iam_role_policy_attachment" "billing_read_only" {
   role       = aws_iam_role.cloudzero.name
-  policy_arn = "arn:aws:iam::aws:policy/ComputeOptimizerReadOnlyAccess"
+  policy_arn = "arn:aws:iam::aws:policy/AWSBillingReadOnlyAccess"
 }
 
 resource "aws_iam_role_policy_attachment" "view_only" {
@@ -381,12 +385,15 @@ resource "aws_iam_role_policy_attachment" "view_only" {
   policy_arn = "arn:aws:iam::aws:policy/job-function/ViewOnlyAccess"
 }
 
-resource "aws_iam_role_policy_attachment" "billing_read_only" {
+# Conditional: controlled by feature toggles
+resource "aws_iam_role_policy_attachment" "compute_optimizer" {
+  count      = var.enable_tier1_compute_optimizer ? 1 : 0
   role       = aws_iam_role.cloudzero.name
-  policy_arn = "arn:aws:iam::aws:policy/AWSBillingReadOnlyAccess"
+  policy_arn = "arn:aws:iam::aws:policy/ComputeOptimizerReadOnlyAccess"
 }
 
 resource "aws_iam_role_policy_attachment" "cloudwatch_read_only" {
+  count      = var.enable_tier2_cloudwatch_metrics ? 1 : 0
   role       = aws_iam_role.cloudzero.name
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchReadOnlyAccess"
 }

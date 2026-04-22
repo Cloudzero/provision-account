@@ -130,7 +130,7 @@ variable "enable_tier1_organizations_and_tags" {
 variable "enable_tier1_compute_optimizer" {
   type        = bool
   default     = true
-  description = "Tier 1: Compute Optimizer rightsizing recommendations (inline)."
+  description = "Tier 1: Compute Optimizer rightsizing recommendations. Controls both the inline statement and the ComputeOptimizerReadOnlyAccess managed policy attachment."
 }
 
 variable "enable_tier1_cost_optimization_hub" {
@@ -148,7 +148,7 @@ variable "enable_tier1_trusted_advisor" {
 variable "enable_tier1_container_insights" {
   type        = bool
   default     = true
-  description = "Tier 1: Container Insights CloudWatch Logs access."
+  description = "Tier 1: Container Insights CloudWatch Logs access (scoped to /aws/containerinsights/*)."
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -170,7 +170,7 @@ variable "enable_tier2_service_quotas" {
 variable "enable_tier2_cloudwatch_metrics" {
   type        = bool
   default     = true
-  description = "Tier 2: CloudWatch metrics and autoscaling read access."
+  description = "Tier 2: CloudWatch metrics and autoscaling read access. Controls both the inline statement and the CloudWatchReadOnlyAccess managed policy attachment."
 }
 
 variable "enable_tier2_cloudformation" {
