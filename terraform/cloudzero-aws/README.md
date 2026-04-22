@@ -52,16 +52,17 @@ After `terraform apply`, you must complete the connection in the CloudZero UI:
 
 This module creates a read-only IAM role with permissions matching the CloudZero CloudFormation onboarding template. Permissions are organized into three tiers:
 
-### Tier 0 — Cost and usage data ingestion (always enabled)
+### Tier 0 — Cost and usage data ingestion
 
-These are core permissions required for CloudZero to function:
+Core permissions required for CloudZero to function:
 
 - Billing data access (CUR, Cost Explorer, billing, invoicing, payments, tax, BCM Data Exports)
 - Reserved capacity (EC2, RDS, DynamoDB, ElastiCache, OpenSearch, Redshift)
 - Savings Plans
-- S3 CUR bucket access (management accounts only)
 
-### Tier 1 — Cost optimization signals (enabled by default, toggleable)
+S3 CUR bucket access is included for management accounts only.
+
+### Tier 1 — Cost optimization signals
 
 - Budgets
 - Billing Conductor (enterprise chargeback)
@@ -72,7 +73,7 @@ These are core permissions required for CloudZero to function:
 - Trusted Advisor and AWS Health
 - Container Insights (CloudWatch Logs)
 
-### Tier 2 — Operational visibility (enabled by default, toggleable)
+### Tier 2 — Operational visibility
 
 - CloudTrail (including LookupEvents)
 - Service Quotas
@@ -82,12 +83,10 @@ These are core permissions required for CloudZero to function:
 
 ### Managed policies
 
-- `AWSBillingReadOnlyAccess` — always attached (Tier 0)
-- `ViewOnlyAccess` — always attached (Tier 0)
-- `ComputeOptimizerReadOnlyAccess` — controlled by `enable_tier1_compute_optimizer`
-- `CloudWatchReadOnlyAccess` — controlled by `enable_tier2_cloudwatch_metrics`
-
-Feature toggles control both the inline policy statement and the corresponding managed policy attachment. Setting a toggle to `false` removes both.
+- `AWSBillingReadOnlyAccess`
+- `ViewOnlyAccess`
+- `ComputeOptimizerReadOnlyAccess`
+- `CloudWatchReadOnlyAccess`
 
 ## Inputs
 
@@ -101,29 +100,6 @@ Feature toggles control both the inline policy statement and the corresponding m
 | `permissions_boundary` | `string` | `null` | no | Permissions boundary ARN |
 | `tags` | `map(string)` | `{}` | no | Tags for all resources |
 | `additional_managed_policy_arns` | `list(string)` | `[]` | no | Extra managed policies to attach |
-
-### Tier 1 Toggles
-
-| Name | Default | Description |
-|------|---------|-------------|
-| `enable_tier1_budgets` | `true` | AWS Budgets read access |
-| `enable_tier1_billing_conductor` | `true` | Billing Conductor for enterprise chargeback |
-| `enable_tier1_pricing` | `true` | Pricing and BCM Pricing Calculator |
-| `enable_tier1_organizations_and_tags` | `true` | Organizations, resource groups, tagging |
-| `enable_tier1_compute_optimizer` | `true` | Compute Optimizer rightsizing (inline) |
-| `enable_tier1_cost_optimization_hub` | `true` | Cost Optimization Hub recommendations |
-| `enable_tier1_trusted_advisor` | `true` | Trusted Advisor and AWS Health |
-| `enable_tier1_container_insights` | `true` | Container Insights CloudWatch Logs |
-
-### Tier 2 Toggles
-
-| Name | Default | Description |
-|------|---------|-------------|
-| `enable_tier2_cloudtrail` | `true` | CloudTrail read access |
-| `enable_tier2_service_quotas` | `true` | Service Quotas read access |
-| `enable_tier2_cloudwatch_metrics` | `true` | CloudWatch metrics and autoscaling |
-| `enable_tier2_cloudformation` | `true` | CloudFormation read access |
-| `enable_tier2_self_inspection` | `true` | IAM self-inspection (scoped to `role/cloudzero/*`) |
 
 See `variables.tf` for the full list of CUR configuration variables.
 
