@@ -75,8 +75,8 @@ variable "role_name" {
 
 variable "role_path" {
   type        = string
-  default     = "/"
-  description = "IAM role path. CloudFormation uses /cloudzero/ but the default here is / for backward compatibility with existing Terraform deployments."
+  default     = "/cloudzero/"
+  description = "IAM role path. Must be /cloudzero/ for self-inspection permissions to work correctly."
 }
 
 variable "cloudzero_account_id" {
@@ -98,43 +98,91 @@ variable "tags" {
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
-# Feature Toggles
+# Feature Toggles — Tier 1 (Cost optimization signals)
+# All default to true. Disable selectively if your security policy requires it.
+# Tier 0 statements are always enabled (core cost data ingestion).
 # ---------------------------------------------------------------------------------------------------------------------
 
-variable "enable_activity_monitoring" {
+variable "enable_tier1_budgets" {
   type        = bool
   default     = true
-  description = "Attach the activity monitoring IAM policy (CloudTrail, health checks, service quotas, resource groups, tagging)."
+  description = "Tier 1: AWS Budgets read access."
 }
 
-variable "enable_container_insights" {
+variable "enable_tier1_billing_conductor" {
   type        = bool
   default     = true
-  description = "Attach the Container Insights IAM policy (CloudWatch Logs for /aws/containerinsights/*)."
+  description = "Tier 1: AWS Billing Conductor read access for enterprise chargeback."
 }
 
-variable "enable_cloudwatch_metrics" {
+variable "enable_tier1_pricing" {
   type        = bool
   default     = true
-  description = "Attach the CloudWatch metrics IAM policy (autoscaling, cloudwatch describe/get/list)."
+  description = "Tier 1: Pricing and BCM Pricing Calculator read access."
 }
 
-variable "enable_reserved_capacity" {
+variable "enable_tier1_organizations_and_tags" {
   type        = bool
   default     = true
-  description = "Attach the reserved capacity IAM policy (EC2, RDS, DynamoDB, ElastiCache, OpenSearch, Redshift reserved instance descriptions)."
+  description = "Tier 1: Organizations, resource groups, and tagging metadata."
 }
 
-variable "enable_optimization_hub" {
+variable "enable_tier1_compute_optimizer" {
   type        = bool
   default     = true
-  description = "Attach the Cost Optimization Hub IAM policy."
+  description = "Tier 1: Compute Optimizer rightsizing recommendations (inline)."
 }
 
-variable "enable_cloudformation_access" {
+variable "enable_tier1_cost_optimization_hub" {
   type        = bool
   default     = true
-  description = "Attach the CloudFormation read-only IAM policy."
+  description = "Tier 1: Cost Optimization Hub recommendations."
+}
+
+variable "enable_tier1_trusted_advisor" {
+  type        = bool
+  default     = true
+  description = "Tier 1: Trusted Advisor and AWS Health."
+}
+
+variable "enable_tier1_container_insights" {
+  type        = bool
+  default     = true
+  description = "Tier 1: Container Insights CloudWatch Logs access."
+}
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Feature Toggles — Tier 2 (Operational visibility)
+# ---------------------------------------------------------------------------------------------------------------------
+
+variable "enable_tier2_cloudtrail" {
+  type        = bool
+  default     = true
+  description = "Tier 2: CloudTrail read access including LookupEvents."
+}
+
+variable "enable_tier2_service_quotas" {
+  type        = bool
+  default     = true
+  description = "Tier 2: Service Quotas read access."
+}
+
+variable "enable_tier2_cloudwatch_metrics" {
+  type        = bool
+  default     = true
+  description = "Tier 2: CloudWatch metrics and autoscaling read access."
+}
+
+variable "enable_tier2_cloudformation" {
+  type        = bool
+  default     = true
+  description = "Tier 2: CloudFormation read access."
+}
+
+variable "enable_tier2_self_inspection" {
+  type        = bool
+  default     = true
+  description = "Tier 2: IAM self-inspection — allows CloudZero to read its own role and attached policies for transparency. Scoped to arn:aws:iam::*:role/cloudzero/*."
 }
 
 # ---------------------------------------------------------------------------------------------------------------------

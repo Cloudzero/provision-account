@@ -47,15 +47,22 @@ resource "aws_iam_role" "cloudzero" {
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
-# Inline Policy — sourced from policies/master_payer.json (canonical Sids and actions)
+# Inline Policy — Tiered structure matching policies/master_payer.json
+#
+# Tier 0: Cost and usage data ingestion (always enabled)
+# Tier 1: Cost optimization signals (enabled by default, toggleable)
+# Tier 2: Operational visibility (enabled by default, toggleable)
 # ---------------------------------------------------------------------------------------------------------------------
 
 data "aws_iam_policy_document" "cloudzero" {
+
+  # ===== TIER 0: Cost and usage data ingestion =====
+
   # S3 CUR bucket access (management accounts only)
   dynamic "statement" {
     for_each = local.is_management ? [1] : []
     content {
-      sid    = "AccessMasterPayerBillingBucket"
+      sid    = "CZTier0BillingBucket20260420"
       effect = "Allow"
       actions = [
         "s3:Get*",
@@ -68,15 +75,15 @@ data "aws_iam_policy_document" "cloudzero" {
     }
   }
 
-  # Cost monitoring (always enabled — core functionality)
+  # Billing data access (always enabled — core functionality)
   statement {
-    sid    = "CZCostMonitoring20240422"
+    sid    = "CZTier0BillingDataAccess20260420"
     effect = "Allow"
     actions = [
       "account:GetAccountInformation",
+      "bcm-data-exports:Get*",
+      "bcm-data-exports:List*",
       "billing:Get*",
-      "budgets:Describe*",
-      "budgets:View*",
       "ce:Describe*",
       "ce:Get*",
       "ce:List*",
@@ -84,103 +91,215 @@ data "aws_iam_policy_document" "cloudzero" {
       "consolidatedbilling:List*",
       "cur:Describe*",
       "cur:Get*",
-      "cur:Validate*",
       "cur:List*",
+      "cur:Validate*",
       "freetier:Get*",
       "invoicing:Get*",
       "invoicing:List*",
-      "organizations:Describe*",
-      "organizations:List*",
+      "mapcredits:List*",
       "payments:Get*",
       "payments:List*",
-      "pricing:*",
+      "purchase-orders:Get*",
+      "purchase-orders:List*",
+      "purchase-orders:View*",
+      "sustainability:Get*",
       "tax:Get*",
       "tax:List*",
     ]
     resources = ["*"]
   }
 
-  # Activity monitoring
+  # Reserved capacity (always enabled — core)
+  statement {
+    sid    = "CZTier0ReservedCapacity20260420"
+    effect = "Allow"
+    actions = [
+      "dynamodb:DescribeReserved*",
+      "ec2:DescribeReserved*",
+      "elasticache:DescribeReserved*",
+      "es:DescribeReserved*",
+      "rds:DescribeReserved*",
+      "redshift:DescribeReserved*",
+    ]
+    resources = ["*"]
+  }
+
+  # Savings Plans (always enabled — core)
+  statement {
+    sid    = "CZTier0SavingsPlans20260420"
+    effect = "Allow"
+    actions = [
+      "savingsplans:Describe*",
+      "savingsplans:List*",
+    ]
+    resources = ["*"]
+  }
+
+  # ===== TIER 1: Cost optimization signals =====
+
   dynamic "statement" {
-    for_each = var.enable_activity_monitoring ? [1] : []
+    for_each = var.enable_tier1_budgets ? [1] : []
     content {
-      sid    = "CZActivityMonitoring20210423"
+      sid    = "CZTier1Budgets20260420"
       effect = "Allow"
       actions = [
-        "cloudtrail:Get*",
-        "cloudtrail:List*",
-        "cloudtrail:Describe*",
-        "health:Describe*",
-        "support:DescribeTrustedAdvisor*",
-        "servicequotas:Get*",
-        "servicequotas:List*",
+        "budgets:Describe*",
+        "budgets:View*",
+      ]
+      resources = ["*"]
+    }
+  }
+
+  dynamic "statement" {
+    for_each = var.enable_tier1_billing_conductor ? [1] : []
+    content {
+      sid    = "CZTier1BillingConductor20260420"
+      effect = "Allow"
+      actions = [
+        "billingconductor:Get*",
+        "billingconductor:List*",
+      ]
+      resources = ["*"]
+    }
+  }
+
+  dynamic "statement" {
+    for_each = var.enable_tier1_pricing ? [1] : []
+    content {
+      sid    = "CZTier1PricingAndForecasting20260420"
+      effect = "Allow"
+      actions = [
+        "bcm-pricing-calculator:Get*",
+        "bcm-pricing-calculator:List*",
+        "pricing:*",
+      ]
+      resources = ["*"]
+    }
+  }
+
+  dynamic "statement" {
+    for_each = var.enable_tier1_organizations_and_tags ? [1] : []
+    content {
+      sid    = "CZTier1OrganizationsAndTags20260420"
+      effect = "Allow"
+      actions = [
+        "account:ListRegions",
+        "organizations:Describe*",
+        "organizations:List*",
+        "resource-explorer:List*",
         "resource-groups:Get*",
         "resource-groups:List*",
         "resource-groups:Search*",
-        "tag:Get*",
         "tag:Describe*",
-        "resource-explorer:List*",
-        "account:ListRegions",
+        "tag:Get*",
       ]
       resources = ["*"]
     }
   }
 
-  # Reserved capacity
   dynamic "statement" {
-    for_each = var.enable_reserved_capacity ? [1] : []
+    for_each = var.enable_tier1_compute_optimizer ? [1] : []
     content {
-      sid    = "CZReservedCapacity20190912"
+      sid    = "CZTier1ComputeOptimizer20260420"
       effect = "Allow"
       actions = [
-        "dynamodb:DescribeReserved*",
-        "ec2:DescribeReserved*",
-        "elasticache:DescribeReserved*",
-        "es:DescribeReserved*",
-        "rds:DescribeReserved*",
-        "redshift:DescribeReserved*",
+        "compute-optimizer:Describe*",
+        "compute-optimizer:Get*",
       ]
       resources = ["*"]
     }
   }
 
-  # Container Insights — CloudWatch Logs access
   dynamic "statement" {
-    for_each = var.enable_container_insights ? [1] : []
+    for_each = var.enable_tier1_cost_optimization_hub ? [1] : []
     content {
-      sid    = "CloudZeroContainerInsightsAccess20210423"
+      sid    = "CZTier1CostOptimizationHub20260420"
       effect = "Allow"
       actions = [
-        "logs:List*",
+        "cost-optimization-hub:Get*",
+        "cost-optimization-hub:List*",
+      ]
+      resources = ["*"]
+    }
+  }
+
+  dynamic "statement" {
+    for_each = var.enable_tier1_trusted_advisor ? [1] : []
+    content {
+      sid    = "CZTier1TrustedAdvisorAndHealth20260420"
+      effect = "Allow"
+      actions = [
+        "health:Describe*",
+        "support:DescribeTrustedAdvisor*",
+      ]
+      resources = ["*"]
+    }
+  }
+
+  dynamic "statement" {
+    for_each = var.enable_tier1_container_insights ? [1] : []
+    content {
+      sid    = "CZTier1ContainerInsightsLogs20260420"
+      effect = "Allow"
+      actions = [
         "logs:Describe*",
-        "logs:StartQuery",
-        "logs:StopQuery",
         "logs:Filter*",
         "logs:Get*",
+        "logs:List*",
+        "logs:StartQuery",
+        "logs:StopQuery",
       ]
       resources = ["arn:aws:logs:*:*:log-group:/aws/containerinsights/*"]
     }
   }
 
-  # Container Insights — log stream access
   dynamic "statement" {
-    for_each = var.enable_container_insights ? [1] : []
+    for_each = var.enable_tier1_container_insights ? [1] : []
     content {
-      sid    = "CloudZeroCloudWatchContainerLogStreamAccess20210906"
+      sid    = "CZTier1ContainerInsightsLogQuery20260420"
       effect = "Allow"
       actions = [
-        "logs:GetQueryResults",
         "logs:DescribeLogGroups",
+        "logs:GetQueryResults",
       ]
-      resources = ["arn:aws:logs:*:*:log-group::log-stream:*"]
+      resources = ["arn:aws:logs:*:*:log-group:*"]
     }
   }
 
-  # CloudWatch metrics
+  # ===== TIER 2: Operational visibility =====
+
   dynamic "statement" {
-    for_each = var.enable_cloudwatch_metrics ? [1] : []
+    for_each = var.enable_tier2_cloudtrail ? [1] : []
     content {
-      sid    = "CloudZeroCloudWatchMetricsAccess20210423"
+      sid    = "CZTier2CloudTrail20260420"
+      effect = "Allow"
+      actions = [
+        "cloudtrail:Describe*",
+        "cloudtrail:Get*",
+        "cloudtrail:List*",
+        "cloudtrail:LookupEvents",
+      ]
+      resources = ["*"]
+    }
+  }
+
+  dynamic "statement" {
+    for_each = var.enable_tier2_service_quotas ? [1] : []
+    content {
+      sid    = "CZTier2ServiceQuotas20260420"
+      effect = "Allow"
+      actions = [
+        "servicequotas:Get*",
+        "servicequotas:List*",
+      ]
+      resources = ["*"]
+    }
+  }
+
+  dynamic "statement" {
+    for_each = var.enable_tier2_cloudwatch_metrics ? [1] : []
+    content {
+      sid    = "CZTier2CloudWatchMetrics20260420"
       effect = "Allow"
       actions = [
         "autoscaling:Describe*",
@@ -192,25 +311,10 @@ data "aws_iam_policy_document" "cloudzero" {
     }
   }
 
-  # Cost Optimization Hub
   dynamic "statement" {
-    for_each = var.enable_optimization_hub ? [1] : []
+    for_each = var.enable_tier2_cloudformation ? [1] : []
     content {
-      sid    = "ReadOnlyOptimizationHub20251103"
-      effect = "Allow"
-      actions = [
-        "cost-optimization-hub:GetRecommendation",
-        "cost-optimization-hub:ListRecommendations",
-      ]
-      resources = ["*"]
-    }
-  }
-
-  # CloudFormation read access
-  dynamic "statement" {
-    for_each = var.enable_cloudformation_access ? [1] : []
-    content {
-      sid    = "CloudFormationAccess20251103"
+      sid    = "CZTier2CloudFormation20260420"
       effect = "Allow"
       actions = [
         "cloudformation:Describe*",
@@ -218,6 +322,41 @@ data "aws_iam_policy_document" "cloudzero" {
         "cloudformation:List*",
       ]
       resources = ["*"]
+    }
+  }
+
+  dynamic "statement" {
+    for_each = var.enable_tier2_self_inspection ? [1] : []
+    content {
+      sid    = "CZTier2SelfInspection20260420"
+      effect = "Allow"
+      actions = [
+        "iam:GetRole",
+        "iam:GetRolePolicy",
+        "iam:ListAttachedRolePolicies",
+        "iam:ListRolePolicies",
+        "iam:ListRoleTags",
+        "iam:SimulatePrincipalPolicy",
+      ]
+      resources = ["arn:aws:iam::*:role/cloudzero/*"]
+    }
+  }
+
+  dynamic "statement" {
+    for_each = var.enable_tier2_self_inspection ? [1] : []
+    content {
+      sid    = "CZTier2SelfInspectionPolicies20260420"
+      effect = "Allow"
+      actions = [
+        "iam:GetPolicy",
+        "iam:GetPolicyVersion",
+      ]
+      resources = [
+        "arn:aws:iam::aws:policy/AWSBillingReadOnlyAccess",
+        "arn:aws:iam::aws:policy/CloudWatchReadOnlyAccess",
+        "arn:aws:iam::aws:policy/ComputeOptimizerReadOnlyAccess",
+        "arn:aws:iam::aws:policy/job-function/ViewOnlyAccess",
+      ]
     }
   }
 }
@@ -263,9 +402,7 @@ resource "aws_iam_role_policy_attachment" "additional" {
 # ---------------------------------------------------------------------------------------------------------------------
 # When the CloudZero Terraform provider is available, the following resource
 # will automatically register this AWS account with CloudZero — eliminating
-# the manual UI step. This requires:
-#   1. terraform-provider-cloudzero published to the Terraform Registry
-#   2. Public API endpoints: GET /accounts/v1/aws/info, POST/GET/PUT/DELETE /accounts/v1/aws
+# the manual UI step.
 #
 # resource "cloudzero_aws_account" "this" {
 #   account_id   = data.aws_caller_identity.current.account_id
@@ -273,10 +410,3 @@ resource "aws_iam_role_policy_attachment" "additional" {
 #   bucket_arn   = local.is_management ? "arn:aws:s3:::${local.cur_bucket}" : null
 #   account_name = var.account_name
 # }
-#
-# At that point, the external_id variable can also be replaced by:
-#
-# data "cloudzero_aws_account_info" "this" {}
-#
-# ...which fetches the external ID and IAM policies directly from the
-# CloudZero API, removing the need for manual copy-paste from the UI.
