@@ -50,25 +50,42 @@ After `terraform apply`, you must complete the connection in the CloudZero UI:
 
 ## IAM Permissions
 
-This module creates a read-only IAM role with permissions matching the CloudZero CloudFormation onboarding template:
+This module creates a read-only IAM role with permissions matching the CloudZero CloudFormation onboarding template. Permissions are organized into three tiers:
 
-**Inline policy statements:**
-- Cost monitoring (billing, CUR, Cost Explorer, pricing, organizations)
-- Activity monitoring (CloudTrail, health, service quotas, resource groups, tagging)
+### Tier 0 — Cost and usage data ingestion (always enabled)
+
+These are core permissions required for CloudZero to function:
+
+- Billing data access (CUR, Cost Explorer, billing, invoicing, payments, tax, BCM Data Exports)
 - Reserved capacity (EC2, RDS, DynamoDB, ElastiCache, OpenSearch, Redshift)
-- Container Insights (CloudWatch Logs for `/aws/containerinsights/*`)
-- CloudWatch metrics (autoscaling, cloudwatch)
-- Cost Optimization Hub
-- CloudFormation read access
+- Savings Plans
 - S3 CUR bucket access (management accounts only)
 
-**Managed policies:**
+### Tier 1 — Cost optimization signals (enabled by default, toggleable)
+
+- Budgets
+- Billing Conductor (enterprise chargeback)
+- Pricing and BCM Pricing Calculator
+- Organizations, resource groups, and tagging metadata
+- Compute Optimizer (rightsizing recommendations)
+- Cost Optimization Hub
+- Trusted Advisor and AWS Health
+- Container Insights (CloudWatch Logs)
+
+### Tier 2 — Operational visibility (enabled by default, toggleable)
+
+- CloudTrail (including LookupEvents)
+- Service Quotas
+- CloudWatch metrics
+- CloudFormation read access
+- IAM self-inspection (scoped to `role/cloudzero/*` — allows CloudZero to read its own role and attached policies for transparency)
+
+### Managed policies
+
 - `ComputeOptimizerReadOnlyAccess`
 - `ViewOnlyAccess`
 - `AWSBillingReadOnlyAccess`
 - `CloudWatchReadOnlyAccess`
-
-Individual policy blocks can be disabled via feature toggle variables (e.g., `enable_container_insights = false`).
 
 ## Inputs
 
@@ -78,16 +95,33 @@ Individual policy blocks can be disabled via feature toggle variables (e.g., `en
 | `create_cur` | `bool` | `false` | no | Create S3 bucket and CUR report definition |
 | `cur_bucket_name` | `string` | `""` | no | Existing CUR bucket name (mutually exclusive with `create_cur`) |
 | `role_name` | `string` | `"cloudzero-access"` | no | IAM role name |
-| `role_path` | `string` | `"/"` | no | IAM role path |
+| `role_path` | `string` | `"/cloudzero/"` | no | IAM role path (must be `/cloudzero/` for self-inspection to work) |
 | `permissions_boundary` | `string` | `null` | no | Permissions boundary ARN |
 | `tags` | `map(string)` | `{}` | no | Tags for all resources |
-| `enable_activity_monitoring` | `bool` | `true` | no | Toggle activity monitoring policy |
-| `enable_container_insights` | `bool` | `true` | no | Toggle Container Insights policy |
-| `enable_cloudwatch_metrics` | `bool` | `true` | no | Toggle CloudWatch metrics policy |
-| `enable_reserved_capacity` | `bool` | `true` | no | Toggle reserved capacity policy |
-| `enable_optimization_hub` | `bool` | `true` | no | Toggle Cost Optimization Hub policy |
-| `enable_cloudformation_access` | `bool` | `true` | no | Toggle CloudFormation read policy |
 | `additional_managed_policy_arns` | `list(string)` | `[]` | no | Extra managed policies to attach |
+
+### Tier 1 Toggles
+
+| Name | Default | Description |
+|------|---------|-------------|
+| `enable_tier1_budgets` | `true` | AWS Budgets read access |
+| `enable_tier1_billing_conductor` | `true` | Billing Conductor for enterprise chargeback |
+| `enable_tier1_pricing` | `true` | Pricing and BCM Pricing Calculator |
+| `enable_tier1_organizations_and_tags` | `true` | Organizations, resource groups, tagging |
+| `enable_tier1_compute_optimizer` | `true` | Compute Optimizer rightsizing (inline) |
+| `enable_tier1_cost_optimization_hub` | `true` | Cost Optimization Hub recommendations |
+| `enable_tier1_trusted_advisor` | `true` | Trusted Advisor and AWS Health |
+| `enable_tier1_container_insights` | `true` | Container Insights CloudWatch Logs |
+
+### Tier 2 Toggles
+
+| Name | Default | Description |
+|------|---------|-------------|
+| `enable_tier2_cloudtrail` | `true` | CloudTrail read access |
+| `enable_tier2_service_quotas` | `true` | Service Quotas read access |
+| `enable_tier2_cloudwatch_metrics` | `true` | CloudWatch metrics and autoscaling |
+| `enable_tier2_cloudformation` | `true` | CloudFormation read access |
+| `enable_tier2_self_inspection` | `true` | IAM self-inspection (scoped to `role/cloudzero/*`) |
 
 See `variables.tf` for the full list of CUR configuration variables.
 
@@ -106,12 +140,14 @@ See `variables.tf` for the full list of CUR configuration variables.
 
 ## Migration from Old Modules
 
+> **Breaking change:** The IAM role path defaults to `/cloudzero/` (previously `/`). Because IAM role path is immutable, `terraform apply` will destroy and recreate the role. Plan a re-provisioning window.
+
 ### From `cloudzero-payer`
 
 ```hcl
 # Old
 module "cloudzero" {
-  source               = "../cloudzero-payer"
+  source                = "../cloudzero-payer"
   cloudzero_external_id = "your-id"
   AWS_CUR_bucket        = "your-bucket"
 }
@@ -124,21 +160,12 @@ module "cloudzero" {
 }
 ```
 
-To migrate state without recreating the IAM role:
-
-```bash
-terraform state mv 'module.cloudzero.aws_iam_role.cloudzero' 'module.cloudzero.aws_iam_role.cloudzero'
-terraform state mv 'module.cloudzero.aws_iam_role_policy.CloudZero' 'module.cloudzero.aws_iam_role_policy.cloudzero'
-terraform state mv 'module.cloudzero.aws_iam_role_policy_attachment.compute_optimizer_access' 'module.cloudzero.aws_iam_role_policy_attachment.compute_optimizer'
-terraform state mv 'module.cloudzero.aws_iam_role_policy_attachment.view_only_access' 'module.cloudzero.aws_iam_role_policy_attachment.view_only'
-```
-
 ### From `cloudzero-resource`
 
 ```hcl
 # Old
 module "cloudzero" {
-  source               = "../cloudzero-resource"
+  source                = "../cloudzero-resource"
   cloudzero_external_id = "your-id"
 }
 
