@@ -6,29 +6,6 @@
 #
 # IMPORTANT: The AWS provider must target us-east-1 for accounts with CUR creation.
 
-locals {
-  accounts = {
-    management = {
-      profile         = "management-account"
-      external_id     = var.external_ids["management"]
-      create_cur      = true
-      cur_bucket_name = ""
-    }
-    production = {
-      profile         = "prod-account"
-      external_id     = var.external_ids["production"]
-      create_cur      = false
-      cur_bucket_name = ""
-    }
-    staging = {
-      profile         = "staging-account"
-      external_id     = var.external_ids["staging"]
-      create_cur      = false
-      cur_bucket_name = ""
-    }
-  }
-}
-
 variable "external_ids" {
   type        = map(string)
   sensitive   = true

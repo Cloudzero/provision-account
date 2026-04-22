@@ -45,6 +45,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "cur" {
   rule {
     id     = "expire-cur-data"
     status = "Enabled"
+    filter {}
 
     expiration {
       days = var.cur_bucket_lifecycle_days
