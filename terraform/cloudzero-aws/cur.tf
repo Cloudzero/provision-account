@@ -38,6 +38,27 @@ resource "aws_s3_bucket_public_access_block" "cur" {
   restrict_public_buckets = true
 }
 
+resource "aws_s3_bucket_server_side_encryption_configuration" "cur" {
+  count  = var.create_cur ? 1 : 0
+  bucket = aws_s3_bucket.cur[0].id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+    bucket_key_enabled = true
+  }
+}
+
+resource "aws_s3_bucket_versioning" "cur" {
+  count  = var.create_cur ? 1 : 0
+  bucket = aws_s3_bucket.cur[0].id
+
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
 resource "aws_s3_bucket_lifecycle_configuration" "cur" {
   count  = var.create_cur && var.cur_bucket_lifecycle_days != null ? 1 : 0
   bucket = aws_s3_bucket.cur[0].id
@@ -97,6 +118,28 @@ data "aws_iam_policy_document" "cur_bucket" {
       test     = "StringEquals"
       variable = "aws:SourceAccount"
       values   = [data.aws_caller_identity.current.account_id]
+    }
+  }
+
+  statement {
+    sid     = "DenyInsecureTransport"
+    effect  = "Deny"
+    actions = ["s3:*"]
+
+    principals {
+      type        = "*"
+      identifiers = ["*"]
+    }
+
+    resources = [
+      aws_s3_bucket.cur[0].arn,
+      "${aws_s3_bucket.cur[0].arn}/*",
+    ]
+
+    condition {
+      test     = "Bool"
+      variable = "aws:SecureTransport"
+      values   = ["false"]
     }
   }
 }

@@ -293,7 +293,7 @@ data "aws_iam_policy_document" "cloudzero" {
       "iam:ListRoleTags",
       "iam:SimulatePrincipalPolicy",
     ]
-    resources = ["arn:aws:iam::*:role/cloudzero/*"]
+    resources = ["arn:aws:iam::${data.aws_caller_identity.current.account_id}:role${var.role_path}*"]
   }
 
   statement {

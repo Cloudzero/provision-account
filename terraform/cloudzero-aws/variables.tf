@@ -6,6 +6,11 @@ variable "external_id" {
   type        = string
   sensitive   = true
   description = "The CloudZero-provided external ID for cross-account role assumption. Found at https://app.cloudzero.com/organization/connections/new/aws/resource/manual"
+
+  validation {
+    condition     = length(var.external_id) >= 16 && length(var.external_id) <= 1224
+    error_message = "external_id must be the CloudZero-provided value (between 16 and 1224 characters). An empty or short value defeats the cross-account confused-deputy protection."
+  }
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -76,7 +81,12 @@ variable "role_name" {
 variable "role_path" {
   type        = string
   default     = "/cloudzero/"
-  description = "IAM role path. Must be /cloudzero/ for self-inspection permissions to work correctly."
+  description = "IAM role path. Must begin and end with '/'. Self-inspection permissions are derived from this path."
+
+  validation {
+    condition     = can(regex("^/.*/$", var.role_path))
+    error_message = "role_path must begin and end with '/' (e.g. '/cloudzero/')."
+  }
 }
 
 variable "cloudzero_account_id" {
