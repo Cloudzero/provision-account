@@ -280,6 +280,7 @@ def test_handler_all_local(context, cfn_event, describe_trails_response_local, l
         'IsOrganizationMasterAccount': True,
         'MasterPayerBillingBucketName': LOCAL_BUCKET_NAME,
         'MasterPayerBillingBucketPath': 'reports/valid-local-report',
+        'BillingReportFormat': 'aws',
         'RemoteCloudTrailBucket': False,
         'IsAccountOutsideOrganization': False,
     }
@@ -311,6 +312,7 @@ def test_handler_non_audit(context, cfn_event, describe_trails_response_remote_b
         'IsOrganizationMasterAccount': True,
         'MasterPayerBillingBucketName': LOCAL_BUCKET_NAME,
         'MasterPayerBillingBucketPath': 'reports/valid-local-report',
+        'BillingReportFormat': 'aws',
         'IsAccountOutsideOrganization': False,
     }
 
@@ -341,6 +343,7 @@ def test_handler_remote_organization_trail(context, cfn_event, describe_trails_r
         'IsOrganizationMasterAccount': True,
         'MasterPayerBillingBucketName': LOCAL_BUCKET_NAME,
         'MasterPayerBillingBucketPath': 'reports/valid-local-report',
+        'BillingReportFormat': 'aws',
         'IsAccountOutsideOrganization': False,
     }
 
@@ -371,6 +374,7 @@ def test_handler_master_payer_with_no_valid_reports(context, cfn_event, describe
         'IsOrganizationMasterAccount': True,
         'MasterPayerBillingBucketName': None,
         'MasterPayerBillingBucketPath': None,
+        'BillingReportFormat': 'aws',
         'IsAccountOutsideOrganization': False,
     }
 
@@ -401,6 +405,7 @@ def test_handler_master_payer_outside_organization(context, cfn_event, describe_
         'IsOrganizationMasterAccount': False,
         'MasterPayerBillingBucketName': None,
         'MasterPayerBillingBucketPath': None,
+        'BillingReportFormat': 'aws',
         'IsAccountOutsideOrganization': True,
     }
 
@@ -432,6 +437,7 @@ def test_handler_master_payer_remote(context, cfn_event, describe_trails_respons
         'IsOrganizationMasterAccount': False,
         'MasterPayerBillingBucketName': None,
         'MasterPayerBillingBucketPath': None,
+        'BillingReportFormat': 'aws',
         'IsAccountOutsideOrganization': False,
     }
 
@@ -462,6 +468,7 @@ def test_handler_just_resource_owner(context, cfn_event, list_buckets_response, 
         'IsOrganizationMasterAccount': False,
         'MasterPayerBillingBucketName': None,
         'MasterPayerBillingBucketPath': None,
+        'BillingReportFormat': 'aws',
         'IsAccountOutsideOrganization': False,
     }
 

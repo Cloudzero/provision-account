@@ -34,6 +34,7 @@ DEFAULT_OUTPUT = {
     'IsMasterPayerAccount': False,
     'MasterPayerBillingBucketName': None,
     'MasterPayerBillingBucketPath': None,
+    'BillingReportFormat': 'aws',
     'IsAccountOutsideOrganization': False,
 }
 
@@ -219,7 +220,7 @@ def discover_cloudtrail_account(world):
     return update_in(world, ['output'], lambda x: merge(x or {}, output))
 
 
-IDEAL_BILLING_REPORT = Schema({
+IDEAL_BILLING_REPORT_CSV = Schema({
     'TimeUnit': 'HOURLY',
     'Format': 'textORcsv',
     'Compression': 'GZIP',
@@ -231,7 +232,19 @@ IDEAL_BILLING_REPORT = Schema({
     'RefreshClosedReports': True,
 }, extra=ALLOW_EXTRA, required=True)
 
-MINIMUM_BILLING_REPORT = Schema({
+IDEAL_BILLING_REPORT_PARQUET = Schema({
+    'TimeUnit': 'HOURLY',
+    'Format': 'Parquet',
+    'Compression': 'Parquet',
+    'AdditionalSchemaElements': ExactSequence(['RESOURCES']),
+    'S3Bucket': str,
+    'S3Prefix': str,
+    'S3Region': str,
+    'ReportVersioning': 'CREATE_NEW_REPORT',
+    'RefreshClosedReports': True,
+}, extra=ALLOW_EXTRA, required=True)
+
+MINIMUM_BILLING_REPORT_CSV = Schema({
     'TimeUnit': 'HOURLY',
     'Format': 'textORcsv',
     'Compression': 'GZIP',
@@ -241,35 +254,47 @@ MINIMUM_BILLING_REPORT = Schema({
     'RefreshClosedReports': bool,
 }, extra=ALLOW_EXTRA, required=True)
 
+MINIMUM_BILLING_REPORT_PARQUET = Schema({
+    'TimeUnit': 'HOURLY',
+    'Format': 'Parquet',
+    'Compression': 'Parquet',
+    'S3Bucket': str,
+    'S3Prefix': str,
+    'S3Region': str,
+    'RefreshClosedReports': bool,
+}, extra=ALLOW_EXTRA, required=True)
+
+# CSV tiers evaluated before Parquet — if a customer has both, CSV wins to preserve existing behavior.
+_CUR_CANDIDATE_TIERS = [
+    (IDEAL_BILLING_REPORT_CSV, 'aws'),
+    (IDEAL_BILLING_REPORT_PARQUET, 'aws_parquet'),
+    (MINIMUM_BILLING_REPORT_CSV, 'aws'),
+    (MINIMUM_BILLING_REPORT_PARQUET, 'aws_parquet'),
+]
+
 
 def get_first_valid_report_definition(valid_report_definitions, default=None):
     return valid_report_definitions[0] if any(valid_report_definitions) else default
+
+
+def _report_to_bucket_info(report):
+    bucket_name = report.get('S3Bucket')
+    bucket_path = f"{report.get('S3Prefix', '')}/{report.get('ReportName', '')}" if bucket_name else None
+    return bucket_name, bucket_path
 
 
 def get_cur_bucket_if_local(world, report_definitions):
     logger.info(f'Found these ReportDefinitions: {report_definitions}')
     local_buckets = {x['Name'] for x in coeffects_buckets(world)}
 
-    # Try to find ideal reports first (with CREATE_NEW_REPORT)
-    ideal_report_definitions = keep_valid(IDEAL_BILLING_REPORT, report_definitions)
-    logger.info(f'Found these _ideal_ ReportDefinitions: {ideal_report_definitions}')
-    ideal_local_report_definitions = [x for x in ideal_report_definitions if x['S3Bucket'] in local_buckets]
-    logger.info(f'Found these _ideal local_ ReportDefinitions: {ideal_local_report_definitions}')
+    for schema, billing_report_format in _CUR_CANDIDATE_TIERS:
+        local_matches = [r for r in keep_valid(schema, report_definitions) if r['S3Bucket'] in local_buckets]
+        logger.info(f'CUR tier {billing_report_format}: {local_matches}')
+        if local_matches:
+            bucket_name, bucket_path = _report_to_bucket_info(get_first_valid_report_definition(local_matches))
+            return bucket_name, bucket_path, billing_report_format
 
-    # Fall back to minimum requirements if no ideal reports found
-    if not ideal_local_report_definitions:
-        logger.info('No ideal reports found, falling back to minimum requirements')
-        valid_report_definitions = keep_valid(MINIMUM_BILLING_REPORT, report_definitions)
-        logger.info(f'Found these _valid_ ReportDefinitions: {valid_report_definitions}')
-        valid_local_report_definitions = [x for x in valid_report_definitions if x['S3Bucket'] in local_buckets]
-        logger.info(f'Found these _valid local_ ReportDefinitions: {valid_local_report_definitions}')
-        first_valid_local = get_first_valid_report_definition(valid_local_report_definitions, default={})
-    else:
-        first_valid_local = get_first_valid_report_definition(ideal_local_report_definitions, default={})
-
-    bucket_name = first_valid_local.get('S3Bucket')
-    bucket_path = f"{first_valid_local.get('S3Prefix', '')}/{first_valid_local.get('ReportName', '')}" if bucket_name else None
-    return (bucket_name, bucket_path)
+    return None, None, 'aws'
 
 
 def discover_master_payer_account(world):
@@ -277,11 +302,12 @@ def discover_master_payer_account(world):
     is_account_organization_master_account = output_is_organization_master(world)
     is_master_payer = is_account_not_in_organization or is_account_organization_master_account
     report_definitions = coeffects_payer_reports(world)['report_definitions']
-    (bucket_name, bucket_path) = get_cur_bucket_if_local(world, report_definitions)
+    bucket_name, bucket_path, billing_report_format = get_cur_bucket_if_local(world, report_definitions)
     output = {
         'IsMasterPayerAccount': is_master_payer,
         'MasterPayerBillingBucketName': bucket_name,
         'MasterPayerBillingBucketPath': bucket_path,
+        'BillingReportFormat': billing_report_format,
     }
     return update_in(world, ['output'], lambda x: merge(x or {}, output))
 
