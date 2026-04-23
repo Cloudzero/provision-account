@@ -165,6 +165,7 @@ def test_handler_no_cfn_coeffects(context, cfn_event):
                 'reactor_callback_url': EXPECTED_URL,
                 'external_id': 'str',
                 'reactor_id': 'str',
+                'billing_report_format': 'aws',
             },
             'links': {
                 'audit': {'role_arn': None},
