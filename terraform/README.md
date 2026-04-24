@@ -1,33 +1,51 @@
 # CloudZero Account Provisioning Terraform Templates for AWS
 
-## About
-These templates provide CloudZero with the necessary access permissions to analyze your cloud 
-environment and guide you to optimize your cloud spend. 
+## Recommended: `cloudzero-aws` Module
 
-To learn more about CloudZero, visit [CloudZero.com](cloudzero.com) or start by creating an account
-at https://app.cloudzero.com and activating a free 30 day trial. Our online documentation is 
-available at [docs.cloudzero.com](https://docs.cloudzero.com/docs/getting-started)
+Use the unified [`cloudzero-aws`](cloudzero-aws/) module for all AWS account types:
 
-## Usage
-These templates are intended for advanced users who have existing familiarity with Terraform. 
+```hcl
+# Member / resource account
+module "cloudzero" {
+  source      = "path/to/cloudzero-aws"
+  external_id = "your-external-id"
+}
 
-There are two templates available, use the correct one for the type of account you are connecting.
-At a minimum you must connect your AWS Management account for CloudZero to function. In addition, to
-provide additional insight into AWS Infrastructure, EKS or Kubernetes spend beyond the data is only
-present in the AWS cost and usage data, you must connect the accounts you wish to monitor as resource
-accounts.
- * For AWS Management (also called payer) accounts, use `terraform/cloudzero-payer/main.tf` 
- * For AWS Resource (or child) accounts, use `terraform/cloudzero-resource/main.tf`
+# Management / payer account (creates CUR automatically)
+module "cloudzero" {
+  source      = "path/to/cloudzero-aws"
+  external_id = "your-external-id"
+  create_cur  = true
+}
 
-### Pre-requisites for Connecting your AWS Accounts
- * Before connection ensure you have made note of the CloudZero provided External ID for your account (available from
-the [CloudZero Manual Account Connection Page](https://app.cloudzero.com/organization/onboard-accounts/connect?cztabs.connect-accounts=manual))
+# Management / payer account (existing CUR bucket)
+module "cloudzero" {
+  source          = "path/to/cloudzero-aws"
+  external_id     = "your-external-id"
+  cur_bucket_name = "my-existing-cur-bucket"
+}
+```
 
- * To connect your AWS management account please first configure an [AWS Cost and Usage Report](https://docs.aws.amazon.com/cur/latest/userguide/cur-create.html)
-and make note of the S3 bucket where the AWS CUR is being stored. 
+See the [cloudzero-aws README](cloudzero-aws/README.md) for full documentation, inputs, outputs, examples, and migration instructions.
+
+## Prerequisites
+
+1. Obtain your CloudZero external ID from the [manual account connection page](https://app.cloudzero.com/organization/connections/new/aws/resource/manual).
+2. If using `create_cur = true`, the AWS provider must target **us-east-1**.
+
+## After Applying
+
+After `terraform apply`, complete the connection in the CloudZero UI by entering the role ARN output at **Organization > Onboard Accounts > Manual**.
+
+## Deprecated Modules
+
+The following modules are deprecated and should not be used for new deployments:
+
+- [`cloudzero-payer`](cloudzero-payer/) — use `cloudzero-aws` with `cur_bucket_name` or `create_cur` instead
+- [`cloudzero-resource`](cloudzero-resource/) — use `cloudzero-aws` without CUR settings instead
 
 ## Getting Support
-If you are unsure  how to run these templates, or would like to simply provision your accounts as quickly as possible,
-consider running our automated CloudFormation based connection process via the CloudZero Web Application
 
-If you have questions or want to report an issue with this template, feel free to open an issue or write to us at support@cloudzero.com
+If you have questions or want to report an issue, feel free to open an issue or write to us at support@cloudzero.com.
+
+For the fastest onboarding experience, consider using the automated CloudFormation connection process via the [CloudZero web application](https://app.cloudzero.com).
