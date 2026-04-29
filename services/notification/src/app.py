@@ -144,6 +144,7 @@ ACCOUNT_LINK_PROVISIONED = Schema({
             'cz_account_name': str,
             'reactor_id': str,
             'reactor_callback_url': str,
+            'billing_report_format': NONEABLE_STRING,
         },
         'links': {
             'audit': LINK_ROLE,

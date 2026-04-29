@@ -198,6 +198,34 @@ def describe_report_definitions_response_remote():
     }
 
 
+PARQUET_REPORT = {
+    'ReportName': 'valid-parquet-report',
+    'TimeUnit': 'HOURLY',
+    'Format': 'Parquet',
+    'Compression': 'Parquet',
+    'AdditionalSchemaElements': ['RESOURCES'],
+    'S3Bucket': LOCAL_BUCKET_NAME,
+    'S3Prefix': 'reports',
+    'S3Region': 'us-east-1',
+    'RefreshClosedReports': True,
+    'ReportVersioning': 'CREATE_NEW_REPORT',
+}
+
+CSV_REPORT = {
+    'ReportName': 'valid-csv-report',
+    'TimeUnit': 'HOURLY',
+    'Format': 'textORcsv',
+    'Compression': 'GZIP',
+    'AdditionalSchemaElements': ['RESOURCES'],
+    'S3Bucket': LOCAL_BUCKET_NAME,
+    'S3Prefix': 'reports',
+    'S3Region': 'us-east-1',
+    'RefreshClosedReports': True,
+    'ReportVersioning': 'CREATE_NEW_REPORT',
+}
+
+
+
 @pytest.fixture()
 def describe_report_definitions_response_invalid():
     return {
@@ -495,3 +523,22 @@ def test_handler_exception(context):
     ((_, _, status, output, _), kwargs) = context.mock_cfnresponse_send.call_args
     assert status == cfnresponse.SUCCESS
     assert output == app.DEFAULT_OUTPUT
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize('report_definitions,expected_format', [
+    ({'ReportDefinitions': [PARQUET_REPORT]}, 'aws_parquet'),
+    ({'ReportDefinitions': [PARQUET_REPORT, CSV_REPORT]}, 'aws'),
+])
+def test_handler_cur_format_detection(context, cfn_event, describe_trails_response_local, list_buckets_response, describe_organizations_local, report_definitions, expected_format):
+    context.mock_ct.describe_trails.return_value = describe_trails_response_local
+    context.mock_cur.describe_report_definitions.return_value = report_definitions
+    context.mock_orgs.describe_organization.return_value = describe_organizations_local
+    context.mock_s3.list_buckets.return_value = list_buckets_response
+    ret = app.handler(cfn_event, None)
+    assert ret is None
+    ((_, _, status, output, _), _) = context.mock_cfnresponse_send.call_args
+    assert status == cfnresponse.SUCCESS
+    assert output['BillingReportFormat'] == expected_format
+    assert output['MasterPayerBillingBucketName'] == LOCAL_BUCKET_NAME
+    assert output['IsMasterPayerAccount'] is True
