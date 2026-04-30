@@ -225,7 +225,6 @@ CSV_REPORT = {
 }
 
 
-
 @pytest.fixture()
 def describe_report_definitions_response_invalid():
     return {
