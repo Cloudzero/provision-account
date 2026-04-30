@@ -224,6 +224,17 @@ CSV_REPORT = {
     'ReportVersioning': 'CREATE_NEW_REPORT',
 }
 
+MINIMUM_CSV_REPORT = {
+    'ReportName': 'minimum-csv-report',
+    'TimeUnit': 'HOURLY',
+    'Format': 'textORcsv',
+    'Compression': 'GZIP',
+    'S3Bucket': LOCAL_BUCKET_NAME,
+    'S3Prefix': 'reports',
+    'S3Region': 'us-east-1',
+    'RefreshClosedReports': True,
+}
+
 
 @pytest.fixture()
 def describe_report_definitions_response_invalid():
@@ -528,6 +539,7 @@ def test_handler_exception(context):
 @pytest.mark.parametrize('report_definitions,expected_format', [
     ({'ReportDefinitions': [PARQUET_REPORT]}, 'aws_parquet'),
     ({'ReportDefinitions': [PARQUET_REPORT, CSV_REPORT]}, 'aws'),
+    ({'ReportDefinitions': [PARQUET_REPORT, MINIMUM_CSV_REPORT]}, 'aws'),  # ideal Parquet + minimum CSV → CSV wins
 ])
 def test_handler_cur_format_detection(context, cfn_event, describe_trails_response_local, list_buckets_response, describe_organizations_local, report_definitions, expected_format):
     context.mock_ct.describe_trails.return_value = describe_trails_response_local

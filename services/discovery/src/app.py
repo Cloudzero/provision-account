@@ -264,11 +264,13 @@ MINIMUM_BILLING_REPORT_PARQUET = Schema({
     'RefreshClosedReports': bool,
 }, extra=ALLOW_EXTRA, required=True)
 
-# CSV tiers evaluated before Parquet — if a customer has both, CSV wins to preserve existing behavior.
+# All CSV tiers are evaluated before any Parquet tier so that CSV wins unconditionally when both formats exist.
+# Customers whose Parquet CUR was previously undetected had a CSV CUR created for them by this stack — if
+# Parquet were matched on a subsequent stack update, their existing CSV connection could receive duplicate data.
 _CUR_CANDIDATE_TIERS = [
     (IDEAL_BILLING_REPORT_CSV, 'aws'),
-    (IDEAL_BILLING_REPORT_PARQUET, 'aws_parquet'),
     (MINIMUM_BILLING_REPORT_CSV, 'aws'),
+    (IDEAL_BILLING_REPORT_PARQUET, 'aws_parquet'),
     (MINIMUM_BILLING_REPORT_PARQUET, 'aws_parquet'),
 ]
 
