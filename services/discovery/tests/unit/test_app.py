@@ -198,6 +198,44 @@ def describe_report_definitions_response_remote():
     }
 
 
+PARQUET_REPORT = {
+    'ReportName': 'valid-parquet-report',
+    'TimeUnit': 'HOURLY',
+    'Format': 'Parquet',
+    'Compression': 'Parquet',
+    'AdditionalSchemaElements': ['RESOURCES'],
+    'S3Bucket': LOCAL_BUCKET_NAME,
+    'S3Prefix': 'reports',
+    'S3Region': 'us-east-1',
+    'RefreshClosedReports': True,
+    'ReportVersioning': 'CREATE_NEW_REPORT',
+}
+
+CSV_REPORT = {
+    'ReportName': 'valid-csv-report',
+    'TimeUnit': 'HOURLY',
+    'Format': 'textORcsv',
+    'Compression': 'GZIP',
+    'AdditionalSchemaElements': ['RESOURCES'],
+    'S3Bucket': LOCAL_BUCKET_NAME,
+    'S3Prefix': 'reports',
+    'S3Region': 'us-east-1',
+    'RefreshClosedReports': True,
+    'ReportVersioning': 'CREATE_NEW_REPORT',
+}
+
+MINIMUM_CSV_REPORT = {
+    'ReportName': 'minimum-csv-report',
+    'TimeUnit': 'HOURLY',
+    'Format': 'textORcsv',
+    'Compression': 'GZIP',
+    'S3Bucket': LOCAL_BUCKET_NAME,
+    'S3Prefix': 'reports',
+    'S3Region': 'us-east-1',
+    'RefreshClosedReports': True,
+}
+
+
 @pytest.fixture()
 def describe_report_definitions_response_invalid():
     return {
@@ -280,6 +318,7 @@ def test_handler_all_local(context, cfn_event, describe_trails_response_local, l
         'IsOrganizationMasterAccount': True,
         'MasterPayerBillingBucketName': LOCAL_BUCKET_NAME,
         'MasterPayerBillingBucketPath': 'reports/valid-local-report',
+        'BillingReportFormat': 'aws',
         'RemoteCloudTrailBucket': False,
         'IsAccountOutsideOrganization': False,
     }
@@ -311,6 +350,7 @@ def test_handler_non_audit(context, cfn_event, describe_trails_response_remote_b
         'IsOrganizationMasterAccount': True,
         'MasterPayerBillingBucketName': LOCAL_BUCKET_NAME,
         'MasterPayerBillingBucketPath': 'reports/valid-local-report',
+        'BillingReportFormat': 'aws',
         'IsAccountOutsideOrganization': False,
     }
 
@@ -341,6 +381,7 @@ def test_handler_remote_organization_trail(context, cfn_event, describe_trails_r
         'IsOrganizationMasterAccount': True,
         'MasterPayerBillingBucketName': LOCAL_BUCKET_NAME,
         'MasterPayerBillingBucketPath': 'reports/valid-local-report',
+        'BillingReportFormat': 'aws',
         'IsAccountOutsideOrganization': False,
     }
 
@@ -371,6 +412,7 @@ def test_handler_master_payer_with_no_valid_reports(context, cfn_event, describe
         'IsOrganizationMasterAccount': True,
         'MasterPayerBillingBucketName': None,
         'MasterPayerBillingBucketPath': None,
+        'BillingReportFormat': 'aws',
         'IsAccountOutsideOrganization': False,
     }
 
@@ -401,6 +443,7 @@ def test_handler_master_payer_outside_organization(context, cfn_event, describe_
         'IsOrganizationMasterAccount': False,
         'MasterPayerBillingBucketName': None,
         'MasterPayerBillingBucketPath': None,
+        'BillingReportFormat': 'aws',
         'IsAccountOutsideOrganization': True,
     }
 
@@ -432,6 +475,7 @@ def test_handler_master_payer_remote(context, cfn_event, describe_trails_respons
         'IsOrganizationMasterAccount': False,
         'MasterPayerBillingBucketName': None,
         'MasterPayerBillingBucketPath': None,
+        'BillingReportFormat': 'aws',
         'IsAccountOutsideOrganization': False,
     }
 
@@ -462,6 +506,7 @@ def test_handler_just_resource_owner(context, cfn_event, list_buckets_response, 
         'IsOrganizationMasterAccount': False,
         'MasterPayerBillingBucketName': None,
         'MasterPayerBillingBucketPath': None,
+        'BillingReportFormat': 'aws',
         'IsAccountOutsideOrganization': False,
     }
 
@@ -488,3 +533,23 @@ def test_handler_exception(context):
     ((_, _, status, output, _), kwargs) = context.mock_cfnresponse_send.call_args
     assert status == cfnresponse.SUCCESS
     assert output == app.DEFAULT_OUTPUT
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize('report_definitions,expected_format', [
+    ({'ReportDefinitions': [PARQUET_REPORT]}, 'aws_parquet'),
+    ({'ReportDefinitions': [PARQUET_REPORT, CSV_REPORT]}, 'aws'),
+    ({'ReportDefinitions': [PARQUET_REPORT, MINIMUM_CSV_REPORT]}, 'aws'),  # ideal Parquet + minimum CSV → CSV wins
+])
+def test_handler_cur_format_detection(context, cfn_event, describe_trails_response_local, list_buckets_response, describe_organizations_local, report_definitions, expected_format):
+    context.mock_ct.describe_trails.return_value = describe_trails_response_local
+    context.mock_cur.describe_report_definitions.return_value = report_definitions
+    context.mock_orgs.describe_organization.return_value = describe_organizations_local
+    context.mock_s3.list_buckets.return_value = list_buckets_response
+    ret = app.handler(cfn_event, None)
+    assert ret is None
+    ((_, _, status, output, _), _) = context.mock_cfnresponse_send.call_args
+    assert status == cfnresponse.SUCCESS
+    assert output['BillingReportFormat'] == expected_format
+    assert output['MasterPayerBillingBucketName'] == LOCAL_BUCKET_NAME
+    assert output['IsMasterPayerAccount'] is True

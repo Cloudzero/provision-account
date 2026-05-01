@@ -40,6 +40,7 @@ DEFAULT_CFN_COEFFECT = {
         'IsResourceOwnerAccount': 'false',
         'MasterPayerBillingBucketName': 'null',
         'MasterPayerBillingBucketPath': 'null',
+        'BillingReportFormat': 'aws',
         'RemoteCloudTrailBucket': 'true',
     },
     'MasterPayerAccount': {
@@ -113,6 +114,7 @@ CFN_COEFFECT_SCHEMA = Schema({
         'IsResourceOwnerAccount': BOOLEAN_STRING,
         'MasterPayerBillingBucketName': NULLABLE_STRING,
         'MasterPayerBillingBucketPath': NULLABLE_STRING,
+        'BillingReportFormat': NULLABLE_STRING,
         'RemoteCloudTrailBucket': BOOLEAN_STRING,
     },
     'MasterPayerAccount': {
@@ -142,6 +144,7 @@ ACCOUNT_LINK_PROVISIONED = Schema({
             'cz_account_name': str,
             'reactor_id': str,
             'reactor_callback_url': str,
+            'billing_report_format': NONEABLE_STRING,
         },
         'links': {
             'audit': LINK_ROLE,
@@ -302,6 +305,7 @@ def prepare_output(world):
                 'cz_account_name': metadata['AccountName'],
                 'reactor_id': metadata['ReactorId'],
                 'reactor_callback_url': metadata['ReactorCallbackUrl'],
+                'billing_report_format': null_to_none(get_in(['Discovery', 'BillingReportFormat'], valid_cfn)) or 'aws',
             },
             'links': {
                 'audit': {'role_arn': null_to_none(get_in(['AuditAccount', 'RoleArn'], valid_cfn))},

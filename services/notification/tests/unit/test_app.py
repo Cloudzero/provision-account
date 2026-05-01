@@ -84,6 +84,7 @@ def cfn_coeffect():
             'IsResourceOwnerAccount': boolean_string(),
             'MasterPayerBillingBucketName': nullable_string(),
             'MasterPayerBillingBucketPath': nullable_string(),
+            'BillingReportFormat': nullable_string(),
             'RemoteCloudTrailBucket': boolean_string(),
         },
         'MasterPayerAccount': {
@@ -165,6 +166,7 @@ def test_handler_no_cfn_coeffects(context, cfn_event):
                 'reactor_callback_url': EXPECTED_URL,
                 'external_id': 'str',
                 'reactor_id': 'str',
+                'billing_report_format': 'aws',
             },
             'links': {
                 'audit': {'role_arn': None},
@@ -192,5 +194,24 @@ def test_prepare_output(context, cfn_event, cfn_coeffect):
         'valid_cfn': cfn_coeffect,
     }
     is_master_payer_account = bool(cfn_coeffect['Discovery']['IsMasterPayerAccount'] == 'True')
+    raw_format = cfn_coeffect['Discovery']['BillingReportFormat']
+    expected_billing_format = 'aws' if raw_format == 'null' else raw_format
     new_world = app.prepare_output(world)
     assert new_world['output']['data']['discovery']['is_master_payer_account'] == is_master_payer_account
+    assert new_world['output']['data']['metadata']['billing_report_format'] == expected_billing_format
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize('raw_format,expected', [
+    ('aws_parquet', 'aws_parquet'),
+    ('null', 'aws'),
+    ('aws', 'aws'),
+])
+def test_prepare_output_billing_format(context, cfn_event, cfn_coeffect, raw_format, expected):
+    cfn_coeffect['Discovery']['BillingReportFormat'] = raw_format
+    world = {
+        'event': cfn_event,
+        'valid_cfn': cfn_coeffect,
+    }
+    new_world = app.prepare_output(world)
+    assert new_world['output']['data']['metadata']['billing_report_format'] == expected
