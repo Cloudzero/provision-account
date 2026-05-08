@@ -81,6 +81,8 @@ The AWS account that contains your Cost and Usage Report (CUR) and is the payer 
 
 **Important**: CloudZero requires an HOURLY Cost and Usage Report. Daily reports are not supported.
 
+If the payer account has more than one CUR configured, the auto-generated IAM policy grants `s3:Get*`/`s3:List*` on every CUR bucket discovered in the account, not only the one CloudZero ingests as primary. This keeps the role aligned with the customer's actual CUR footprint and avoids surprises if the primary CUR is later swapped.
+
 #### Resource Owner Account
 Member accounts in your AWS Organization that own and run resources. These accounts provide:
 - Resource-level cost attribution
