@@ -302,6 +302,13 @@ def get_cur_bucket_if_local(world, report_definitions):
 
 
 def get_all_local_cur_bucket_names(world, report_definitions):
+    # Schema-agnostic on purpose: we enumerate every locally-owned bucket referenced by
+    # any CUR report, regardless of whether the report's schema matches CloudZero's
+    # ingest formats (the `_CUR_CANDIDATE_TIERS` filter applied by `get_cur_bucket_if_local`).
+    # The role needs s3:Get/List on every CUR bucket so the customer can later switch
+    # CloudZero to a different report without redeploying this stack. A bucket referenced
+    # by a CUR report is by definition a CUR bucket; the schema filter only governs which
+    # report CloudZero currently ingests, not which buckets are legitimate CUR storage.
     local_buckets = {x['Name'] for x in coeffects_buckets(world)}
     return sorted({r['S3Bucket'] for r in report_definitions
                    if isinstance(r.get('S3Bucket'), str) and r['S3Bucket'] in local_buckets})

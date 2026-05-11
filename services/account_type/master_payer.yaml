@@ -27,8 +27,9 @@ Parameters:
   MasterPayerBillingBucketArns:
     Description: |
       Comma-separated list of S3 ARNs (both bucket and bucket/* forms) for every
-      locally-owned CUR bucket discovered in this account. Empty when no existing
-      CUR was found.
+      locally-owned S3 bucket referenced by any CUR report in this account (valid
+      or not). Empty only when no CUR report points to a locally-owned bucket.
+      Must be non-empty whenever MasterPayerBillingBucketName is provided.
     Type: String
     Default: ''
   ReactorAccountId:
@@ -43,6 +44,7 @@ Parameters:
 
 Conditions:
   ValidExistingBucketName: !Not [ !Equals [ !Ref MasterPayerBillingBucketName, 'null' ] ]
+  HasMasterPayerBillingBucketArns: !Not [ !Equals [ !Ref MasterPayerBillingBucketArns, '' ] ]
   CreateCurAndBucketAndPolicy: !And
     - !Not
       - Condition: ValidExistingBucketName
@@ -263,14 +265,21 @@ Resources:
               - s3:Get*
               - s3:List*
             # The discovery Lambda emits MasterPayerBillingBucketArns as a comma-separated
-            # ARN list covering every locally-owned CUR bucket it found (both `bucket` and
-            # `bucket/*` forms). When this stack is also creating a brand-new CUR bucket,
-            # discovery found no existing CURs, so the resource list is just the new pair.
+            # ARN list covering every locally-owned S3 bucket referenced by any CUR report
+            # (both `bucket` and `bucket/*` forms). When ARNs is empty (e.g., the stack was
+            # invoked directly with only MasterPayerBillingBucketName), we fall back to the
+            # legacy single-bucket pair so !Split never sees an empty string (which would
+            # otherwise yield [''] and produce an invalid IAM Resource). When this stack is
+            # also creating a brand-new CUR bucket, discovery found no existing CURs and
+            # falls through to the new-bucket pair below.
             Resource: !Split
               - ','
               - !If
                 - CreatePolicyForExistingCur
-                - !Ref MasterPayerBillingBucketArns
+                - !If
+                  - HasMasterPayerBillingBucketArns
+                  - !Ref MasterPayerBillingBucketArns
+                  - !Sub 'arn:aws:s3:::${MasterPayerBillingBucketName},arn:aws:s3:::${MasterPayerBillingBucketName}/*'
                 - !Sub
                   - 'arn:aws:s3:::${BucketName}-${Id},arn:aws:s3:::${BucketName}-${Id}/*'
                   - { BucketName: !FindInMap [ Defaults, Cur, BucketName ],
