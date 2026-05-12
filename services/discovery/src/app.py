@@ -34,6 +34,7 @@ DEFAULT_OUTPUT = {
     'IsMasterPayerAccount': False,
     'MasterPayerBillingBucketName': None,
     'MasterPayerBillingBucketPath': None,
+    'MasterPayerBillingBucketArns': '',
     'BillingReportFormat': 'aws',
     'IsAccountOutsideOrganization': False,
 }
@@ -64,6 +65,7 @@ OUTPUT_SCHEMA = Schema({
         'CloudTrailSNSTopicArn': Any(None, str),
         'IsMasterPayerAccount': bool,
         'MasterPayerBillingBucketName': Any(None, str),
+        'MasterPayerBillingBucketArns': str,
     },
 }, required=True, extra=ALLOW_EXTRA)
 
@@ -299,16 +301,39 @@ def get_cur_bucket_if_local(world, report_definitions):
     return None, None, 'aws'
 
 
+def get_all_local_cur_bucket_names(world, report_definitions):
+    # Schema-agnostic on purpose: we enumerate every locally-owned bucket referenced by
+    # any CUR report, regardless of whether the report's schema matches CloudZero's
+    # ingest formats (the `_CUR_CANDIDATE_TIERS` filter applied by `get_cur_bucket_if_local`).
+    # The role needs s3:Get/List on every CUR bucket so the customer can later switch
+    # CloudZero to a different report without redeploying this stack. A bucket referenced
+    # by a CUR report is by definition a CUR bucket; the schema filter only governs which
+    # report CloudZero currently ingests, not which buckets are legitimate CUR storage.
+    local_buckets = {x['Name'] for x in coeffects_buckets(world)}
+    return sorted({r['S3Bucket'] for r in report_definitions
+                   if isinstance(r.get('S3Bucket'), str) and r['S3Bucket'] in local_buckets})
+
+
+def format_bucket_arns(bucket_names):
+    arns = []
+    for name in bucket_names:
+        arns.append(f'arn:aws:s3:::{name}')
+        arns.append(f'arn:aws:s3:::{name}/*')
+    return ','.join(arns)
+
+
 def discover_master_payer_account(world):
     is_account_not_in_organization = output_is_account_outside_organization(world)
     is_account_organization_master_account = output_is_organization_master(world)
     is_master_payer = is_account_not_in_organization or is_account_organization_master_account
     report_definitions = coeffects_payer_reports(world)['report_definitions']
     bucket_name, bucket_path, billing_report_format = get_cur_bucket_if_local(world, report_definitions)
+    all_local_cur_buckets = get_all_local_cur_bucket_names(world, report_definitions)
     output = {
         'IsMasterPayerAccount': is_master_payer,
         'MasterPayerBillingBucketName': bucket_name,
         'MasterPayerBillingBucketPath': bucket_path,
+        'MasterPayerBillingBucketArns': format_bucket_arns(all_local_cur_buckets),
         'BillingReportFormat': billing_report_format,
     }
     return update_in(world, ['output'], lambda x: merge(x or {}, output))
