@@ -139,6 +139,17 @@
       "Resource": "*"
     },
     {
+      "Sid": "CZTier1ContainerOrchestration20260511",
+      "Effect": "Allow",
+      "Action": [
+        "ecs:Describe*",
+        "ecs:List*",
+        "eks:Describe*",
+        "eks:List*"
+      ],
+      "Resource": "*"
+    },
+    {
       "Sid": "CZTier1ContainerInsightsLogs20260420",
       "Effect": "Allow",
       "Action": [

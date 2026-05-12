@@ -212,6 +212,18 @@ data "aws_iam_policy_document" "cloudzero" {
   }
 
   statement {
+    sid    = "CZTier1ContainerOrchestration20260511"
+    effect = "Allow"
+    actions = [
+      "ecs:Describe*",
+      "ecs:List*",
+      "eks:Describe*",
+      "eks:List*",
+    ]
+    resources = ["*"]
+  }
+
+  statement {
     sid    = "CZTier1ContainerInsightsLogs20260420"
     effect = "Allow"
     actions = [
