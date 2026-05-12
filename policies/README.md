@@ -51,6 +51,10 @@ The prefix helps engineers navigate the policy. Every statement is part of what 
 
 Before removing: confirm no CloudZero service path depends on it. Removals should bump the enclosing statement's `Sid` date.
 
+## CUR bucket Sid expansion at deploy time
+
+`master_payer.json` shows the `CZTier0BillingBucket20260420` statement with a single `{{BillingBucketName}}` ARN pair. The CloudFormation deploy in `services/account_type/master_payer.yaml` expands this `Resource:` list at stack-creation time to include **every** locally-owned CUR bucket the discovery Lambda found in the account, not just one. The action set (`s3:Get*`, `s3:List*`) and Sid date are unchanged — only the resource list grows. The hand-configured Terraform module still takes a single bucket variable.
+
 ## Long-term direction
 
 `master_payer.json` and `resource_owner.json` exist as two separate files today for historical reasons. The only material difference is the CUR S3 bucket Sid (payer-only). Future work: collapse to a single policy used by both account types, with the bucket Sid conditional on payer.

@@ -123,6 +123,7 @@ Resources:
         IsOrganizationMasterAccount: !GetAtt Discovery.Outputs.IsOrganizationMasterAccount
         IsMasterPayerAccount: !GetAtt Discovery.Outputs.IsMasterPayerAccount
         MasterPayerBillingBucketName: !GetAtt Discovery.Outputs.MasterPayerBillingBucketName
+        MasterPayerBillingBucketArns: !GetAtt Discovery.Outputs.MasterPayerBillingBucketArns
         ExternalId: !Ref ExternalId
         ReactorAccountId: !FindInMap [CallbackConfiguration, dev, ReactorAccountId]
       TemplateURL: !Sub https://s3.amazonaws.com/cz-provision-account/${Version}/services/account_type/master_payer.yaml

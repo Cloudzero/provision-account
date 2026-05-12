@@ -18,6 +18,7 @@ LOCAL_ACCOUNT_ID = '123456789012'
 REMOTE_ACCOUNT_ID = '999999999999'
 
 LOCAL_BUCKET_NAME = 'local-bucket'
+SECOND_LOCAL_BUCKET_NAME = 'another-local-cur-bucket'
 REMOTE_BUCKET_NAME = 'remote-bucket'
 
 LOCAL_TRAIL_ARN = f'arn:aws:cloudtrail:us-east-1:{LOCAL_ACCOUNT_ID}:trail/local-trail'
@@ -318,6 +319,7 @@ def test_handler_all_local(context, cfn_event, describe_trails_response_local, l
         'IsOrganizationMasterAccount': True,
         'MasterPayerBillingBucketName': LOCAL_BUCKET_NAME,
         'MasterPayerBillingBucketPath': 'reports/valid-local-report',
+        'MasterPayerBillingBucketArns': f'arn:aws:s3:::{LOCAL_BUCKET_NAME},arn:aws:s3:::{LOCAL_BUCKET_NAME}/*',
         'BillingReportFormat': 'aws',
         'RemoteCloudTrailBucket': False,
         'IsAccountOutsideOrganization': False,
@@ -350,6 +352,7 @@ def test_handler_non_audit(context, cfn_event, describe_trails_response_remote_b
         'IsOrganizationMasterAccount': True,
         'MasterPayerBillingBucketName': LOCAL_BUCKET_NAME,
         'MasterPayerBillingBucketPath': 'reports/valid-local-report',
+        'MasterPayerBillingBucketArns': f'arn:aws:s3:::{LOCAL_BUCKET_NAME},arn:aws:s3:::{LOCAL_BUCKET_NAME}/*',
         'BillingReportFormat': 'aws',
         'IsAccountOutsideOrganization': False,
     }
@@ -381,6 +384,7 @@ def test_handler_remote_organization_trail(context, cfn_event, describe_trails_r
         'IsOrganizationMasterAccount': True,
         'MasterPayerBillingBucketName': LOCAL_BUCKET_NAME,
         'MasterPayerBillingBucketPath': 'reports/valid-local-report',
+        'MasterPayerBillingBucketArns': f'arn:aws:s3:::{LOCAL_BUCKET_NAME},arn:aws:s3:::{LOCAL_BUCKET_NAME}/*',
         'BillingReportFormat': 'aws',
         'IsAccountOutsideOrganization': False,
     }
@@ -412,6 +416,7 @@ def test_handler_master_payer_with_no_valid_reports(context, cfn_event, describe
         'IsOrganizationMasterAccount': True,
         'MasterPayerBillingBucketName': None,
         'MasterPayerBillingBucketPath': None,
+        'MasterPayerBillingBucketArns': f'arn:aws:s3:::{LOCAL_BUCKET_NAME},arn:aws:s3:::{LOCAL_BUCKET_NAME}/*',
         'BillingReportFormat': 'aws',
         'IsAccountOutsideOrganization': False,
     }
@@ -443,6 +448,7 @@ def test_handler_master_payer_outside_organization(context, cfn_event, describe_
         'IsOrganizationMasterAccount': False,
         'MasterPayerBillingBucketName': None,
         'MasterPayerBillingBucketPath': None,
+        'MasterPayerBillingBucketArns': f'arn:aws:s3:::{LOCAL_BUCKET_NAME},arn:aws:s3:::{LOCAL_BUCKET_NAME}/*',
         'BillingReportFormat': 'aws',
         'IsAccountOutsideOrganization': True,
     }
@@ -475,6 +481,7 @@ def test_handler_master_payer_remote(context, cfn_event, describe_trails_respons
         'IsOrganizationMasterAccount': False,
         'MasterPayerBillingBucketName': None,
         'MasterPayerBillingBucketPath': None,
+        'MasterPayerBillingBucketArns': '',
         'BillingReportFormat': 'aws',
         'IsAccountOutsideOrganization': False,
     }
@@ -506,6 +513,7 @@ def test_handler_just_resource_owner(context, cfn_event, list_buckets_response, 
         'IsOrganizationMasterAccount': False,
         'MasterPayerBillingBucketName': None,
         'MasterPayerBillingBucketPath': None,
+        'MasterPayerBillingBucketArns': '',
         'BillingReportFormat': 'aws',
         'IsAccountOutsideOrganization': False,
     }
@@ -553,3 +561,74 @@ def test_handler_cur_format_detection(context, cfn_event, describe_trails_respon
     assert output['BillingReportFormat'] == expected_format
     assert output['MasterPayerBillingBucketName'] == LOCAL_BUCKET_NAME
     assert output['IsMasterPayerAccount'] is True
+
+
+@pytest.fixture()
+def list_buckets_response_two_local():
+    return {
+        'Buckets': [
+            {'Name': LOCAL_BUCKET_NAME},
+            {'Name': SECOND_LOCAL_BUCKET_NAME},
+        ]
+    }
+
+
+@pytest.fixture()
+def describe_report_definitions_response_two_local():
+    second_report = dict(CSV_REPORT, ReportName='second-cur', S3Bucket=SECOND_LOCAL_BUCKET_NAME, S3Prefix='cz')
+    return {'ReportDefinitions': [CSV_REPORT, second_report]}
+
+
+@pytest.mark.unit
+def test_handler_master_payer_enumerates_all_local_cur_buckets(
+    context, cfn_event, describe_trails_response_local,
+    list_buckets_response_two_local, describe_report_definitions_response_two_local,
+    describe_organizations_local,
+):
+    context.mock_ct.describe_trails.return_value = describe_trails_response_local
+    context.mock_cur.describe_report_definitions.return_value = describe_report_definitions_response_two_local
+    context.mock_orgs.describe_organization.return_value = describe_organizations_local
+    context.mock_s3.list_buckets.return_value = list_buckets_response_two_local
+    ret = app.handler(cfn_event, None)
+    assert ret is None
+    ((_, _, status, output, _), _) = context.mock_cfnresponse_send.call_args
+    assert status == cfnresponse.SUCCESS
+    expected = ','.join([
+        f'arn:aws:s3:::{SECOND_LOCAL_BUCKET_NAME}',
+        f'arn:aws:s3:::{SECOND_LOCAL_BUCKET_NAME}/*',
+        f'arn:aws:s3:::{LOCAL_BUCKET_NAME}',
+        f'arn:aws:s3:::{LOCAL_BUCKET_NAME}/*',
+    ])
+    assert output['MasterPayerBillingBucketArns'] == expected
+    assert output['MasterPayerBillingBucketName'] == LOCAL_BUCKET_NAME
+
+
+@pytest.fixture()
+def describe_report_definitions_response_two_local_one_remote():
+    second_report = dict(CSV_REPORT, ReportName='second-cur', S3Bucket=SECOND_LOCAL_BUCKET_NAME, S3Prefix='cz')
+    remote_report = dict(CSV_REPORT, ReportName='remote-cur', S3Bucket=REMOTE_BUCKET_NAME, S3Prefix='cz')
+    return {'ReportDefinitions': [CSV_REPORT, second_report, remote_report]}
+
+
+@pytest.mark.unit
+def test_handler_master_payer_excludes_remote_cur_buckets(
+    context, cfn_event, describe_trails_response_local,
+    list_buckets_response_two_local, describe_report_definitions_response_two_local_one_remote,
+    describe_organizations_local,
+):
+    context.mock_ct.describe_trails.return_value = describe_trails_response_local
+    context.mock_cur.describe_report_definitions.return_value = describe_report_definitions_response_two_local_one_remote
+    context.mock_orgs.describe_organization.return_value = describe_organizations_local
+    context.mock_s3.list_buckets.return_value = list_buckets_response_two_local
+    ret = app.handler(cfn_event, None)
+    assert ret is None
+    ((_, _, status, output, _), _) = context.mock_cfnresponse_send.call_args
+    assert status == cfnresponse.SUCCESS
+    expected = ','.join([
+        f'arn:aws:s3:::{SECOND_LOCAL_BUCKET_NAME}',
+        f'arn:aws:s3:::{SECOND_LOCAL_BUCKET_NAME}/*',
+        f'arn:aws:s3:::{LOCAL_BUCKET_NAME}',
+        f'arn:aws:s3:::{LOCAL_BUCKET_NAME}/*',
+    ])
+    assert output['MasterPayerBillingBucketArns'] == expected
+    assert f'arn:aws:s3:::{REMOTE_BUCKET_NAME}' not in output['MasterPayerBillingBucketArns']
