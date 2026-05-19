@@ -47,7 +47,7 @@ Resources:
     Properties:
       ServiceToken: !GetAtt DiscoveryFunction.Arn
       AccountId: !Sub ${AWS::AccountId}
-      Version: '20230523'
+      Version: !Sub ${Version}
 
 Outputs:
   AuditCloudTrailBucketName:
