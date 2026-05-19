@@ -199,25 +199,17 @@ deploy-bucket:
 
 
 # Uploads CFN templates, IAM policies, and SAM-built Lambda zips to s3://$(BUCKET)/$(path)/.
-# If `substitute_version` is set, YAML/JSON files are piped through `sed s|${Version}|<sub>|g`
-# before upload. Used for the `latest/` path so the published templates reference a specific
-# versioned S3 key for the Lambda code: without that substitution, `CodeUri.Key` stays as the
-# literal string `latest/services/discovery.zip` across releases, and since CFN compares
-# CodeUri as a string (not by S3 object content) customer Update events never refresh the
-# Lambda code.
+# YAML/JSON files are piped through sed to rewrite `${Version}` references with the build's
+# semver before upload, so customer stacks on the `latest/` path see a different `CodeUri.Key`
+# every release. Without this rewrite the resolved key stays `latest/services/discovery.zip`
+# across releases and CFN — which compares CodeUri as a string, not by S3 object content —
+# never refreshes the Lambda code.
 copy-to-s3: guard-path
-	@upload() { \
-		if [ -n "$(substitute_version)" ]; then \
-			sed 's|$${Version}|$(substitute_version)|g' "$$1" | aws s3 cp - "$$2" ; \
-		else \
-			aws s3 cp "$$1" "$$2" ; \
-		fi ; \
-	} ; \
-	for key in $(CFN_TEMPLATES) $(IAM_POLICIES) ; do \
-		upload "$${key}" "s3://$(BUCKET)/$(path)/$${key}" ; \
+	@for key in $(CFN_TEMPLATES) $(IAM_POLICIES) ; do \
+		sed 's|$${Version}|v$(SEMVER_MAJ_MIN).$(version)|g' "$${key}" | aws s3 cp - "s3://$(BUCKET)/$(path)/$${key}" ; \
 	done && \
 	for app in $(SAM_APPS) ; do \
-		upload "$${app}/$(TEMPLATE_FILE)" "s3://$(BUCKET)/$(path)/$${app}.yaml" && \
+		sed 's|$${Version}|v$(SEMVER_MAJ_MIN).$(version)|g' "$${app}/$(TEMPLATE_FILE)" | aws s3 cp - "s3://$(BUCKET)/$(path)/$${app}.yaml" && \
 		aws s3 cp "$${app}/$(APP_ZIP)" "s3://$(BUCKET)/$(path)/$${app}.zip" && \
 		for r in $(regions) ; do \
 			aws s3 cp "$${app}/$(APP_ZIP)" "s3://$(BUCKET)-$${r}/$(path)/$${app}.zip" ; \
@@ -230,8 +222,7 @@ deploy:
 	find . -name $(APP_ZIP) -exec rm -rf {} \; && \
 	$(MAKE) package-sam-apps && \
 	$(MAKE) copy-to-s3 path=v$(SEMVER_MAJ_MIN).$(version) && \
-	[ $(version) != 'dev' ] && \
-		$(MAKE) copy-to-s3 path=latest substitute_version=v$(SEMVER_MAJ_MIN).$(version) || true
+	[ $(version) != 'dev' ] && $(MAKE) copy-to-s3 path=latest || true
 
 .PHONY: update-dev
 update-dev:
