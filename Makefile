@@ -198,15 +198,21 @@ deploy-bucket:
 	done
 
 
+# Uploads CFN templates, IAM policies, and SAM-built Lambda zips to s3://$(BUCKET)/$(path)/.
+# YAML/JSON files are piped through sed to rewrite `${Version}` references with the build's
+# semver before upload, so customer stacks on the `latest/` path see a different `CodeUri.Key`
+# every release. Without this rewrite the resolved key stays `latest/services/discovery.zip`
+# across releases and CFN — which compares CodeUri as a string, not by S3 object content —
+# never refreshes the Lambda code.
 copy-to-s3: guard-path
 	@for key in $(CFN_TEMPLATES) $(IAM_POLICIES) ; do \
-		aws s3 cp $${key} s3://$(BUCKET)/$(path)/$${key} ; \
+		sed 's|$${Version}|v$(SEMVER_MAJ_MIN).$(version)|g' "$${key}" | aws s3 cp - "s3://$(BUCKET)/$(path)/$${key}" ; \
 	done && \
 	for app in $(SAM_APPS) ; do \
-		aws s3 cp $${app}/$(TEMPLATE_FILE) s3://$(BUCKET)/$(path)/$${app}.yaml && \
-		aws s3 cp $${app}/$(APP_ZIP) s3://$(BUCKET)/$(path)/$${app}.zip && \
+		sed 's|$${Version}|v$(SEMVER_MAJ_MIN).$(version)|g' "$${app}/$(TEMPLATE_FILE)" | aws s3 cp - "s3://$(BUCKET)/$(path)/$${app}.yaml" && \
+		aws s3 cp "$${app}/$(APP_ZIP)" "s3://$(BUCKET)/$(path)/$${app}.zip" && \
 		for r in $(regions) ; do \
-			aws s3 cp $${app}/$(APP_ZIP) s3://$(BUCKET)-$${r}/$(path)/$${app}.zip ; \
+			aws s3 cp "$${app}/$(APP_ZIP)" "s3://$(BUCKET)-$${r}/$(path)/$${app}.zip" ; \
 		done ; \
 	done
 

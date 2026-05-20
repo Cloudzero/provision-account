@@ -155,7 +155,7 @@ Resources:
         Value: !FindInMap [CallbackConfiguration, prod, ReactorAccountId]
       ServiceToken: !GetAtt NotificationFunctionStack.Outputs.Arn
       AccountId: !Ref AWS::AccountId
-      Version: '1'
+      Version: !Sub ${Version}
       # Parameters from Other Resources in this Stack
       ExternalId: !Ref ExternalId
       ReactorCallbackUrl: !FindInMap [CallbackConfiguration, prod, ReactorCallbackUrl]
