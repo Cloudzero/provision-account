@@ -13,7 +13,10 @@ resource "aws_iam_role" "cloudzero" {
           "Sid" : "",
           "Effect" : "Allow",
           "Principal" : {
-            "AWS" : "arn:aws:iam::${local.cz_account_id}:root"
+            "AWS" : [
+              "arn:aws:iam::${local.cz_account_id}:root",
+              "arn:aws:iam::${var.connectors_account_id}:root",
+            ]
           },
           "Action" : "sts:AssumeRole",
           "Condition" : {
