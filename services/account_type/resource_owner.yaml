@@ -15,6 +15,10 @@ Parameters:
     Type: String
     Description: |
       CloudZero AWS AccountID; for cross-account Role Access
+  ConnectorsAccountId:
+    Description: Additional CloudZero AWS account ID that will assume the cross-account role. Override only if directed by CloudZero support.
+    Type: String
+    Default: '483772923246'
   IsResourceOwnerAccount:
     Type: String
     Description: |
@@ -34,7 +38,9 @@ Resources:
         Statement:
           - Effect: Allow
             Principal:
-              AWS: !Sub 'arn:aws:iam::${ReactorAccountId}:root'
+              AWS:
+                - !Sub 'arn:aws:iam::${ReactorAccountId}:root'
+                - !Sub 'arn:aws:iam::${ConnectorsAccountId}:root'
             Action:
               - 'sts:AssumeRole'
             Condition:

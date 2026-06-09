@@ -20,7 +20,10 @@ data "aws_iam_policy_document" "assume_role" {
 
     principals {
       type        = "AWS"
-      identifiers = ["arn:aws:iam::${var.cloudzero_account_id}:root"]
+      identifiers = [
+        "arn:aws:iam::${var.cloudzero_account_id}:root",
+        "arn:aws:iam::${var.connectors_account_id}:root",
+      ]
     }
 
     condition {
