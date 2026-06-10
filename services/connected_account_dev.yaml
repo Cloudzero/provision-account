@@ -96,7 +96,6 @@ Resources:
         IsCloudTrailOwnerAccount: !GetAtt Discovery.Outputs.IsCloudTrailOwnerAccount
         CloudTrailSNSTopicArn: !GetAtt Discovery.Outputs.CloudTrailSNSTopicArn
         ReactorAccountId: !FindInMap [CallbackConfiguration, dev, ReactorAccountId]
-        ConnectorsAccountId: !FindInMap [CallbackConfiguration, dev, ConnectorsAccountId]
       TemplateURL: !Sub https://s3.amazonaws.com/cz-provision-account/${Version}/services/account_type/cloudtrail_owner.yaml
 
   AuditAccount:
@@ -112,7 +111,6 @@ Resources:
         AuditCloudTrailBucketName: !GetAtt Discovery.Outputs.AuditCloudTrailBucketName
         ExternalId: !Ref ExternalId
         ReactorAccountId: !FindInMap [CallbackConfiguration, dev, ReactorAccountId]
-        ConnectorsAccountId: !FindInMap [CallbackConfiguration, dev, ConnectorsAccountId]
       TemplateURL: !Sub https://s3.amazonaws.com/cz-provision-account/${Version}/services/account_type/audit.yaml
 
   MasterPayerAccount:
