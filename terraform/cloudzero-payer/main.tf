@@ -1,5 +1,6 @@
 locals {
-  cz_account_id = "061190967865"
+  cz_account_id         = "061190967865"
+  connectors_account_id = "559846027439"
 }
 
 resource "aws_iam_role" "cloudzero" {
@@ -13,7 +14,10 @@ resource "aws_iam_role" "cloudzero" {
           "Sid" : "",
           "Effect" : "Allow",
           "Principal" : {
-            "AWS" : "arn:aws:iam::${local.cz_account_id}:root"
+            "AWS" : [
+              "arn:aws:iam::${local.cz_account_id}:root",
+              "arn:aws:iam::${local.connectors_account_id}:root",
+            ]
           },
           "Action" : "sts:AssumeRole",
           "Condition" : {

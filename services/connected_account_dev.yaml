@@ -48,6 +48,7 @@ Mappings:
     dev:
       # TODO: Get dynamically for namespaces
       ReactorAccountId: '998146006915'
+      ConnectorsAccountId: '483772923246'
       ReactorId: '67ad3e83-1ec5-4f4f-b505-c27e2758b990'
       ReactorCallbackUrl: 'https://qc8rbx9mcg.execute-api.us-east-1.amazonaws.com/alfa/v1/link'
 
@@ -80,6 +81,7 @@ Resources:
         IsResourceOwnerAccount: !GetAtt Discovery.Outputs.IsResourceOwnerAccount
         ExternalId: !Ref ExternalId
         ReactorAccountId: !FindInMap [CallbackConfiguration, dev, ReactorAccountId]
+        ConnectorsAccountId: !FindInMap [CallbackConfiguration, dev, ConnectorsAccountId]
       TemplateURL: !Sub https://s3.amazonaws.com/cz-provision-account/${Version}/services/account_type/resource_owner.yaml
 
   CloudTrailOwnerAccount:
@@ -126,6 +128,7 @@ Resources:
         MasterPayerBillingBucketArns: !GetAtt Discovery.Outputs.MasterPayerBillingBucketArns
         ExternalId: !Ref ExternalId
         ReactorAccountId: !FindInMap [CallbackConfiguration, dev, ReactorAccountId]
+        ConnectorsAccountId: !FindInMap [CallbackConfiguration, dev, ConnectorsAccountId]
       TemplateURL: !Sub https://s3.amazonaws.com/cz-provision-account/${Version}/services/account_type/master_payer.yaml
 
 
