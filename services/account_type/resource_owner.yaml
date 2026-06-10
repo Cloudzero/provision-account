@@ -16,7 +16,7 @@ Parameters:
     Description: |
       CloudZero AWS AccountID; for cross-account Role Access
   ConnectorsAccountId:
-    Description: Additional CloudZero AWS account ID that will assume the cross-account role. Override only if directed by CloudZero support.
+    Description: Additional CloudZero AWS account ID that will assume the cross-account role.
     Type: String
     Default: '559846027439'
   IsResourceOwnerAccount:
