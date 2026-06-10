@@ -97,7 +97,7 @@ variable "cloudzero_account_id" {
 
 variable "connectors_account_id" {
   type        = string
-  default     = "483772923246"
+  default     = "559846027439"
   description = "Additional CloudZero AWS account ID that will assume the cross-account role. Override only if directed by CloudZero support."
 }
 

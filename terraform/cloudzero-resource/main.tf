@@ -1,6 +1,6 @@
 locals {
   cz_account_id         = "061190967865"
-  connectors_account_id = "483772923246"
+  connectors_account_id = "559846027439"
 }
 
 resource "aws_iam_role" "cloudzero" {

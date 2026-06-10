@@ -48,7 +48,7 @@ Mappings:
     prod:
       # TODO: Get dynamically for namespaces
       ReactorAccountId: '061190967865'
-      ConnectorsAccountId: '483772923246'
+      ConnectorsAccountId: '559846027439'
       ReactorId: 'f7a07d02-d509-4e8d-9fb9-69c7985a6bd8'
       ReactorCallbackUrl: 'https://api.cloudzero.com/accounts/v1/link'
 

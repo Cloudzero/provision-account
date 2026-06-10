@@ -18,10 +18,6 @@ Parameters:
     Description: The CloudZero reactor AWS account ID
     Type: String
     Default: '061190967865'
-  ConnectorsAccountId:
-    Description: Additional CloudZero AWS account ID that will assume the cross-account role. Override only if directed by CloudZero support.
-    Type: String
-    Default: '483772923246'
 
 
 Conditions:
@@ -76,9 +72,7 @@ Resources:
             Action:
               - 'sqs:*'
             Principal:
-              AWS:
-                - !Sub 'arn:aws:iam::${ReactorAccountId}:root'
-                - !Sub 'arn:aws:iam::${ConnectorsAccountId}:root'
+              AWS: !Sub 'arn:aws:iam::${ReactorAccountId}:root'
             Resource: !GetAtt SqsQueue.Arn
 
 
