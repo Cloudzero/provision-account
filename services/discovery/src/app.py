@@ -16,6 +16,7 @@ logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 ct = boto3.client('cloudtrail')
 cur = boto3.client('cur', region_name='us-east-1')  # cur is only in us-east-1
+bcm = boto3.client('bcm-data-exports', region_name='us-east-1')  # bcm-data-exports is only in us-east-1
 orgs = boto3.client('organizations')
 s3 = boto3.client('s3')
 
@@ -70,12 +71,14 @@ OUTPUT_SCHEMA = Schema({
 }, required=True, extra=ALLOW_EXTRA)
 
 DEFAULT_PAYER_REPORTS = {'is_master_payer': False, 'report_definitions': []}
+DEFAULT_DATA_EXPORTS = {'s3_buckets': []}
 NOT_IN_ORGANIZATION_RESPONSE = {}
 
 event_account_id = get_in(['event', 'ResourceProperties', 'AccountId'])
 coeffects_traillist = get_in(['coeffects', 'cloudtrail', 'trailList'], default=[])
 coeffects_buckets = get_in(['coeffects', 's3', 'Buckets'], default=[])
 coeffects_payer_reports = get_in(['coeffects', 'cur'], default=DEFAULT_PAYER_REPORTS)
+coeffects_data_export_buckets = get_in(['coeffects', 'bcm_data_exports', 's3_buckets'], default=[])
 coeffects_master_account_id = get_in(['coeffects', 'organizations', 'Organization', 'MasterAccountId'])
 output_is_organization_master = get_in(['output', 'IsOrganizationMasterAccount'])
 output_is_account_outside_organization = get_in(['output', 'IsAccountOutsideOrganization'])
@@ -91,6 +94,7 @@ def coeffects(world):
                 coeffects_cloudtrail,
                 coeffects_s3,
                 coeffects_cur,
+                coeffects_bcm_data_exports,
                 coeffects_organizations)
 
 
@@ -128,6 +132,38 @@ def coeffects_cur(world):
     except ClientError:
         logger.warning('Failed to access CUR DescribeReportDefinitions', exc_info=True)
         return DEFAULT_PAYER_REPORTS
+
+
+@coeffect('bcm_data_exports')
+def coeffects_bcm_data_exports(world):
+    # CUR 2.0 exports (and any other BCM Data Exports) live here rather than in the
+    # classic CUR. CloudZero only ingests COST_AND_USAGE_REPORT exports, but we collect
+    # the S3 destination bucket for *every* export regardless of type so the master-payer
+    # role's bucket access covers all of them -- a customer can then repoint CloudZero at
+    # a different export without redeploying this stack. list_exports only returns export
+    # ARNs, so each export is resolved with get_export to read its destination bucket;
+    # bucket selection against the account's local buckets happens later in
+    # get_all_local_cur_bucket_names.
+    try:
+        export_arns = []
+        next_token = None
+        while True:
+            response = bcm.list_exports(**({'NextToken': next_token} if next_token else {}))
+            export_arns.extend(ref['ExportArn'] for ref in response.get('Exports', []) if ref.get('ExportArn'))
+            next_token = response.get('NextToken')
+            if not next_token:
+                break
+
+        s3_buckets = []
+        for export_arn in export_arns:
+            export = bcm.get_export(ExportArn=export_arn).get('Export', {})
+            bucket = get_in(['DestinationConfigurations', 'S3Destination', 'S3Bucket'], export)
+            if bucket:
+                s3_buckets.append(bucket)
+        return {'s3_buckets': s3_buckets}
+    except ClientError:
+        logger.warning('Failed to access BCM Data Exports ListExports/GetExport', exc_info=True)
+        return DEFAULT_DATA_EXPORTS
 
 
 @coeffect('organizations')
@@ -309,9 +345,16 @@ def get_all_local_cur_bucket_names(world, report_definitions):
     # CloudZero to a different report without redeploying this stack. A bucket referenced
     # by a CUR report is by definition a CUR bucket; the schema filter only governs which
     # report CloudZero currently ingests, not which buckets are legitimate CUR storage.
+    #
+    # CUR 2.0 data lives in BCM Data Exports rather than the classic CUR, so we also
+    # include the S3 destination buckets discovered via bcm-data-exports list/get. As
+    # with classic CUR above, this is deliberately type-agnostic: CloudZero only ingests
+    # COST_AND_USAGE_REPORT exports, but the role is granted bucket access to every
+    # export's destination so the customer can switch export types without redeploy.
     local_buckets = {x['Name'] for x in coeffects_buckets(world)}
-    return sorted({r['S3Bucket'] for r in report_definitions
-                   if isinstance(r.get('S3Bucket'), str) and r['S3Bucket'] in local_buckets})
+    report_buckets = {r['S3Bucket'] for r in report_definitions if isinstance(r.get('S3Bucket'), str)}
+    data_export_buckets = {b for b in coeffects_data_export_buckets(world) if isinstance(b, str)}
+    return sorted((report_buckets | data_export_buckets) & local_buckets)
 
 
 def format_bucket_arns(bucket_names):

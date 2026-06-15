@@ -20,6 +20,9 @@ REMOTE_ACCOUNT_ID = '999999999999'
 LOCAL_BUCKET_NAME = 'local-bucket'
 SECOND_LOCAL_BUCKET_NAME = 'another-local-cur-bucket'
 REMOTE_BUCKET_NAME = 'remote-bucket'
+DATA_EXPORT_BUCKET_NAME = 'cur2-data-export-bucket'
+
+EXPORT_ARN = f'arn:aws:bcm-data-exports:us-east-1:{LOCAL_ACCOUNT_ID}:export/cur2-export'
 
 LOCAL_TRAIL_ARN = f'arn:aws:cloudtrail:us-east-1:{LOCAL_ACCOUNT_ID}:trail/local-trail'
 REMOTE_TRAIL_ARN = f'arn:aws:cloudtrail:us-east-1:{REMOTE_ACCOUNT_ID}:trail/remote-trail'
@@ -266,6 +269,8 @@ def context(mocker):
     context.mock_cfnresponse_send = mocker.patch(f'{context.prefix}.cfnresponse.send', autospec=True)
     context.mock_ct = mocker.patch(f'{context.prefix}.ct', autospec=True)
     context.mock_cur = mocker.patch(f'{context.prefix}.cur', autospec=True)
+    context.mock_bcm = mocker.patch(f'{context.prefix}.bcm', autospec=True)
+    context.mock_bcm.list_exports.return_value = {'Exports': []}
     context.mock_orgs = mocker.patch(f'{context.prefix}.orgs', autospec=True)
     context.mock_s3 = mocker.patch(f'{context.prefix}.s3', autospec=True)
     yield context
@@ -632,3 +637,138 @@ def test_handler_master_payer_excludes_remote_cur_buckets(
     ])
     assert output['MasterPayerBillingBucketArns'] == expected
     assert f'arn:aws:s3:::{REMOTE_BUCKET_NAME}' not in output['MasterPayerBillingBucketArns']
+
+
+def _list_exports_response(*export_arns):
+    return {'Exports': [{'ExportArn': arn, 'ExportName': arn.split('/')[-1]} for arn in export_arns]}
+
+
+def _get_export_response(bucket_name):
+    return {
+        'Export': {
+            'ExportArn': EXPORT_ARN,
+            'Name': 'cur2-export',
+            'DestinationConfigurations': {
+                'S3Destination': {
+                    'S3Bucket': bucket_name,
+                    'S3Prefix': 'cur2',
+                    'S3Region': 'us-east-1',
+                    'S3OutputConfigurations': {},
+                },
+            },
+        },
+    }
+
+
+@pytest.fixture()
+def list_buckets_response_local_and_data_export():
+    return {
+        'Buckets': [
+            {'Name': LOCAL_BUCKET_NAME},
+            {'Name': DATA_EXPORT_BUCKET_NAME},
+        ]
+    }
+
+
+@pytest.mark.unit
+def test_handler_master_payer_includes_local_cur2_data_export_bucket(
+    context, cfn_event, describe_trails_response_local,
+    list_buckets_response_local_and_data_export, describe_report_definitions_response_local,
+    describe_organizations_local,
+):
+    context.mock_ct.describe_trails.return_value = describe_trails_response_local
+    context.mock_cur.describe_report_definitions.return_value = describe_report_definitions_response_local
+    context.mock_bcm.list_exports.return_value = _list_exports_response(EXPORT_ARN)
+    context.mock_bcm.get_export.return_value = _get_export_response(DATA_EXPORT_BUCKET_NAME)
+    context.mock_orgs.describe_organization.return_value = describe_organizations_local
+    context.mock_s3.list_buckets.return_value = list_buckets_response_local_and_data_export
+    ret = app.handler(cfn_event, None)
+    assert ret is None
+    ((_, _, status, output, _), _) = context.mock_cfnresponse_send.call_args
+    assert status == cfnresponse.SUCCESS
+    expected = ','.join([
+        f'arn:aws:s3:::{DATA_EXPORT_BUCKET_NAME}',
+        f'arn:aws:s3:::{DATA_EXPORT_BUCKET_NAME}/*',
+        f'arn:aws:s3:::{LOCAL_BUCKET_NAME}',
+        f'arn:aws:s3:::{LOCAL_BUCKET_NAME}/*',
+    ])
+    assert output['MasterPayerBillingBucketArns'] == expected
+    context.mock_bcm.get_export.assert_called_once_with(ExportArn=EXPORT_ARN)
+
+
+@pytest.mark.unit
+def test_handler_master_payer_includes_all_export_buckets_regardless_of_type(
+    context, cfn_event, describe_trails_response_local,
+    describe_report_definitions_response_local, describe_organizations_local,
+):
+    # CloudZero only ingests COST_AND_USAGE_REPORT exports, but the IAM policy must grant
+    # bucket access to every export's destination regardless of type. The discovery code
+    # never inspects the export type, so two exports pointing at two local buckets both
+    # get covered.
+    second_export_arn = f'arn:aws:bcm-data-exports:us-east-1:{LOCAL_ACCOUNT_ID}:export/focus-export'
+    export_buckets = {EXPORT_ARN: DATA_EXPORT_BUCKET_NAME, second_export_arn: SECOND_LOCAL_BUCKET_NAME}
+    context.mock_ct.describe_trails.return_value = describe_trails_response_local
+    context.mock_cur.describe_report_definitions.return_value = describe_report_definitions_response_local
+    context.mock_bcm.list_exports.return_value = _list_exports_response(EXPORT_ARN, second_export_arn)
+    context.mock_bcm.get_export.side_effect = lambda ExportArn: _get_export_response(export_buckets[ExportArn])
+    context.mock_orgs.describe_organization.return_value = describe_organizations_local
+    context.mock_s3.list_buckets.return_value = {
+        'Buckets': [
+            {'Name': LOCAL_BUCKET_NAME},
+            {'Name': DATA_EXPORT_BUCKET_NAME},
+            {'Name': SECOND_LOCAL_BUCKET_NAME},
+        ]
+    }
+    ret = app.handler(cfn_event, None)
+    assert ret is None
+    ((_, _, status, output, _), _) = context.mock_cfnresponse_send.call_args
+    assert status == cfnresponse.SUCCESS
+    arns = output['MasterPayerBillingBucketArns']
+    for bucket in (LOCAL_BUCKET_NAME, DATA_EXPORT_BUCKET_NAME, SECOND_LOCAL_BUCKET_NAME):
+        assert f'arn:aws:s3:::{bucket}' in arns
+        assert f'arn:aws:s3:::{bucket}/*' in arns
+
+
+@pytest.mark.unit
+def test_handler_master_payer_excludes_remote_cur2_data_export_bucket(
+    context, cfn_event, describe_trails_response_local,
+    list_buckets_response, describe_report_definitions_response_local,
+    describe_organizations_local,
+):
+    context.mock_ct.describe_trails.return_value = describe_trails_response_local
+    context.mock_cur.describe_report_definitions.return_value = describe_report_definitions_response_local
+    context.mock_bcm.list_exports.return_value = _list_exports_response(EXPORT_ARN)
+    context.mock_bcm.get_export.return_value = _get_export_response(REMOTE_BUCKET_NAME)
+    context.mock_orgs.describe_organization.return_value = describe_organizations_local
+    context.mock_s3.list_buckets.return_value = list_buckets_response
+    ret = app.handler(cfn_event, None)
+    assert ret is None
+    ((_, _, status, output, _), _) = context.mock_cfnresponse_send.call_args
+    assert status == cfnresponse.SUCCESS
+    assert output['MasterPayerBillingBucketArns'] == (
+        f'arn:aws:s3:::{LOCAL_BUCKET_NAME},arn:aws:s3:::{LOCAL_BUCKET_NAME}/*'
+    )
+    assert f'arn:aws:s3:::{REMOTE_BUCKET_NAME}' not in output['MasterPayerBillingBucketArns']
+
+
+@pytest.mark.unit
+def test_handler_master_payer_survives_bcm_data_exports_access_denied(
+    context, cfn_event, describe_trails_response_local,
+    list_buckets_response, describe_report_definitions_response_local,
+    describe_organizations_local,
+):
+    context.mock_ct.describe_trails.return_value = describe_trails_response_local
+    context.mock_cur.describe_report_definitions.return_value = describe_report_definitions_response_local
+    context.mock_bcm.list_exports.side_effect = ClientError(
+        {'Error': {'Code': 'AccessDeniedException', 'Message': 'not authorized to call ListExports'}},
+        'ListExports',
+    )
+    context.mock_orgs.describe_organization.return_value = describe_organizations_local
+    context.mock_s3.list_buckets.return_value = list_buckets_response
+    ret = app.handler(cfn_event, None)
+    assert ret is None
+    ((_, _, status, output, _), _) = context.mock_cfnresponse_send.call_args
+    assert status == cfnresponse.SUCCESS
+    assert output['MasterPayerBillingBucketArns'] == (
+        f'arn:aws:s3:::{LOCAL_BUCKET_NAME},arn:aws:s3:::{LOCAL_BUCKET_NAME}/*'
+    )

@@ -36,6 +36,8 @@ Resources:
           - cloudtrail:DescribeTrails
           - s3:ListAllMyBuckets
           - cur:DescribeReportDefinitions
+          - bcm-data-exports:ListExports
+          - bcm-data-exports:GetExport
           - organizations:DescribeOrganization
           Resource: '*'
       Environment:
