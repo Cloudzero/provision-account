@@ -444,6 +444,23 @@ def test_handler_paginates_list_exports(
 
 
 @pytest.mark.unit
+def test_handler_skips_export_with_no_destination_bucket(
+    context, cfn_event, describe_report_definitions_client_error, describe_organizations_local,
+):
+    # An export whose S3Destination has no S3Bucket must be silently skipped, not added
+    # as an empty/None bucket.
+    no_bucket_export = {'Export': {'ExportArn': EXPORT_ARN, 'Name': 'no-bucket',
+                                   'DestinationConfigurations': {'S3Destination': {'S3Prefix': 'x'}}}}
+    context.mock_cur.describe_report_definitions.side_effect = describe_report_definitions_client_error
+    context.mock_bcm.list_exports.return_value = _list_exports_response(EXPORT_ARN)
+    context.mock_bcm.get_export.return_value = no_bucket_export
+    context.mock_orgs.describe_organization.return_value = describe_organizations_local
+    context.mock_s3.list_buckets.return_value = {'Buckets': [{'Name': DATA_EXPORT_BUCKET_NAME}]}
+    app.handler(cfn_event, None)
+    assert _output(context)['MasterPayerBillingBucketArns'] == ''
+
+
+@pytest.mark.unit
 def test_handler_isolates_per_export_get_export_failure(
     context, cfn_event, describe_report_definitions_client_error, describe_organizations_local,
 ):

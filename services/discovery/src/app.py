@@ -22,7 +22,7 @@ account types are deprecated.
 import logging
 
 import boto3
-from botocore.exceptions import ClientError
+from botocore.exceptions import BotoCoreError, ClientError
 from voluptuous import Any, ExactSequence, Schema, ALLOW_EXTRA, REMOVE_EXTRA
 
 from src import cfnresponse
@@ -119,19 +119,21 @@ def list_data_export_bucket_names():
             next_token = response.get('NextToken')
             if not next_token:
                 break
-    except ClientError:
+    except (ClientError, BotoCoreError):
         logger.warning('Failed to access BCM Data Exports ListExports', exc_info=True)
         return []
 
     # Resolve each export independently: a transient failure on one export should not
     # drop the buckets already resolved from the others, so isolate the get_export call
-    # per export rather than wrapping the whole loop in a single try/except.
+    # per export rather than wrapping the whole loop in a single try/except. Catch
+    # BotoCoreError too (e.g. EndpointConnectionError) so connectivity blips degrade
+    # gracefully rather than failing the stack.
     buckets = []
     for export_arn in export_arns:
         try:
             export = bcm.get_export(ExportArn=export_arn).get('Export', {})
-        except ClientError:
-            logger.warning(f'Failed to access BCM Data Exports GetExport for {export_arn}', exc_info=True)
+        except (ClientError, BotoCoreError):
+            logger.warning('Failed to access BCM Data Exports GetExport for %s', export_arn, exc_info=True)
             continue
         bucket = export.get('DestinationConfigurations', {}).get('S3Destination', {}).get('S3Bucket')
         if bucket:
@@ -305,12 +307,15 @@ def handler(event, context, **kwargs):
     status = cfnresponse.SUCCESS
     output = DEFAULT_OUTPUT
     try:
-        logger.info(f'Processing event {event}')
+        # Avoid logging the full event/output: they carry account-identifying fields
+        # that CodeQL flags as clear-text logging of sensitive data.
+        logger.info('Processing %s discovery request', event.get('RequestType'))
         validated = INPUT_SCHEMA({'event': event})
         account_id = validated['event']['ResourceProperties']['AccountId']
         output = OUTPUT_SCHEMA({'output': discover(account_id)})['output']
     except Exception as err:
         logger.exception(err)
     finally:
-        logger.info(f'Sending output {output}')
+        logger.info('Discovery complete: IsMasterPayerAccount=%s IsResourceOwnerAccount=%s',
+                    output.get('IsMasterPayerAccount'), output.get('IsResourceOwnerAccount'))
         cfnresponse.send(event, context, status, output, event.get('PhysicalResourceId'))
