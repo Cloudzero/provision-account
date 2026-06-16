@@ -207,7 +207,9 @@ def post_to_reactor(url, payload):
     # Do not log the payload or full event: they carry the ExternalId and other
     # account-identifying fields that CodeQL flags as clear-text logging of sensitive data.
     body = json.dumps(payload)
-    logger.info('Posting %s to the reactor', payload.get('message_type'))
+    # Static message only: the payload dict carries ExternalId, so reading any field of
+    # it into a log is flagged by CodeQL as clear-text logging of sensitive data.
+    logger.info('Posting notification to the reactor')
     response = http.request('POST', url, body=body.encode('utf-8'))
     response_text = response.data.decode('utf-8')
     logger.info('Reactor responded with status %s', response.status)
