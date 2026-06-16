@@ -235,8 +235,6 @@ def select_ingest_cur(report_definitions, local_bucket_names):
             if report.get('S3Bucket') in local_bucket_names and matches_schema(schema, report):
                 bucket_name = report['S3Bucket']
                 bucket_path = f"{report.get('S3Prefix', '')}/{report.get('ReportName', '')}"
-                # Log only the format literal, not the bucket name (avoid logging account data).
-                logger.info('Selected ingest CUR with format %s', billing_report_format)
                 return bucket_name, bucket_path, billing_report_format
     return None, None, 'aws'
 
