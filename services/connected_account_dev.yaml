@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2016-present, CloudZero, Inc. All rights reserved.
 # Licensed under the BSD-style license. See LICENSE file in the project root for full license information.
+#
+# NOTE: This file is identical to connected_account.yaml except that `Stage` defaults
+# to `dev`. Keep the two in sync -- the only intended difference is the Stage default.
 
 AWSTemplateFormatVersion: '2010-09-09'
 Description: CloudZero Connected Account Template
@@ -42,11 +45,22 @@ Parameters:
     Default: 'latest'
     Description: |
       Version to target when deploying the stack. `latest` should be used by default.
+  Stage:
+    Type: String
+    Default: 'dev'
+    AllowedValues: ['prod', 'dev']
+    Description: |
+      Which CloudZero environment to link to. Customers should leave this as `prod`.
 
 Mappings:
   CallbackConfiguration:
-    dev:
+    prod:
       # TODO: Get dynamically for namespaces
+      ReactorAccountId: '061190967865'
+      ConnectorsAccountId: '559846027439'
+      ReactorId: 'f7a07d02-d509-4e8d-9fb9-69c7985a6bd8'
+      ReactorCallbackUrl: 'https://api.cloudzero.com/accounts/v1/link'
+    dev:
       ReactorAccountId: '998146006915'
       ConnectorsAccountId: '483772923246'
       ReactorId: '67ad3e83-1ec5-4f4f-b505-c27e2758b990'
@@ -54,145 +68,158 @@ Mappings:
 
 Conditions:
   ValidReactorCallbackUrl: !Not
-  - !Equals [!FindInMap [CallbackConfiguration, dev, ReactorCallbackUrl], 'null']
+  - !Equals [!FindInMap [CallbackConfiguration, !Ref Stage, ReactorCallbackUrl], 'null']
 
 Resources:
-  Discovery:
-    Type: AWS::CloudFormation::Stack
+  # ---------------------------------------------------------------------------
+  # Discovery: inspect this account at deploy time. Inlined here (previously a
+  # nested stack) so its outputs can be passed as parameters into the single
+  # AccountResources stack -- CloudFormation Conditions cannot read custom-resource
+  # outputs directly, so parameterizing them through a nested stack is required.
+  # ---------------------------------------------------------------------------
+  DiscoveryFunctionRole:
+    Type: AWS::IAM::Role
     Properties:
-      Tags:
-      - Key: cloudzero-stack
-        Value: !Ref AWS::StackName
-      - Key: cloudzero-reactor-account-id
-        Value: !FindInMap [CallbackConfiguration, dev, ReactorAccountId]
-      TemplateURL: !Sub https://s3.amazonaws.com/cz-provision-account/${Version}/services/discovery.yaml
-      Parameters:
-        Version: !Sub ${Version}
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: CZDiscovery
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: CZDiscovery20190912
+                Effect: Allow
+                Action:
+                  - s3:ListAllMyBuckets
+                  - cur:DescribeReportDefinitions
+                  - bcm-data-exports:ListExports
+                  - bcm-data-exports:GetExport
+                  - organizations:DescribeOrganization
+                Resource: '*'
 
-  ResourceOwnerAccount:
+  DiscoveryFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: !Sub 'cz-provision-account-${AWS::Region}'
+        S3Key: !Sub ${Version}/services/discovery.zip
+      Handler: src.app.handler
+      Runtime: python3.12
+      MemorySize: 512
+      Timeout: 30
+      Role: !GetAtt DiscoveryFunctionRole.Arn
+      Environment:
+        Variables:
+          VERSION: '20230523'
+
+  DiscoveryResource:
+    Type: Custom::Discovery
+    Properties:
+      ServiceToken: !GetAtt DiscoveryFunction.Arn
+      AccountId: !Ref AWS::AccountId
+      Version: !Sub ${Version}
+
+  # ---------------------------------------------------------------------------
+  # The single remaining nested stack: provisions resources for whichever account
+  # type Discovery detected (resource-owner and/or master-payer). Discovery outputs
+  # are passed in as parameters so the nested stack's Conditions can gate on them.
+  # ---------------------------------------------------------------------------
+  AccountResources:
     Type: AWS::CloudFormation::Stack
     Properties:
       Tags:
       - Key: cloudzero-stack
         Value: !Ref AWS::StackName
       - Key: cloudzero-reactor-account-id
-        Value: !FindInMap [CallbackConfiguration, dev, ReactorAccountId]
+        Value: !FindInMap [CallbackConfiguration, !Ref Stage, ReactorAccountId]
+      TemplateURL: !Sub https://s3.amazonaws.com/cz-provision-account/${Version}/services/account_type/account_resources.yaml
       Parameters:
-        IsResourceOwnerAccount: !GetAtt Discovery.Outputs.IsResourceOwnerAccount
         ExternalId: !Ref ExternalId
-        ReactorAccountId: !FindInMap [CallbackConfiguration, dev, ReactorAccountId]
-        ConnectorsAccountId: !FindInMap [CallbackConfiguration, dev, ConnectorsAccountId]
-      TemplateURL: !Sub https://s3.amazonaws.com/cz-provision-account/${Version}/services/account_type/resource_owner.yaml
+        ReactorAccountId: !FindInMap [CallbackConfiguration, !Ref Stage, ReactorAccountId]
+        ConnectorsAccountId: !FindInMap [CallbackConfiguration, !Ref Stage, ConnectorsAccountId]
+        IsResourceOwnerAccount: !GetAtt DiscoveryResource.IsResourceOwnerAccount
+        IsOrganizationMasterAccount: !GetAtt DiscoveryResource.IsOrganizationMasterAccount
+        IsMasterPayerAccount: !GetAtt DiscoveryResource.IsMasterPayerAccount
+        MasterPayerBillingBucketName: !GetAtt DiscoveryResource.MasterPayerBillingBucketName
+        MasterPayerBillingBucketArns: !GetAtt DiscoveryResource.MasterPayerBillingBucketArns
 
-  CloudTrailOwnerAccount:
-    Type: AWS::CloudFormation::Stack
-    Properties:
-      Tags:
-      - Key: cloudzero-stack
-        Value: !Ref AWS::StackName
-      - Key: cloudzero-reactor-account-id
-        Value: !FindInMap [CallbackConfiguration, dev, ReactorAccountId]
-      Parameters:
-        IsCloudTrailOwnerAccount: !GetAtt Discovery.Outputs.IsCloudTrailOwnerAccount
-        CloudTrailSNSTopicArn: !GetAtt Discovery.Outputs.CloudTrailSNSTopicArn
-        ReactorAccountId: !FindInMap [CallbackConfiguration, dev, ReactorAccountId]
-      TemplateURL: !Sub https://s3.amazonaws.com/cz-provision-account/${Version}/services/account_type/cloudtrail_owner.yaml
-
-  AuditAccount:
-    Type: AWS::CloudFormation::Stack
-    Properties:
-      Tags:
-      - Key: cloudzero-stack
-        Value: !Ref AWS::StackName
-      - Key: cloudzero-reactor-account-id
-        Value: !FindInMap [CallbackConfiguration, dev, ReactorAccountId]
-      Parameters:
-        IsAuditAccount: !GetAtt Discovery.Outputs.IsAuditAccount
-        AuditCloudTrailBucketName: !GetAtt Discovery.Outputs.AuditCloudTrailBucketName
-        ExternalId: !Ref ExternalId
-        ReactorAccountId: !FindInMap [CallbackConfiguration, dev, ReactorAccountId]
-      TemplateURL: !Sub https://s3.amazonaws.com/cz-provision-account/${Version}/services/account_type/audit.yaml
-
-  MasterPayerAccount:
-    Type: AWS::CloudFormation::Stack
-    Properties:
-      Tags:
-      - Key: cloudzero-stack
-        Value: !Ref AWS::StackName
-      - Key: cloudzero-reactor-account-id
-        Value: !FindInMap [CallbackConfiguration, dev, ReactorAccountId]
-      Parameters:
-        IsOrganizationMasterAccount: !GetAtt Discovery.Outputs.IsOrganizationMasterAccount
-        IsMasterPayerAccount: !GetAtt Discovery.Outputs.IsMasterPayerAccount
-        MasterPayerBillingBucketName: !GetAtt Discovery.Outputs.MasterPayerBillingBucketName
-        MasterPayerBillingBucketArns: !GetAtt Discovery.Outputs.MasterPayerBillingBucketArns
-        ExternalId: !Ref ExternalId
-        ReactorAccountId: !FindInMap [CallbackConfiguration, dev, ReactorAccountId]
-        ConnectorsAccountId: !FindInMap [CallbackConfiguration, dev, ConnectorsAccountId]
-      TemplateURL: !Sub https://s3.amazonaws.com/cz-provision-account/${Version}/services/account_type/master_payer.yaml
-
-
-  NotificationFunctionStack:
-    Type: AWS::CloudFormation::Stack
+  # ---------------------------------------------------------------------------
+  # Notification: POST the provisioning result back to the CloudZero reactor.
+  # Inlined (previously a nested stack). Receives every value it needs as direct
+  # properties below, so it no longer reads sibling stack outputs at runtime.
+  # ---------------------------------------------------------------------------
+  NotificationFunctionRole:
+    Type: AWS::IAM::Role
     Condition: ValidReactorCallbackUrl
     Properties:
-      Tags:
-      - Key: cloudzero-stack
-        Value: !Ref AWS::StackName
-      - Key: cloudzero-reactor-account-id
-        Value: !FindInMap [CallbackConfiguration, dev, ReactorAccountId]
-      Parameters:
-        ReactorCallbackUrl: !FindInMap [CallbackConfiguration, dev, ReactorCallbackUrl]
-        Version: !Sub ${Version}
-      TemplateURL: !Sub https://s3.amazonaws.com/cz-provision-account/${Version}/services/notification.yaml
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
 
+  NotificationFunction:
+    Type: AWS::Lambda::Function
+    Condition: ValidReactorCallbackUrl
+    Properties:
+      Code:
+        S3Bucket: !Sub 'cz-provision-account-${AWS::Region}'
+        S3Key: !Sub ${Version}/services/notification.zip
+      Handler: src.app.handler
+      Runtime: python3.12
+      MemorySize: 512
+      Timeout: 30
+      Role: !GetAtt NotificationFunctionRole.Arn
+      Environment:
+        Variables:
+          VERSION: '1'
 
   NotifyCloudZeroReactor:
     Type: Custom::NotifyCloudZero
     Condition: ValidReactorCallbackUrl
     Properties:
-      Tags:
-      - Key: cloudzero-stack
-        Value: !Ref AWS::StackName
-      - Key: cloudzero-reactor-account-id
-        Value: !FindInMap [CallbackConfiguration, dev, ReactorAccountId]
-      ServiceToken: !GetAtt NotificationFunctionStack.Outputs.Arn
+      ServiceToken: !GetAtt NotificationFunction.Arn
+      # Reactor / account metadata
       AccountId: !Ref AWS::AccountId
-      Version: !Sub ${Version}
-      # Parameters from Other Resources in this Stack
-      ExternalId: !Ref ExternalId
-      ReactorCallbackUrl: !FindInMap [CallbackConfiguration, dev, ReactorCallbackUrl]
-      AccountName: !Ref AccountName
       Region: !Ref AWS::Region
-      ReactorId: !FindInMap [CallbackConfiguration, dev, ReactorId]
-      # References to other stacks; it's easier for _this_ Resource to simply grab the outputs
-      # programmatically b/c some of the outputs are conditional.
-      Stacks:
-        Discovery: !Ref Discovery
-        ResourceOwnerAccount: !Ref ResourceOwnerAccount
-        CloudTrailOwnerAccount: !Ref CloudTrailOwnerAccount
-        AuditAccount: !Ref AuditAccount
-        MasterPayerAccount: !Ref MasterPayerAccount
-        LegacyAccount: !Ref ResourceOwnerAccount
+      ExternalId: !Ref ExternalId
+      AccountName: !Ref AccountName
+      ReactorId: !FindInMap [CallbackConfiguration, !Ref Stage, ReactorId]
+      ReactorCallbackUrl: !FindInMap [CallbackConfiguration, !Ref Stage, ReactorCallbackUrl]
+      # Discovery flags + billing details (resolved from the Discovery custom resource)
+      IsResourceOwnerAccount: !GetAtt DiscoveryResource.IsResourceOwnerAccount
+      IsMasterPayerAccount: !GetAtt DiscoveryResource.IsMasterPayerAccount
+      IsOrganizationMasterAccount: !GetAtt DiscoveryResource.IsOrganizationMasterAccount
+      MasterPayerBillingBucketName: !GetAtt DiscoveryResource.MasterPayerBillingBucketName
+      MasterPayerBillingBucketPath: !GetAtt DiscoveryResource.MasterPayerBillingBucketPath
+      BillingReportFormat: !GetAtt DiscoveryResource.BillingReportFormat
+      # Provisioned outputs (resolved from the AccountResources nested stack)
+      ResourceOwnerRoleArn: !GetAtt AccountResources.Outputs.ResourceOwnerRoleArn
+      MasterPayerRoleArn: !GetAtt AccountResources.Outputs.MasterPayerRoleArn
+      MasterPayerReportS3Bucket: !GetAtt AccountResources.Outputs.MasterPayerReportS3Bucket
+      MasterPayerReportS3Prefix: !GetAtt AccountResources.Outputs.MasterPayerReportS3Prefix
 
 Outputs:
-  AuditAccount:
-    Value: !Ref AuditAccount
-  CloudTrailOwnerAccount:
-    Value: !Ref CloudTrailOwnerAccount
   Discovery:
-    Value: !Ref Discovery
-  MasterPayerAccount:
-    Value: !Ref MasterPayerAccount
-  NotificationFunctionStack:
-    Value: !If
-    - ValidReactorCallbackUrl
-    - !Ref NotificationFunctionStack
-    - !Ref AWS::NoValue
+    Value: !Ref DiscoveryResource
+  AccountResources:
+    Value: !Ref AccountResources
+  MasterPayerCurStatus:
+    Description: Whether a new CUR was created for a master-payer account (or why it was skipped).
+    Value: !GetAtt AccountResources.Outputs.MasterPayerCurStatus
   NotifyCloudZeroReactor:
     Value: !If
     - ValidReactorCallbackUrl
     - !Ref NotifyCloudZeroReactor
     - !Ref AWS::NoValue
-  ResourceOwnerAccount:
-    Value: !Ref ResourceOwnerAccount

@@ -2,42 +2,49 @@
 # Copyright (c) 2016-present, CloudZero, Inc. All rights reserved.
 # Licensed under the BSD-style license. See LICENSE file in the project root for full license information.
 
-from pprint import pformat
+"""
+Discovery custom-resource handler.
+
+Given the AWS account this stack is deployed into, inspect the account and report
+back the facts the connected-account stack needs to decide what to provision:
+
+  * Is this a resource-owner account?      (always yes -- every connected account)
+  * Is this the master-payer account?      (standalone account, or org management account)
+  * Where does this account's CUR live?    (classic Cost & Usage Report or BCM Data Export)
+
+The flow is deliberately linear and side-effect-light: `handler` validates its input,
+calls `discover`, validates the output, and sends it back to CloudFormation. `discover`
+gathers raw facts from four AWS sources (each isolated so one failure can't sink the
+others) and then classifies them. There is no CloudTrail/audit detection -- those
+account types are deprecated.
+"""
+
 import logging
 
 import boto3
 from botocore.exceptions import ClientError
-from toolz.curried import assoc_in, get_in, keyfilter, merge, pipe, update_in
 from voluptuous import Any, ExactSequence, Schema, ALLOW_EXTRA, REMOVE_EXTRA
 
 from src import cfnresponse
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
-ct = boto3.client('cloudtrail')
+
 cur = boto3.client('cur', region_name='us-east-1')  # cur is only in us-east-1
 bcm = boto3.client('bcm-data-exports', region_name='us-east-1')  # bcm-data-exports is only in us-east-1
 orgs = boto3.client('organizations')
 s3 = boto3.client('s3')
 
+
 DEFAULT_OUTPUT = {
-    'AuditCloudTrailBucketPrefix': None,
-    'AuditCloudTrailBucketName': None,
-    'RemoteCloudTrailBucket': True,
-    'CloudTrailSNSTopicArn': None,
-    'CloudTrailTrailArn': None,
-    'IsOrganizationTrail': None,
-    'IsOrganizationMasterAccount': False,
-    'VisibleCloudTrailArns': None,
-    'IsAuditAccount': False,
-    'IsCloudTrailOwnerAccount': False,
     'IsResourceOwnerAccount': False,
     'IsMasterPayerAccount': False,
+    'IsOrganizationMasterAccount': False,
+    'IsAccountOutsideOrganization': False,
     'MasterPayerBillingBucketName': None,
     'MasterPayerBillingBucketPath': None,
     'MasterPayerBillingBucketArns': '',
     'BillingReportFormat': 'aws',
-    'IsAccountOutsideOrganization': False,
 }
 
 
@@ -59,91 +66,50 @@ INPUT_SCHEMA = Schema({
 
 OUTPUT_SCHEMA = Schema({
     'output': {
-        'IsAuditAccount': bool,
-        'AuditCloudTrailBucketName': Any(None, str),
         'IsResourceOwnerAccount': bool,
-        'IsCloudTrailOwnerAccount': bool,
-        'CloudTrailSNSTopicArn': Any(None, str),
         'IsMasterPayerAccount': bool,
+        'IsOrganizationMasterAccount': bool,
         'MasterPayerBillingBucketName': Any(None, str),
         'MasterPayerBillingBucketArns': str,
     },
 }, required=True, extra=ALLOW_EXTRA)
 
-DEFAULT_PAYER_REPORTS = {'is_master_payer': False, 'report_definitions': []}
-DEFAULT_DATA_EXPORTS = {'s3_buckets': []}
-NOT_IN_ORGANIZATION_RESPONSE = {}
-
-event_account_id = get_in(['event', 'ResourceProperties', 'AccountId'])
-coeffects_traillist = get_in(['coeffects', 'cloudtrail', 'trailList'], default=[])
-coeffects_buckets = get_in(['coeffects', 's3', 'Buckets'], default=[])
-coeffects_payer_reports = get_in(['coeffects', 'cur'], default=DEFAULT_PAYER_REPORTS)
-coeffects_data_export_buckets = get_in(['coeffects', 'bcm_data_exports', 's3_buckets'], default=[])
-coeffects_master_account_id = get_in(['coeffects', 'organizations', 'Organization', 'MasterAccountId'])
-output_is_organization_master = get_in(['output', 'IsOrganizationMasterAccount'])
-output_is_account_outside_organization = get_in(['output', 'IsAccountOutsideOrganization'])
-
 
 #####################
 #
-# Coeffects, i.e. from the outside world
+# Gather: read raw facts from AWS (each source isolated from the others)
 #
 #####################
-def coeffects(world):
-    return pipe(world,
-                coeffects_cloudtrail,
-                coeffects_s3,
-                coeffects_cur,
-                coeffects_bcm_data_exports,
-                coeffects_organizations)
-
-
-def coeffect(name):
-    def d(f):
-        def w(world):
-            data = {}
-            try:
-                data = f(world)
-            except Exception:
-                logger.warning(f'Failed to get {name} information.', exc_info=True)
-            return assoc_in(world, ['coeffects', name], data)
-        return w
-    return d
-
-
-@coeffect('cloudtrail')
-def coeffects_cloudtrail(world):
-    response = ct.describe_trails()
-    return keyfilter(lambda x: x in {'trailList'}, response)
-
-
-@coeffect('s3')
-def coeffects_s3(world):
-    response = s3.list_buckets()
-    return keyfilter(lambda x: x in {'Buckets'}, response)
-
-
-@coeffect('cur')
-def coeffects_cur(world):
+def list_local_bucket_names():
+    """Return the set of S3 bucket names owned by this account."""
     try:
-        return {
-            'report_definitions': cur.describe_report_definitions().get('ReportDefinitions', []),
-        }
+        response = s3.list_buckets()
+    except ClientError:
+        logger.warning('Failed to list S3 buckets', exc_info=True)
+        return set()
+    return {b['Name'] for b in response.get('Buckets', []) if b.get('Name')}
+
+
+def list_cur_report_definitions():
+    """Return the classic Cost & Usage Report definitions defined in this account."""
+    try:
+        return cur.describe_report_definitions().get('ReportDefinitions', [])
     except ClientError:
         logger.warning('Failed to access CUR DescribeReportDefinitions', exc_info=True)
-        return DEFAULT_PAYER_REPORTS
+        return []
 
 
-@coeffect('bcm_data_exports')
-def coeffects_bcm_data_exports(world):
-    # CUR 2.0 exports (and any other BCM Data Exports) live here rather than in the
-    # classic CUR. CloudZero only ingests COST_AND_USAGE_REPORT exports, but we collect
-    # the S3 destination bucket for *every* export regardless of type so the master-payer
-    # role's bucket access covers all of them -- a customer can then repoint CloudZero at
-    # a different export without redeploying this stack. list_exports only returns export
-    # ARNs, so each export is resolved with get_export to read its destination bucket;
-    # bucket selection against the account's local buckets happens later in
-    # get_all_local_cur_bucket_names.
+def list_data_export_bucket_names():
+    """
+    Return the S3 destination buckets of every BCM Data Export in this account.
+
+    CUR 2.0 exports (and any other BCM Data Exports) live here rather than in the
+    classic CUR. CloudZero only ingests COST_AND_USAGE_REPORT exports, but we collect
+    the S3 destination bucket for *every* export regardless of type so the master-payer
+    role's bucket access covers all of them -- a customer can then repoint CloudZero at
+    a different export without redeploying this stack. `list_exports` only returns export
+    ARNs, so each export is resolved with `get_export` to read its destination bucket.
+    """
     try:
         export_arns = []
         next_token = None
@@ -155,116 +121,41 @@ def coeffects_bcm_data_exports(world):
                 break
     except ClientError:
         logger.warning('Failed to access BCM Data Exports ListExports', exc_info=True)
-        return DEFAULT_DATA_EXPORTS
+        return []
 
     # Resolve each export independently: a transient failure on one export should not
     # drop the buckets already resolved from the others, so isolate the get_export call
     # per export rather than wrapping the whole loop in a single try/except.
-    s3_buckets = []
+    buckets = []
     for export_arn in export_arns:
         try:
             export = bcm.get_export(ExportArn=export_arn).get('Export', {})
         except ClientError:
             logger.warning(f'Failed to access BCM Data Exports GetExport for {export_arn}', exc_info=True)
             continue
-        bucket = get_in(['DestinationConfigurations', 'S3Destination', 'S3Bucket'], export)
+        bucket = export.get('DestinationConfigurations', {}).get('S3Destination', {}).get('S3Bucket')
         if bucket:
-            s3_buckets.append(bucket)
-    return {'s3_buckets': s3_buckets}
+            buckets.append(bucket)
+    return buckets
 
 
-@coeffect('organizations')
-def coeffects_organizations(world):
+def get_organization_master_account_id():
+    """Return the org's management (master payer) account id, or None if not in an org."""
     try:
-        response = orgs.describe_organization()
-        return keyfilter(lambda x: x in {'Organization'}, response)
+        return orgs.describe_organization().get('Organization', {}).get('MasterAccountId')
     except ClientError:
-        return NOT_IN_ORGANIZATION_RESPONSE
-
-
-#####################
-#
-# Business Logic
-#
-#####################
-MINIMUM_CLOUDTRAIL_CONFIGURATION = Schema({
-    "S3BucketName": str,
-    "SnsTopicName": str,
-    "SnsTopicARN": str,
-    "IsMultiRegionTrail": True,
-    "TrailARN": str,
-}, extra=ALLOW_EXTRA, required=True)
-
-
-IDEAL_CLOUDTRAIL_CONFIGURATION = MINIMUM_CLOUDTRAIL_CONFIGURATION.extend({
-    "IsOrganizationTrail": True,
-}, extra=ALLOW_EXTRA, required=True)
-
-
-def safe_check(schema, data):
-    try:
-        return schema(data)
-    except Exception:
-        logger.debug(f'Data {pformat(data)} did not match schema {schema}', exc_info=True)
+        # The account is not a member of an AWS Organization.
         return None
 
 
-def keep_valid(schema, xs):
-    return [
-        y for y in [safe_check(schema, x) for x in xs]
-        if y is not None
-    ]
-
-
-def get_first_valid_trail(world):
-    trails = coeffects_traillist(world)
-    logger.info(f'Found these CloudTrails: {trails}')
-    valid_trails = keep_valid(IDEAL_CLOUDTRAIL_CONFIGURATION, trails) or keep_valid(MINIMUM_CLOUDTRAIL_CONFIGURATION, trails)
-    logger.info(f'Found these _valid_ CloudTrails: {valid_trails}')
-    return valid_trails[0] if valid_trails else {}
-
-
-def discover_audit_account(world):
-    trail = get_first_valid_trail(world)
-    trail_bucket = trail.get('S3BucketName')
-    local_buckets = {x['Name'] for x in coeffects_buckets(world)}
-    output = {
-        'IsAuditAccount': trail_bucket in local_buckets,
-        'RemoteCloudTrailBucket': trail_bucket not in local_buckets,
-        'AuditCloudTrailBucketName': trail_bucket,
-        'AuditCloudTrailBucketPrefix': trail.get('S3KeyPrefix'),
-    }
-    return update_in(world, ['output'], lambda x: merge(x or {}, output))
-
-
-def discover_connected_account(world):
-    output = {
-        'IsResourceOwnerAccount': True,
-    }
-    return update_in(world, ['output'], lambda x: merge(x or {}, output))
-
-
-def get_visible_cloudtrail_arns(world):
-    visible_trail_arns = [x.get('TrailARN')
-                          for x in coeffects_traillist(world)]
-    return ','.join(visible_trail_arns) if visible_trail_arns else None
-
-
-def discover_cloudtrail_account(world):
-    visible_trails = get_visible_cloudtrail_arns(world)
-    trail = get_first_valid_trail(world)
-    trail_topic = trail.get('SnsTopicARN')
-    account_id = trail_topic.split(':')[4] if trail_topic else None
-    output = {
-        'IsCloudTrailOwnerAccount': account_id == event_account_id(world),
-        'IsOrganizationTrail': trail.get('IsOrganizationTrail'),
-        'CloudTrailSNSTopicArn': trail_topic,
-        'CloudTrailTrailArn': trail.get('TrailARN'),
-        'VisibleCloudTrailArns': visible_trails,
-    }
-    return update_in(world, ['output'], lambda x: merge(x or {}, output))
-
-
+#####################
+#
+# CUR report selection
+#
+#####################
+# A CUR report must match one of these schemas to be ingestable by CloudZero. CSV is
+# preferred over Parquet, and within a format an "ideal" (resource-tagged, versioned)
+# report is preferred over a "minimum" one.
 IDEAL_BILLING_REPORT_CSV = Schema({
     'TimeUnit': 'HOURLY',
     'Format': 'textORcsv',
@@ -320,51 +211,50 @@ _CUR_CANDIDATE_TIERS = [
 ]
 
 
-def get_first_valid_report_definition(valid_report_definitions, default=None):
-    return valid_report_definitions[0] if any(valid_report_definitions) else default
+def matches_schema(schema, data):
+    """True if `data` validates against the voluptuous `schema`."""
+    try:
+        schema(data)
+        return True
+    except Exception:
+        return False
 
 
-def _report_to_bucket_info(report):
-    bucket_name = report.get('S3Bucket')
-    bucket_path = f"{report.get('S3Prefix', '')}/{report.get('ReportName', '')}" if bucket_name else None
-    return bucket_name, bucket_path
+def select_ingest_cur(report_definitions, local_bucket_names):
+    """
+    Pick the single CUR report CloudZero will ingest, preferring CSV over Parquet and
+    ideal over minimum (see `_CUR_CANDIDATE_TIERS`). Only reports whose bucket is owned
+    by this account are eligible.
 
-
-def get_cur_bucket_if_local(world, report_definitions):
-    logger.info(f'Found these ReportDefinitions: {report_definitions}')
-    local_buckets = {x['Name'] for x in coeffects_buckets(world)}
-
+    Returns (bucket_name, bucket_path, billing_report_format); all-None / 'aws' when none.
+    """
     for schema, billing_report_format in _CUR_CANDIDATE_TIERS:
-        local_matches = [r for r in keep_valid(schema, report_definitions) if r['S3Bucket'] in local_buckets]
-        logger.info(f'CUR tier {billing_report_format}: {local_matches}')
-        if local_matches:
-            bucket_name, bucket_path = _report_to_bucket_info(get_first_valid_report_definition(local_matches))
-            return bucket_name, bucket_path, billing_report_format
-
+        for report in report_definitions:
+            if report.get('S3Bucket') in local_bucket_names and matches_schema(schema, report):
+                bucket_name = report['S3Bucket']
+                bucket_path = f"{report.get('S3Prefix', '')}/{report.get('ReportName', '')}"
+                logger.info(f'Selected ingest CUR ({billing_report_format}) in bucket {bucket_name}')
+                return bucket_name, bucket_path, billing_report_format
     return None, None, 'aws'
 
 
-def get_all_local_cur_bucket_names(world, report_definitions):
-    # Schema-agnostic on purpose: we enumerate every locally-owned bucket referenced by
-    # any CUR report, regardless of whether the report's schema matches CloudZero's
-    # ingest formats (the `_CUR_CANDIDATE_TIERS` filter applied by `get_cur_bucket_if_local`).
-    # The role needs s3:Get/List on every CUR bucket so the customer can later switch
-    # CloudZero to a different report without redeploying this stack. A bucket referenced
-    # by a CUR report is by definition a CUR bucket; the schema filter only governs which
-    # report CloudZero currently ingests, not which buckets are legitimate CUR storage.
-    #
-    # CUR 2.0 data lives in BCM Data Exports rather than the classic CUR, so we also
-    # include the S3 destination buckets discovered via bcm-data-exports list/get. As
-    # with classic CUR above, this is deliberately type-agnostic: CloudZero only ingests
-    # COST_AND_USAGE_REPORT exports, but the role is granted bucket access to every
-    # export's destination so the customer can switch export types without redeploy.
-    local_buckets = {x['Name'] for x in coeffects_buckets(world)}
+def all_local_billing_bucket_names(report_definitions, data_export_buckets, local_bucket_names):
+    """
+    Every locally-owned bucket referenced by any CUR report or BCM Data Export.
+
+    Deliberately schema-agnostic: a bucket referenced by any billing report/export is
+    legitimate billing storage, so the master-payer role gets s3:Get/List on all of
+    them. This lets a customer switch CloudZero between report formats (CSV/Parquet/CUR
+    2.0) without redeploying this stack. The schema filter in `select_ingest_cur` only
+    governs which report CloudZero currently ingests, not which buckets are legitimate.
+    """
     report_buckets = {r['S3Bucket'] for r in report_definitions if isinstance(r.get('S3Bucket'), str)}
-    data_export_buckets = {b for b in coeffects_data_export_buckets(world) if isinstance(b, str)}
-    return sorted((report_buckets | data_export_buckets) & local_buckets)
+    export_buckets = {b for b in data_export_buckets if isinstance(b, str)}
+    return sorted((report_buckets | export_buckets) & local_bucket_names)
 
 
 def format_bucket_arns(bucket_names):
+    """Render bucket names as a comma-separated list of `bucket` and `bucket/*` ARNs."""
     arns = []
     for name in bucket_names:
         arns.append(f'arn:aws:s3:::{name}')
@@ -372,41 +262,38 @@ def format_bucket_arns(bucket_names):
     return ','.join(arns)
 
 
-def discover_master_payer_account(world):
-    is_account_not_in_organization = output_is_account_outside_organization(world)
-    is_account_organization_master_account = output_is_organization_master(world)
-    is_master_payer = is_account_not_in_organization or is_account_organization_master_account
-    report_definitions = coeffects_payer_reports(world)['report_definitions']
-    bucket_name, bucket_path, billing_report_format = get_cur_bucket_if_local(world, report_definitions)
-    all_local_cur_buckets = get_all_local_cur_bucket_names(world, report_definitions)
-    output = {
+#####################
+#
+# Classification
+#
+#####################
+def discover(account_id):
+    """Gather account facts and classify the account for CloudZero onboarding."""
+    local_bucket_names = list_local_bucket_names()
+    report_definitions = list_cur_report_definitions()
+    data_export_buckets = list_data_export_bucket_names()
+    master_account_id = get_organization_master_account_id()
+
+    is_outside_organization = master_account_id is None
+    is_organization_master = account_id == master_account_id
+    # A standalone account (no org) pays its own bill; in an org, the management account
+    # is the payer. Either way that account owns the consolidated CUR.
+    is_master_payer = is_outside_organization or is_organization_master
+
+    ingest_bucket, ingest_path, billing_report_format = select_ingest_cur(report_definitions, local_bucket_names)
+    billing_bucket_arns = format_bucket_arns(
+        all_local_billing_bucket_names(report_definitions, data_export_buckets, local_bucket_names))
+
+    return {
+        'IsResourceOwnerAccount': True,
         'IsMasterPayerAccount': is_master_payer,
-        'MasterPayerBillingBucketName': bucket_name,
-        'MasterPayerBillingBucketPath': bucket_path,
-        'MasterPayerBillingBucketArns': format_bucket_arns(all_local_cur_buckets),
+        'IsOrganizationMasterAccount': is_organization_master,
+        'IsAccountOutsideOrganization': is_outside_organization,
+        'MasterPayerBillingBucketName': ingest_bucket,
+        'MasterPayerBillingBucketPath': ingest_path,
+        'MasterPayerBillingBucketArns': billing_bucket_arns,
         'BillingReportFormat': billing_report_format,
     }
-    return update_in(world, ['output'], lambda x: merge(x or {}, output))
-
-
-def discover_organization_master_account(world):
-    account_id = event_account_id(world)
-    master_account_id = coeffects_master_account_id(world)
-
-    output = {
-        'IsOrganizationMasterAccount': account_id == master_account_id,
-        'IsAccountOutsideOrganization': master_account_id is None,
-    }
-    return update_in(world, ['output'], lambda x: merge(x or {}, output))
-
-
-def discover_account_types(world):
-    return pipe(world,
-                discover_audit_account,
-                discover_connected_account,
-                discover_cloudtrail_account,
-                discover_organization_master_account,
-                discover_master_payer_account)
 
 
 #####################
@@ -416,17 +303,14 @@ def discover_account_types(world):
 #####################
 def handler(event, context, **kwargs):
     status = cfnresponse.SUCCESS
-    world = {}
+    output = DEFAULT_OUTPUT
     try:
         logger.info(f'Processing event {event}')
-        world = pipe({'event': event, 'kwargs': kwargs},
-                     INPUT_SCHEMA,
-                     coeffects,
-                     discover_account_types,
-                     OUTPUT_SCHEMA)
+        validated = INPUT_SCHEMA({'event': event})
+        account_id = validated['event']['ResourceProperties']['AccountId']
+        output = OUTPUT_SCHEMA({'output': discover(account_id)})['output']
     except Exception as err:
         logger.exception(err)
     finally:
-        output = world.get('output', DEFAULT_OUTPUT)
         logger.info(f'Sending output {output}')
         cfnresponse.send(event, context, status, output, event.get('PhysicalResourceId'))

@@ -33,7 +33,6 @@ Resources:
         - Sid: CZDiscovery20190912
           Effect: Allow
           Action:
-          - cloudtrail:DescribeTrails
           - s3:ListAllMyBuckets
           - cur:DescribeReportDefinitions
           - bcm-data-exports:ListExports

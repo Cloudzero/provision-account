@@ -82,6 +82,8 @@ The AWS account that contains your Cost and Usage Report (CUR) and is the payer 
 
 **Important**: CloudZero requires an HOURLY Cost and Usage Report. Daily reports are not supported.
 
+**Deploy payer accounts in `us-east-1`**: when the payer account has no existing CUR, this template creates one for you using the native `AWS::CUR::ReportDefinition` resource, which AWS only supports in `us-east-1` (the single region the Cost and Usage Report API runs in). Launch the stack in `us-east-1` on a payer account. If it is launched elsewhere on a payer account that needs a new CUR, the cross-account role is still created but the CUR is not — the stack's `MasterPayerCurStatus` output reports the skip. Payer accounts that already have a CUR are unaffected by region.
+
 If the payer account has more than one CUR configured, the auto-generated IAM policy grants `s3:Get*`/`s3:List*` on every CUR bucket discovered in the account, not only the one CloudZero ingests as primary. This keeps the role aligned with the customer's actual CUR footprint and avoids surprises if the primary CUR is later swapped.
 
 #### Resource Owner Account

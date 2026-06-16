@@ -1,0 +1,606 @@
+# -*- coding: utf-8 -*-
+# Copyright (c) 2016-present, CloudZero, Inc. All rights reserved.
+# Licensed under the BSD-style license. See LICENSE file in the project root for full license information.
+
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  CloudZero Account Resources Template
+
+  Single nested stack that provisions the cross-account resources for whichever
+  account type Discovery detected. Merges the former resource_owner and master_payer
+  templates. Resource creation is gated on the Discovery flags passed in as parameters
+  (CloudFormation Conditions cannot read custom-resource outputs directly, so the
+  parent passes them as parameters here). The audit and cloudtrail-owner account types
+  are deprecated and intentionally not provisioned.
+
+Parameters:
+  ExternalId:
+    Type: String
+    Description: |
+      Unique ExternalId for Customer Organization; for cross-account Role Access and
+      associating this template with a Customer Organization
+  ReactorAccountId:
+    Type: String
+    Description: The CloudZero reactor AWS account ID
+    Default: '061190967865'
+  ConnectorsAccountId:
+    Type: String
+    Description: Additional CloudZero AWS account ID that will assume the cross-account role.
+    Default: '559846027439'
+  IsResourceOwnerAccount:
+    Type: String
+    Description: Flag indicating whether to provision the resource-owner role.
+    AllowedValues: ['true', 'false']
+  IsOrganizationMasterAccount:
+    Type: String
+    Description: Flag indicating whether this is an organization management account.
+    AllowedValues: ['true', 'false']
+  IsMasterPayerAccount:
+    Type: String
+    Description: Flag indicating whether this is the master-payer account (existing valid CUR or standalone).
+    AllowedValues: ['true', 'false']
+  MasterPayerBillingBucketName:
+    Type: String
+    Description: The name of the existing S3 bucket holding billing (CUR) data, or 'null'.
+  MasterPayerBillingBucketArns:
+    Type: String
+    Default: ''
+    Description: |
+      Comma-separated list of S3 ARNs (both bucket and bucket/* forms) for every
+      locally-owned S3 bucket referenced by any CUR report/export in this account.
+      Empty only when no CUR points to a locally-owned bucket.
+
+Mappings:
+  MasterPayerDefaults:
+    Cur:
+      BucketName: 'cz-cur-hourly-csv'
+
+Conditions:
+  # --- resource owner ---
+  ResourceOwnerCreateResources: !Equals [!Ref IsResourceOwnerAccount, 'true']
+
+  # --- master payer ---
+  IsUsEast1: !Equals [!Ref 'AWS::Region', 'us-east-1']
+  MasterPayerValidExistingBucketName: !Not [!Equals [!Ref MasterPayerBillingBucketName, 'null']]
+  MasterPayerHasBillingBucketArns: !Not [!Equals [!Ref MasterPayerBillingBucketArns, '']]
+  # Master payer that has no existing CUR -> a new CUR should be created for it.
+  MasterPayerCreateCurAndBucketAndPolicy: !And
+    - !Not [Condition: MasterPayerValidExistingBucketName]
+    - !Equals [!Ref IsMasterPayerAccount, 'true']
+  # Master payer that already has a CUR -> only attach the read policy.
+  MasterPayerCreatePolicyForExistingCur: !And
+    - Condition: MasterPayerValidExistingBucketName
+    - !Equals [!Ref IsMasterPayerAccount, 'true']
+  # The cross-account role is created for any master payer (existing or new CUR).
+  MasterPayerCreateRoleAndPolicy: !Or
+    - Condition: MasterPayerCreatePolicyForExistingCur
+    - Condition: MasterPayerCreateCurAndBucketAndPolicy
+  # Native CUR resources (bucket + policy + report) can only be created in us-east-1,
+  # the single region in which AWS::CUR::ReportDefinition / the CUR API exist. A master
+  # payer onboarded from any other region therefore gets its role but no new CUR -- see
+  # the MasterPayerCurStatus output and README. Existing-CUR payers are unaffected.
+  MasterPayerCreateNativeCur: !And
+    - Condition: MasterPayerCreateCurAndBucketAndPolicy
+    - Condition: IsUsEast1
+
+Resources:
+
+  #####################
+  # Resource Owner
+  #####################
+  ResourceOwnerRole:
+    Type: AWS::IAM::Role
+    Condition: ResourceOwnerCreateResources
+    Properties:
+      Path: '/cloudzero/'
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS:
+                - !Sub 'arn:aws:iam::${ReactorAccountId}:root'
+                - !Sub 'arn:aws:iam::${ConnectorsAccountId}:root'
+            Action:
+              - 'sts:AssumeRole'
+            Condition:
+              StringEquals:
+                'sts:ExternalId': !Ref ExternalId
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/CloudWatchReadOnlyAccess
+        - arn:aws:iam::aws:policy/ComputeOptimizerReadOnlyAccess
+        - arn:aws:iam::aws:policy/job-function/ViewOnlyAccess
+        - arn:aws:iam::aws:policy/AWSBillingReadOnlyAccess
+
+  ResourceOwnerRolePolicy:
+    Type: AWS::IAM::Policy
+    Condition: ResourceOwnerCreateResources
+    Properties:
+      PolicyName: !Sub 'cloudzero-resource-owner-policy-${ReactorAccountId}'
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: CZTier0BillingDataAccess20260420
+            Effect: Allow
+            Action:
+              - account:GetAccountInformation
+              - bcm-data-exports:Get*
+              - bcm-data-exports:List*
+              - billing:Get*
+              - ce:Describe*
+              - ce:Get*
+              - ce:List*
+              - consolidatedbilling:Get*
+              - consolidatedbilling:List*
+              - cur:Describe*
+              - cur:Get*
+              - cur:List*
+              - cur:Validate*
+              - freetier:Get*
+              - invoicing:Get*
+              - invoicing:List*
+              - mapcredits:List*
+              - payments:Get*
+              - payments:List*
+              - purchase-orders:Get*
+              - purchase-orders:List*
+              - purchase-orders:View*
+              - sustainability:Get*
+              - tax:Get*
+              - tax:List*
+            Resource: "*"
+          - Sid: CZTier0ReservedCapacity20260420
+            Effect: Allow
+            Action:
+              - dynamodb:DescribeReserved*
+              - ec2:DescribeReserved*
+              - elasticache:DescribeReserved*
+              - es:DescribeReserved*
+              - rds:DescribeReserved*
+              - redshift:DescribeReserved*
+            Resource: "*"
+          - Sid: CZTier0SavingsPlans20260420
+            Effect: Allow
+            Action:
+              - savingsplans:Describe*
+              - savingsplans:List*
+            Resource: "*"
+          - Sid: CZTier1Budgets20260420
+            Effect: Allow
+            Action:
+              - budgets:Describe*
+              - budgets:View*
+            Resource: "*"
+          - Sid: CZTier1BillingConductor20260420
+            Effect: Allow
+            Action:
+              - billingconductor:Get*
+              - billingconductor:List*
+            Resource: "*"
+          - Sid: CZTier1PricingAndForecasting20260420
+            Effect: Allow
+            Action:
+              - bcm-pricing-calculator:Get*
+              - bcm-pricing-calculator:List*
+              - pricing:*
+            Resource: "*"
+          - Sid: CZTier1OrganizationsAndTags20260420
+            Effect: Allow
+            Action:
+              - account:ListRegions
+              - organizations:Describe*
+              - organizations:List*
+              - resource-explorer:List*
+              - resource-groups:Get*
+              - resource-groups:List*
+              - resource-groups:Search*
+              - tag:Describe*
+              - tag:Get*
+            Resource: "*"
+          - Sid: CZTier1ComputeOptimizer20260420
+            Effect: Allow
+            Action:
+              - compute-optimizer:Describe*
+              - compute-optimizer:Get*
+            Resource: "*"
+          - Sid: CZTier1CostOptimizationHub20260420
+            Effect: Allow
+            Action:
+              - cost-optimization-hub:Get*
+              - cost-optimization-hub:List*
+            Resource: "*"
+          - Sid: CZTier1TrustedAdvisorAndHealth20260420
+            Effect: Allow
+            Action:
+              - health:Describe*
+              - support:DescribeTrustedAdvisor*
+            Resource: "*"
+          - Sid: CZTier1ContainerOrchestration20260511
+            Effect: Allow
+            Action:
+              - ecs:Describe*
+              - ecs:List*
+              - eks:Describe*
+              - eks:List*
+            Resource: "*"
+          - Sid: CZTier1ContainerInsightsLogs20260420
+            Effect: Allow
+            Action:
+              - logs:Describe*
+              - logs:Filter*
+              - logs:Get*
+              - logs:List*
+              - logs:StartQuery
+              - logs:StopQuery
+            Resource: arn:aws:logs:*:*:log-group:/aws/containerinsights/*
+          - Sid: CZTier1ContainerInsightsLogQuery20260420
+            Effect: Allow
+            Action:
+              - logs:DescribeLogGroups
+              - logs:GetQueryResults
+            Resource: arn:aws:logs:*:*:log-group:*
+          - Sid: CZTier2CloudTrail20260420
+            Effect: Allow
+            Action:
+              - cloudtrail:Describe*
+              - cloudtrail:Get*
+              - cloudtrail:List*
+              - cloudtrail:LookupEvents
+            Resource: "*"
+          - Sid: CZTier2ServiceQuotas20260420
+            Effect: Allow
+            Action:
+              - servicequotas:Get*
+              - servicequotas:List*
+            Resource: "*"
+          - Sid: CZTier2CloudWatchMetrics20260420
+            Effect: Allow
+            Action:
+              - autoscaling:Describe*
+              - cloudwatch:Describe*
+              - cloudwatch:Get*
+              - cloudwatch:List*
+            Resource: "*"
+          - Sid: CZTier2CloudFormation20260420
+            Effect: Allow
+            Action:
+              - cloudformation:Describe*
+              - cloudformation:Get*
+              - cloudformation:List*
+            Resource: "*"
+          - Sid: CZTier2SelfInspection20260420
+            Effect: Allow
+            Action:
+              - iam:GetRole
+              - iam:GetRolePolicy
+              - iam:ListAttachedRolePolicies
+              - iam:ListRolePolicies
+              - iam:ListRoleTags
+              - iam:SimulatePrincipalPolicy
+            Resource: arn:aws:iam::*:role/cloudzero/*
+          - Sid: CZTier2SelfInspectionPolicies20260420
+            Effect: Allow
+            Action:
+              - iam:GetPolicy
+              - iam:GetPolicyVersion
+            Resource:
+              - arn:aws:iam::aws:policy/AWSBillingReadOnlyAccess
+              - arn:aws:iam::aws:policy/CloudWatchReadOnlyAccess
+              - arn:aws:iam::aws:policy/ComputeOptimizerReadOnlyAccess
+              - arn:aws:iam::aws:policy/job-function/ViewOnlyAccess
+      Roles:
+        - !Ref ResourceOwnerRole
+
+  #####################
+  # Master Payer
+  #####################
+  # Native Cost & Usage Report resources. Previously a Custom::CostAndUsageReport Lambda
+  # created these because CloudFormation had no CUR resource; AWS::CUR::ReportDefinition
+  # now exists, so we use it directly. Only created in us-east-1 (see MasterPayerCreateNativeCur).
+  # Billing data is never destroyed on stack delete -- hence DeletionPolicy: Retain.
+  MasterPayerCurBucket:
+    Type: AWS::S3::Bucket
+    Condition: MasterPayerCreateNativeCur
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub
+        - '${BucketName}-${Id}'
+        - BucketName: !FindInMap [MasterPayerDefaults, Cur, BucketName]
+          Id: !Select [2, !Split ['/', !Ref 'AWS::StackId']]
+
+  MasterPayerCurBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Condition: MasterPayerCreateNativeCur
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Bucket: !Ref MasterPayerCurBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AddBillReportsGet
+            Effect: Allow
+            Principal:
+              Service: billingreports.amazonaws.com
+            Action:
+              - 's3:GetBucketAcl'
+              - 's3:GetBucketPolicy'
+            Resource: !GetAtt MasterPayerCurBucket.Arn
+          - Sid: AddBillReportsPut
+            Effect: Allow
+            Principal:
+              Service: billingreports.amazonaws.com
+            Action: 's3:PutObject'
+            Resource: !Sub '${MasterPayerCurBucket.Arn}/*'
+
+  MasterPayerCurReport:
+    Type: AWS::CUR::ReportDefinition
+    Condition: MasterPayerCreateNativeCur
+    DependsOn: MasterPayerCurBucketPolicy
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      ReportName: cloudzero-cur-hourly-csv
+      TimeUnit: HOURLY
+      Format: textORcsv
+      Compression: GZIP
+      AdditionalSchemaElements:
+        - RESOURCES
+      S3Bucket: !Ref MasterPayerCurBucket
+      S3Prefix: cloudzero
+      S3Region: !Ref 'AWS::Region'
+      RefreshClosedReports: true
+      ReportVersioning: CREATE_NEW_REPORT
+
+  MasterPayerRole:
+    Condition: MasterPayerCreateRoleAndPolicy
+    Type: 'AWS::IAM::Role'
+    Properties:
+      Path: '/cloudzero/'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: czServiceAccount01
+            Effect: Allow
+            Principal:
+              AWS:
+                - !Sub 'arn:aws:iam::${ReactorAccountId}:root'
+                - !Sub 'arn:aws:iam::${ConnectorsAccountId}:root'
+            Action:
+              - 'sts:AssumeRole'
+            Condition:
+              StringEquals:
+                'sts:ExternalId': !Ref ExternalId
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/CloudWatchReadOnlyAccess
+        - arn:aws:iam::aws:policy/ComputeOptimizerReadOnlyAccess
+        - arn:aws:iam::aws:policy/job-function/ViewOnlyAccess
+        - arn:aws:iam::aws:policy/AWSBillingReadOnlyAccess
+
+  MasterPayerRolePolicy:
+    Condition: MasterPayerCreateRoleAndPolicy
+    Type: 'AWS::IAM::Policy'
+    Properties:
+      PolicyName: !Sub 'cloudzero-master-payer-policy-${ReactorAccountId}'
+      Roles:
+        - !Ref MasterPayerRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: CZTier0BillingBucket20260420
+            Effect: Allow
+            Action:
+              - s3:Get*
+              - s3:List*
+            # The discovery Lambda emits MasterPayerBillingBucketArns as a comma-separated
+            # ARN list covering every locally-owned S3 bucket referenced by any CUR report
+            # (both `bucket` and `bucket/*` forms). When ARNs is empty (e.g., the stack was
+            # invoked directly with only MasterPayerBillingBucketName), we fall back to the
+            # legacy single-bucket pair so !Split never sees an empty string (which would
+            # otherwise yield [''] and produce an invalid IAM Resource). When this stack is
+            # also creating a brand-new CUR bucket, discovery found no existing CURs and
+            # falls through to the new-bucket pair below.
+            Resource: !Split
+              - ','
+              - !If
+                - MasterPayerCreatePolicyForExistingCur
+                - !If
+                  - MasterPayerHasBillingBucketArns
+                  - !Ref MasterPayerBillingBucketArns
+                  - !Sub 'arn:aws:s3:::${MasterPayerBillingBucketName},arn:aws:s3:::${MasterPayerBillingBucketName}/*'
+                - !Sub
+                  - 'arn:aws:s3:::${BucketName}-${Id},arn:aws:s3:::${BucketName}-${Id}/*'
+                  - BucketName: !FindInMap [MasterPayerDefaults, Cur, BucketName]
+                    Id: !Select [2, !Split ['/', !Ref 'AWS::StackId']]
+          - Sid: CZTier0BillingDataAccess20260420
+            Effect: Allow
+            Action:
+              - account:GetAccountInformation
+              - bcm-data-exports:Get*
+              - bcm-data-exports:List*
+              - billing:Get*
+              - ce:Describe*
+              - ce:Get*
+              - ce:List*
+              - consolidatedbilling:Get*
+              - consolidatedbilling:List*
+              - cur:Describe*
+              - cur:Get*
+              - cur:List*
+              - cur:Validate*
+              - freetier:Get*
+              - invoicing:Get*
+              - invoicing:List*
+              - mapcredits:List*
+              - payments:Get*
+              - payments:List*
+              - purchase-orders:Get*
+              - purchase-orders:List*
+              - purchase-orders:View*
+              - sustainability:Get*
+              - tax:Get*
+              - tax:List*
+            Resource: "*"
+          - Sid: CZTier0ReservedCapacity20260420
+            Effect: Allow
+            Action:
+              - dynamodb:DescribeReserved*
+              - ec2:DescribeReserved*
+              - elasticache:DescribeReserved*
+              - es:DescribeReserved*
+              - rds:DescribeReserved*
+              - redshift:DescribeReserved*
+            Resource: "*"
+          - Sid: CZTier0SavingsPlans20260420
+            Effect: Allow
+            Action:
+              - savingsplans:Describe*
+              - savingsplans:List*
+            Resource: "*"
+          - Sid: CZTier1Budgets20260420
+            Effect: Allow
+            Action:
+              - budgets:Describe*
+              - budgets:View*
+            Resource: "*"
+          - Sid: CZTier1BillingConductor20260420
+            Effect: Allow
+            Action:
+              - billingconductor:Get*
+              - billingconductor:List*
+            Resource: "*"
+          - Sid: CZTier1PricingAndForecasting20260420
+            Effect: Allow
+            Action:
+              - bcm-pricing-calculator:Get*
+              - bcm-pricing-calculator:List*
+              - pricing:*
+            Resource: "*"
+          - Sid: CZTier1OrganizationsAndTags20260420
+            Effect: Allow
+            Action:
+              - account:ListRegions
+              - organizations:Describe*
+              - organizations:List*
+              - resource-explorer:List*
+              - resource-groups:Get*
+              - resource-groups:List*
+              - resource-groups:Search*
+              - tag:Describe*
+              - tag:Get*
+            Resource: "*"
+          - Sid: CZTier1ComputeOptimizer20260420
+            Effect: Allow
+            Action:
+              - compute-optimizer:Describe*
+              - compute-optimizer:Get*
+            Resource: "*"
+          - Sid: CZTier1CostOptimizationHub20260420
+            Effect: Allow
+            Action:
+              - cost-optimization-hub:Get*
+              - cost-optimization-hub:List*
+            Resource: "*"
+          - Sid: CZTier1TrustedAdvisorAndHealth20260420
+            Effect: Allow
+            Action:
+              - health:Describe*
+              - support:DescribeTrustedAdvisor*
+            Resource: "*"
+          - Sid: CZTier1ContainerOrchestration20260511
+            Effect: Allow
+            Action:
+              - ecs:Describe*
+              - ecs:List*
+              - eks:Describe*
+              - eks:List*
+            Resource: "*"
+          - Sid: CZTier1ContainerInsightsLogs20260420
+            Effect: Allow
+            Action:
+              - logs:Describe*
+              - logs:Filter*
+              - logs:Get*
+              - logs:List*
+              - logs:StartQuery
+              - logs:StopQuery
+            Resource: arn:aws:logs:*:*:log-group:/aws/containerinsights/*
+          - Sid: CZTier1ContainerInsightsLogQuery20260420
+            Effect: Allow
+            Action:
+              - logs:DescribeLogGroups
+              - logs:GetQueryResults
+            Resource: arn:aws:logs:*:*:log-group:*
+          - Sid: CZTier2CloudTrail20260420
+            Effect: Allow
+            Action:
+              - cloudtrail:Describe*
+              - cloudtrail:Get*
+              - cloudtrail:List*
+              - cloudtrail:LookupEvents
+            Resource: "*"
+          - Sid: CZTier2ServiceQuotas20260420
+            Effect: Allow
+            Action:
+              - servicequotas:Get*
+              - servicequotas:List*
+            Resource: "*"
+          - Sid: CZTier2CloudWatchMetrics20260420
+            Effect: Allow
+            Action:
+              - autoscaling:Describe*
+              - cloudwatch:Describe*
+              - cloudwatch:Get*
+              - cloudwatch:List*
+            Resource: "*"
+          - Sid: CZTier2CloudFormation20260420
+            Effect: Allow
+            Action:
+              - cloudformation:Describe*
+              - cloudformation:Get*
+              - cloudformation:List*
+            Resource: "*"
+          - Sid: CZTier2SelfInspection20260420
+            Effect: Allow
+            Action:
+              - iam:GetRole
+              - iam:GetRolePolicy
+              - iam:ListAttachedRolePolicies
+              - iam:ListRolePolicies
+              - iam:ListRoleTags
+              - iam:SimulatePrincipalPolicy
+            Resource: arn:aws:iam::*:role/cloudzero/*
+          - Sid: CZTier2SelfInspectionPolicies20260420
+            Effect: Allow
+            Action:
+              - iam:GetPolicy
+              - iam:GetPolicyVersion
+            Resource:
+              - arn:aws:iam::aws:policy/AWSBillingReadOnlyAccess
+              - arn:aws:iam::aws:policy/CloudWatchReadOnlyAccess
+              - arn:aws:iam::aws:policy/ComputeOptimizerReadOnlyAccess
+              - arn:aws:iam::aws:policy/job-function/ViewOnlyAccess
+
+Outputs:
+  ResourceOwnerRoleArn:
+    Description: Resource Owner Cross Account Role ARN
+    Value: !If [ResourceOwnerCreateResources, !GetAtt ResourceOwnerRole.Arn, 'null']
+  MasterPayerRoleArn:
+    Description: Master Payer Cross Account Role ARN
+    Value: !If [MasterPayerCreateRoleAndPolicy, !GetAtt MasterPayerRole.Arn, 'null']
+  MasterPayerReportS3Bucket:
+    Description: The CUR bucket if one was created
+    Value: !If [MasterPayerCreateNativeCur, !Ref MasterPayerCurBucket, 'null']
+  MasterPayerReportS3Prefix:
+    Description: The CUR prefix if a report was created
+    Value: !If [MasterPayerCreateNativeCur, 'cloudzero/cloudzero-cur-hourly-csv', 'null']
+  MasterPayerCurStatus:
+    Description: Whether a new CUR was created, and why not when skipped.
+    Value: !If
+      - MasterPayerCreateNativeCur
+      - 'created'
+      - !If
+        - MasterPayerCreateCurAndBucketAndPolicy
+        - 'skipped: master-payer stack must be deployed in us-east-1 to create a CUR'
+        - 'not-applicable'

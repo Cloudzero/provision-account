@@ -2,59 +2,34 @@
 # Copyright (c) 2016-present, CloudZero, Inc. All rights reserved.
 # Licensed under the BSD-style license. See LICENSE file in the project root for full license information.
 
-import logging
-import json
+"""
+NotifyCloudZero custom-resource handler.
 
-import boto3
+Posts the result of account provisioning back to the CloudZero reactor. The parent
+stack passes every value this needs directly as resource properties (resolved from
+`!GetAtt` of the Discovery resource and the AccountResources nested stack), so this
+handler no longer reads sibling CloudFormation stack outputs at runtime -- it just
+reshapes the properties into the reactor payload and POSTs it.
+
+IMPORTANT: the reactor payload (`account-link-provisioned` / `-deprovisioned`) is a
+FIXED external contract. Do not add, rename, or drop keys. The audit and
+cloudtrail-owner account types are deprecated, but their keys remain in the payload
+and are emitted as null / no-op values.
+"""
+
+import json
+import logging
+
 import urllib3
-from toolz.curried import assoc_in, get_in, keyfilter, merge, pipe, update_in
-from voluptuous import Any, Invalid, Match, Schema, ALLOW_EXTRA, REMOVE_EXTRA
+from voluptuous import Any, Match, Schema, ALLOW_EXTRA, REMOVE_EXTRA
 
 from src import cfnresponse
 
-cfn = boto3.resource('cloudformation')
 http = urllib3.PoolManager()
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-
-DEFAULT_CFN_COEFFECT = {
-    'AuditAccount': {
-        'RoleArn': 'null',
-    },
-    'CloudTrailOwnerAccount': {
-        'SQSQueueArn': 'null',
-        'SQSQueuePolicyName': 'null'
-    },
-    'Discovery': {
-        'AuditCloudTrailBucketName': 'null',
-        'AuditCloudTrailBucketPrefix': 'null',
-        'CloudTrailSNSTopicArn': 'null',
-        'CloudTrailTrailArn': 'null',
-        'VisibleCloudTrailArns': 'null',
-        'IsAuditAccount': 'false',
-        'IsCloudTrailOwnerAccount': 'false',
-        'IsMasterPayerAccount': 'false',
-        'IsOrganizationMasterAccount': 'false',
-        'IsOrganizationTrail': 'null',
-        'IsResourceOwnerAccount': 'false',
-        'MasterPayerBillingBucketName': 'null',
-        'MasterPayerBillingBucketPath': 'null',
-        'BillingReportFormat': 'aws',
-        'RemoteCloudTrailBucket': 'true',
-    },
-    'MasterPayerAccount': {
-        'RoleArn': 'null',
-        'ReportS3Bucket': 'null',
-        'ReportS3Prefix': 'null',
-    },
-    'ResourceOwnerAccount': {
-        'RoleArn': 'null'
-    },
-    'LegacyAccount': {
-        'RoleArn': 'null'
-    }
-}
+DEFAULT_BILLING_REPORT_FORMAT = 'aws'
 
 
 #####################
@@ -66,75 +41,40 @@ INPUT_SCHEMA = Schema({
     'event': {
         'RequestType': Any('Create', 'Delete', 'Update'),
         'ResourceProperties': {
+            # Reactor / account metadata
             'ExternalId': str,
             'ReactorCallbackUrl': str,
             'AccountName': str,
             'ReactorId': str,
             'AccountId': str,
             'Region': str,
-            'Stacks': {
-                'Discovery': str,
-                'ResourceOwnerAccount': str,
-                'CloudTrailOwnerAccount': str,
-                'AuditAccount': str,
-                'MasterPayerAccount': str,
-                'LegacyAccount': str,
-            }
+            # Discovery flags (arrive as the strings 'true' / 'false')
+            'IsResourceOwnerAccount': str,
+            'IsMasterPayerAccount': str,
+            'IsOrganizationMasterAccount': str,
+            # Provisioned role ARNs ('null' when that account type wasn't provisioned)
+            'ResourceOwnerRoleArn': str,
+            'MasterPayerRoleArn': str,
+            # Master-payer billing details
+            'MasterPayerBillingBucketName': str,
+            'MasterPayerBillingBucketPath': str,
+            'MasterPayerReportS3Bucket': str,
+            'MasterPayerReportS3Prefix': str,
+            'BillingReportFormat': str,
         },
         'ResponseURL': str,
-        'StackId': str
+        'StackId': str,
     }
 }, required=True, extra=REMOVE_EXTRA)
 
-BOOLEAN_STRING = Schema(Any('null', 'true', 'false'))
 ARN = Schema(Match(r'^arn:(?:aws|aws-cn|aws-us-gov):([a-z0-9-]+):'
                    r'((?:[a-z0-9-]*)|global):(\d{12}|aws)*:(.+$)$'))
-NULLABLE_ARN = Schema(Any('null', ARN))
-NULLABLE_STRING = Schema(Any('null', str))
-
-CFN_COEFFECT_SCHEMA = Schema({
-    'AuditAccount': {
-        'RoleArn': NULLABLE_ARN
-    },
-    'CloudTrailOwnerAccount': {
-        'SQSQueueArn': NULLABLE_ARN,
-        'SQSQueuePolicyName': NULLABLE_STRING,
-    },
-    'Discovery': {
-        'AuditCloudTrailBucketName': NULLABLE_STRING,
-        'AuditCloudTrailBucketPrefix': NULLABLE_STRING,
-        'CloudTrailSNSTopicArn': NULLABLE_ARN,
-        'CloudTrailTrailArn': NULLABLE_ARN,
-        'VisibleCloudTrailArns': NULLABLE_STRING,
-        'IsAuditAccount': BOOLEAN_STRING,
-        'IsCloudTrailOwnerAccount': BOOLEAN_STRING,
-        'IsMasterPayerAccount': BOOLEAN_STRING,
-        'IsOrganizationMasterAccount': BOOLEAN_STRING,
-        'IsOrganizationTrail': BOOLEAN_STRING,
-        'IsResourceOwnerAccount': BOOLEAN_STRING,
-        'MasterPayerBillingBucketName': NULLABLE_STRING,
-        'MasterPayerBillingBucketPath': NULLABLE_STRING,
-        'BillingReportFormat': NULLABLE_STRING,
-        'RemoteCloudTrailBucket': BOOLEAN_STRING,
-    },
-    'MasterPayerAccount': {
-        'RoleArn': NULLABLE_ARN,
-        'ReportS3Bucket': NULLABLE_STRING,
-        'ReportS3Prefix': NULLABLE_STRING,
-    },
-    'ResourceOwnerAccount': {
-        'RoleArn': NULLABLE_ARN,
-    },
-    'LegacyAccount': {
-        'RoleArn': NULLABLE_ARN,
-    }
-}, required=True, extra=ALLOW_EXTRA)
-
-
 NONEABLE_ARN = Schema(Any(None, ARN))
 NONEABLE_BOOL = Schema(Any(None, bool))
 NONEABLE_STRING = Schema(Any(None, str))
 LINK_ROLE = Schema({'role_arn': NONEABLE_ARN})
+
+# The reactor payload contract. FIXED -- do not change its shape.
 ACCOUNT_LINK_PROVISIONED = Schema({
     'data': {
         'metadata': {
@@ -174,59 +114,22 @@ ACCOUNT_LINK_PROVISIONED = Schema({
     }
 }, required=True, extra=ALLOW_EXTRA)
 
-OUTPUT_SCHEMA = Schema({
-    'output': ACCOUNT_LINK_PROVISIONED,
-}, required=True, extra=ALLOW_EXTRA)
-
-
-request_type = get_in(['event', 'RequestType'])
-properties = get_in(['event', 'ResourceProperties'])
-stacks = get_in(['event', 'ResourceProperties', 'Stacks'])
-reactor_callback_url = get_in(['event', 'ResourceProperties', 'ReactorCallbackUrl'])
-supported_metadata = {'Region', 'ExternalId', 'AccountId', 'AccountName', 'ReactorId', 'ReactorCallbackUrl'}
-callback_metadata = keyfilter(lambda x: x in supported_metadata)
-default_metadata = {
-    'version': '1',
-    'message_source': 'cfn',
-}
+OUTPUT_SCHEMA = Schema({'output': ACCOUNT_LINK_PROVISIONED}, required=True, extra=ALLOW_EXTRA)
 
 
 #####################
 #
-# Coeffects, i.e. from the outside world
+# Property coercion (CloudFormation passes every property as a string)
 #
 #####################
-def coeffects(world):
-    return pipe(world,
-                coeffects_cfn)
+def to_value(s):
+    """Treat 'null'/empty as absent; otherwise return the string unchanged."""
+    return None if s in (None, '', 'null') else s
 
 
-def coeffect(name):
-    def d(f):
-        def w(world):
-            data = {}
-            try:
-                data = f(world)
-            except Exception:
-                logger.warning(f'Failed to get {name} information.', exc_info=True)
-            return assoc_in(world, ['coeffects', name], data)
-        return w
-    return d
-
-
-def outputs_to_dict(outputs):
-    return {
-        output['OutputKey']: output['OutputValue']
-        for output in outputs or []
-    }
-
-
-@coeffect('cloudformation')
-def coeffects_cfn(world):
-    return {
-        key: outputs_to_dict(cfn.Stack(name).outputs)
-        for key, name in stacks(world, default={}).items()
-    }
+def to_bool(s):
+    """Coerce a CloudFormation string flag to a strict bool ('true' -> True, else False)."""
+    return str(s).lower() == 'true'
 
 
 #####################
@@ -234,109 +137,65 @@ def coeffects_cfn(world):
 # Business Logic
 #
 #####################
-def notify_cloudzero(world):
-    return pipe(world,
-                validate_cfn_coeffect,
-                prepare_output)
+def build_payload(properties, message_type):
+    """Reshape the resource properties into the fixed reactor payload."""
+    resource_owner_role_arn = to_value(properties['ResourceOwnerRoleArn'])
+    master_payer_role_arn = to_value(properties['MasterPayerRoleArn'])
+    # An existing CUR reports its bucket via discovery; a freshly created CUR reports it
+    # via the master-payer report outputs. Prefer the discovered one.
+    billing_bucket_name = to_value(properties['MasterPayerBillingBucketName']) or \
+        to_value(properties['MasterPayerReportS3Bucket'])
+    billing_bucket_path = to_value(properties['MasterPayerBillingBucketPath']) or \
+        to_value(properties['MasterPayerReportS3Prefix'])
 
-
-def validate_cfn_coeffect(world):
-    cfn_coeffect = get_in(['coeffects', 'cloudformation'], world)
-    try:
-        return update_in(world, ['valid_cfn'],
-                         lambda x: merge(x or {}, CFN_COEFFECT_SCHEMA(cfn_coeffect)))
-    except Invalid:
-        logger.warning(cfn_coeffect)
-        logger.warning('CloudFormation Coeffects are not valid; using defaults', exc_info=True)
-        return update_in(world, ['valid_cfn'],
-                         lambda x: merge(x or {}, DEFAULT_CFN_COEFFECT))
-
-
-def null_to_none(s):
-    return None if s == 'null' else s
-
-
-def string_to_bool(s):
-    """
-    Convert String to Bool
-
-    >>> string_to_bool('True')
-    True
-
-    >>> string_to_bool('true')
-    True
-
-    >>> string_to_bool('False')
-    False
-
-    >>> string_to_bool('false')
-    False
-
-    >>> string_to_bool('null')
-
-    >>> string_to_bool(None)
-
-    >>> string_to_bool('')
-
-    """
-    if not s:
-        return None
-    return None if s.lower() == 'null' else s.lower() == 'true'
-
-
-def prepare_output(world):
-    valid_cfn = get_in(['valid_cfn'], world)
-    metadata = callback_metadata(properties(world))
-    message_type = 'account-link-provisioned' if request_type(world) in {'Create', 'Update'} else 'account-link-deprovisioned'
-    visible_cloudtrail_arns_string = null_to_none(get_in(['Discovery', 'VisibleCloudTrailArns'], valid_cfn))
-    visible_cloudtrail_arns = visible_cloudtrail_arns_string.split(',') if visible_cloudtrail_arns_string else None
-    master_payer_billing_bucket_name = (null_to_none(get_in(['Discovery', 'MasterPayerBillingBucketName'], valid_cfn)) or
-                                        null_to_none(get_in(['MasterPayerAccount', 'ReportS3Bucket'], valid_cfn)))
-    master_payer_billing_bucket_path = (null_to_none(get_in(['Discovery', 'MasterPayerBillingBucketPath'], valid_cfn)) or
-                                        null_to_none(get_in(['MasterPayerAccount', 'ReportS3Prefix'], valid_cfn)))
-    output = {
-        **default_metadata,
+    return {
+        'version': '1',
+        'message_source': 'cfn',
         'message_type': message_type,
         'data': {
             'metadata': {
-                'cloud_region': metadata['Region'],
-                'external_id': metadata['ExternalId'],
-                'cloud_account_id': metadata['AccountId'],
-                'cz_account_name': metadata['AccountName'],
-                'reactor_id': metadata['ReactorId'],
-                'reactor_callback_url': metadata['ReactorCallbackUrl'],
-                'billing_report_format': null_to_none(get_in(['Discovery', 'BillingReportFormat'], valid_cfn)) or 'aws',
+                'cloud_region': properties['Region'],
+                'external_id': properties['ExternalId'],
+                'cloud_account_id': properties['AccountId'],
+                'cz_account_name': properties['AccountName'],
+                'reactor_id': properties['ReactorId'],
+                'reactor_callback_url': properties['ReactorCallbackUrl'],
+                'billing_report_format': to_value(properties['BillingReportFormat']) or DEFAULT_BILLING_REPORT_FORMAT,
             },
             'links': {
-                'audit': {'role_arn': null_to_none(get_in(['AuditAccount', 'RoleArn'], valid_cfn))},
-                'cloudtrail_owner': {
-                    'sqs_queue_arn': null_to_none(get_in(['CloudTrailOwnerAccount', 'SQSQueueArn'], valid_cfn)),
-                    'sqs_queue_policy_name': null_to_none(get_in(['CloudTrailOwnerAccount', 'SQSQueuePolicyName'], valid_cfn)),
-                },
-                'master_payer': {'role_arn': null_to_none(get_in(['MasterPayerAccount', 'RoleArn'], valid_cfn))},
-                'resource_owner': {'role_arn': null_to_none(get_in(['ResourceOwnerAccount', 'RoleArn'], valid_cfn))},
-                'legacy': {'role_arn': null_to_none(get_in(['LegacyAccount', 'RoleArn'], valid_cfn))},
+                # audit + cloudtrail_owner are deprecated: their slots remain in the
+                # fixed contract but are always null/no-op now.
+                'audit': {'role_arn': None},
+                'cloudtrail_owner': {'sqs_queue_arn': None, 'sqs_queue_policy_name': None},
+                'master_payer': {'role_arn': master_payer_role_arn},
+                'resource_owner': {'role_arn': resource_owner_role_arn},
+                'legacy': {'role_arn': resource_owner_role_arn},
             },
             'discovery': {
-                'audit_cloudtrail_bucket_name': null_to_none(get_in(['Discovery', 'AuditCloudTrailBucketName'], valid_cfn)),
-                'audit_cloudtrail_bucket_prefix': null_to_none(get_in(['Discovery', 'AuditCloudTrailBucketPrefix'], valid_cfn)),
-                'cloudtrail_sns_topic_arn': null_to_none(get_in(['Discovery', 'CloudTrailSNSTopicArn'], valid_cfn)),
-                'cloudtrail_trail_arn': null_to_none(get_in(['Discovery', 'CloudTrailTrailArn'], valid_cfn)),
-
-                'is_audit_account': string_to_bool(get_in(['Discovery', 'IsAuditAccount'], valid_cfn)),
-                'is_cloudtrail_owner_account': string_to_bool(get_in(['Discovery', 'IsCloudTrailOwnerAccount'], valid_cfn)),
-                'is_master_payer_account': string_to_bool(get_in(['Discovery', 'IsMasterPayerAccount'], valid_cfn)),
-                'is_organization_master_account': string_to_bool(get_in(['Discovery', 'IsOrganizationMasterAccount'], valid_cfn)),
-                'is_organization_trail': string_to_bool(get_in(['Discovery', 'IsOrganizationTrail'], valid_cfn)),
-                'is_resource_owner_account': string_to_bool(get_in(['Discovery', 'IsResourceOwnerAccount'], valid_cfn)),
-                'master_payer_billing_bucket_name': master_payer_billing_bucket_name,
-                'master_payer_billing_bucket_path': master_payer_billing_bucket_path,
-                'remote_cloudtrail_bucket': string_to_bool(get_in(['Discovery', 'RemoteCloudTrailBucket'], valid_cfn)),
-                'visible_cloudtrail_arns': visible_cloudtrail_arns,
+                # Deprecated cloudtrail/audit discovery fields -- retained as null/no-op
+                # for contract stability (see module docstring).
+                'audit_cloudtrail_bucket_name': None,
+                'audit_cloudtrail_bucket_prefix': None,
+                'cloudtrail_sns_topic_arn': None,
+                'cloudtrail_trail_arn': None,
+                'is_audit_account': False,
+                'is_cloudtrail_owner_account': False,
+                'is_organization_trail': None,
+                'remote_cloudtrail_bucket': True,
+                'visible_cloudtrail_arns': None,
+                # Live discovery values
+                'is_master_payer_account': to_bool(properties['IsMasterPayerAccount']),
+                'is_organization_master_account': to_bool(properties['IsOrganizationMasterAccount']),
+                'is_resource_owner_account': to_bool(properties['IsResourceOwnerAccount']),
+                'master_payer_billing_bucket_name': billing_bucket_name,
+                'master_payer_billing_bucket_path': billing_bucket_path,
             }
         }
     }
-    return update_in(world, ['output'], lambda x: merge(x or {}, output))
+
+
+def message_type_for(request_type):
+    return 'account-link-provisioned' if request_type in {'Create', 'Update'} else 'account-link-deprovisioned'
 
 
 #####################
@@ -344,31 +203,10 @@ def prepare_output(world):
 # Effects, i.e. changes to the outside world
 #
 #####################
-def effects(world):
-    return pipe(world,
-                effects_reactor_callback)
-
-
-def effect(name):
-    def d(f):
-        def w(world):
-            data = {}
-            try:
-                data = f(world)
-            except Exception:
-                logger.warning(f'Failed to effect {name} change.', exc_info=True)
-            return assoc_in(world, ['effects', name], data)
-        return w
-    return d
-
-
-@effect('reactor')
-def effects_reactor_callback(world):
-    url = reactor_callback_url(world)
-    data = get_in(['output'], world)
-    data_string = json.dumps(data)
-    logger.info(f'Posting to {url} this data: {data_string}')
-    response = http.request('POST', url, body=data_string.encode('utf-8'))
+def post_to_reactor(url, payload):
+    body = json.dumps(payload)
+    logger.info(f'Posting to {url} this data: {body}')
+    response = http.request('POST', url, body=body.encode('utf-8'))
     response_text = response.data.decode('utf-8')
     logger.info(f'response {response.status}; text {response_text}')
     assert response.status == 200
@@ -382,18 +220,15 @@ def effects_reactor_callback(world):
 #####################
 def handler(event, context, **kwargs):
     status = cfnresponse.SUCCESS
-    world = {}
+    payload = {}
     try:
         logger.info(f'Processing event {json.dumps(event)}')
-        world = pipe({'event': event, 'kwargs': kwargs},
-                     INPUT_SCHEMA,
-                     coeffects,
-                     notify_cloudzero,
-                     effects,
-                     OUTPUT_SCHEMA)
+        validated = INPUT_SCHEMA({'event': event})['event']
+        properties = validated['ResourceProperties']
+        payload = build_payload(properties, message_type_for(validated['RequestType']))
+        OUTPUT_SCHEMA({'output': payload})  # validate the fixed contract before sending
+        post_to_reactor(properties['ReactorCallbackUrl'], payload)
     except Exception as err:
         logger.exception(err)
     finally:
-        output = world.get('output')
-        logger.info(f'Sending output {output}')
-        cfnresponse.send(event, context, status, output, event.get('PhysicalResourceId'))
+        cfnresponse.send(event, context, status, payload, event.get('PhysicalResourceId'))
