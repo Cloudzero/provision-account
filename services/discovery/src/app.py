@@ -153,17 +153,24 @@ def coeffects_bcm_data_exports(world):
             next_token = response.get('NextToken')
             if not next_token:
                 break
-
-        s3_buckets = []
-        for export_arn in export_arns:
-            export = bcm.get_export(ExportArn=export_arn).get('Export', {})
-            bucket = get_in(['DestinationConfigurations', 'S3Destination', 'S3Bucket'], export)
-            if bucket:
-                s3_buckets.append(bucket)
-        return {'s3_buckets': s3_buckets}
     except ClientError:
-        logger.warning('Failed to access BCM Data Exports ListExports/GetExport', exc_info=True)
+        logger.warning('Failed to access BCM Data Exports ListExports', exc_info=True)
         return DEFAULT_DATA_EXPORTS
+
+    # Resolve each export independently: a transient failure on one export should not
+    # drop the buckets already resolved from the others, so isolate the get_export call
+    # per export rather than wrapping the whole loop in a single try/except.
+    s3_buckets = []
+    for export_arn in export_arns:
+        try:
+            export = bcm.get_export(ExportArn=export_arn).get('Export', {})
+        except ClientError:
+            logger.warning(f'Failed to access BCM Data Exports GetExport for {export_arn}', exc_info=True)
+            continue
+        bucket = get_in(['DestinationConfigurations', 'S3Destination', 'S3Bucket'], export)
+        if bucket:
+            s3_buckets.append(bucket)
+    return {'s3_buckets': s3_buckets}
 
 
 @coeffect('organizations')

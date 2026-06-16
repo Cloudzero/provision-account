@@ -772,3 +772,76 @@ def test_handler_master_payer_survives_bcm_data_exports_access_denied(
     assert output['MasterPayerBillingBucketArns'] == (
         f'arn:aws:s3:::{LOCAL_BUCKET_NAME},arn:aws:s3:::{LOCAL_BUCKET_NAME}/*'
     )
+
+
+@pytest.mark.unit
+def test_handler_master_payer_paginates_list_exports(
+    context, cfn_event, describe_trails_response_local,
+    describe_report_definitions_response_local, describe_organizations_local,
+):
+    # list_exports is paginated: a NextToken on the first page must drive a second call,
+    # and exports from every page must be resolved. The two exports live on separate pages.
+    second_export_arn = f'arn:aws:bcm-data-exports:us-east-1:{LOCAL_ACCOUNT_ID}:export/focus-export'
+    export_buckets = {EXPORT_ARN: DATA_EXPORT_BUCKET_NAME, second_export_arn: SECOND_LOCAL_BUCKET_NAME}
+    context.mock_ct.describe_trails.return_value = describe_trails_response_local
+    context.mock_cur.describe_report_definitions.return_value = describe_report_definitions_response_local
+    first_page = _list_exports_response(EXPORT_ARN)
+    first_page['NextToken'] = 'page-2'
+    second_page = _list_exports_response(second_export_arn)
+    context.mock_bcm.list_exports.side_effect = [first_page, second_page]
+    context.mock_bcm.get_export.side_effect = lambda ExportArn: _get_export_response(export_buckets[ExportArn])
+    context.mock_orgs.describe_organization.return_value = describe_organizations_local
+    context.mock_s3.list_buckets.return_value = {
+        'Buckets': [
+            {'Name': LOCAL_BUCKET_NAME},
+            {'Name': DATA_EXPORT_BUCKET_NAME},
+            {'Name': SECOND_LOCAL_BUCKET_NAME},
+        ]
+    }
+    ret = app.handler(cfn_event, None)
+    assert ret is None
+    ((_, _, status, output, _), _) = context.mock_cfnresponse_send.call_args
+    assert status == cfnresponse.SUCCESS
+    assert context.mock_bcm.list_exports.call_count == 2
+    context.mock_bcm.list_exports.assert_any_call(NextToken='page-2')
+    arns = output['MasterPayerBillingBucketArns']
+    for bucket in (DATA_EXPORT_BUCKET_NAME, SECOND_LOCAL_BUCKET_NAME):
+        assert f'arn:aws:s3:::{bucket}' in arns
+        assert f'arn:aws:s3:::{bucket}/*' in arns
+
+
+@pytest.mark.unit
+def test_handler_master_payer_isolates_per_export_get_export_failure(
+    context, cfn_event, describe_trails_response_local,
+    describe_report_definitions_response_local, describe_organizations_local,
+):
+    # A get_export failure on a single export must not drop buckets already resolved from
+    # the other exports: the failing export is skipped and the rest still get covered.
+    failing_export_arn = f'arn:aws:bcm-data-exports:us-east-1:{LOCAL_ACCOUNT_ID}:export/broken-export'
+
+    def get_export(ExportArn):
+        if ExportArn == failing_export_arn:
+            raise ClientError(
+                {'Error': {'Code': 'InternalServerException', 'Message': 'transient failure'}},
+                'GetExport',
+            )
+        return _get_export_response(DATA_EXPORT_BUCKET_NAME)
+
+    context.mock_ct.describe_trails.return_value = describe_trails_response_local
+    context.mock_cur.describe_report_definitions.return_value = describe_report_definitions_response_local
+    context.mock_bcm.list_exports.return_value = _list_exports_response(failing_export_arn, EXPORT_ARN)
+    context.mock_bcm.get_export.side_effect = get_export
+    context.mock_orgs.describe_organization.return_value = describe_organizations_local
+    context.mock_s3.list_buckets.return_value = {
+        'Buckets': [
+            {'Name': LOCAL_BUCKET_NAME},
+            {'Name': DATA_EXPORT_BUCKET_NAME},
+        ]
+    }
+    ret = app.handler(cfn_event, None)
+    assert ret is None
+    ((_, _, status, output, _), _) = context.mock_cfnresponse_send.call_args
+    assert status == cfnresponse.SUCCESS
+    arns = output['MasterPayerBillingBucketArns']
+    assert f'arn:aws:s3:::{DATA_EXPORT_BUCKET_NAME}' in arns
+    assert f'arn:aws:s3:::{DATA_EXPORT_BUCKET_NAME}/*' in arns
