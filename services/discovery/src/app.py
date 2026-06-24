@@ -113,18 +113,21 @@ def list_data_export_bucket_names():
     CloudZero at a different export without redeploying this stack. `list_exports` only
     returns export ARNs, so each export is resolved with `get_export` to read its bucket.
     """
-    try:
-        export_arns = []
-        next_token = None
-        while True:
+    # Isolate the failure per page: if a later page fails, keep the export ARNs already
+    # collected from earlier pages rather than discarding them.
+    export_arns = []
+    next_token = None
+    while True:
+        try:
             response = bcm.list_exports(**({'NextToken': next_token} if next_token else {}))
-            export_arns.extend(ref['ExportArn'] for ref in response.get('Exports', []) if ref.get('ExportArn'))
-            next_token = response.get('NextToken')
-            if not next_token:
-                break
-    except (ClientError, BotoCoreError):
-        logger.warning('Failed to access BCM Data Exports ListExports', exc_info=True)
-        return []
+        except (ClientError, BotoCoreError):
+            logger.warning('Failed to access BCM Data Exports ListExports; using exports gathered so far',
+                           exc_info=True)
+            break
+        export_arns.extend(ref['ExportArn'] for ref in response.get('Exports', []) if ref.get('ExportArn'))
+        next_token = response.get('NextToken')
+        if not next_token:
+            break
 
     # Resolve each export independently: a transient failure on one export should not
     # drop the buckets already resolved from the others, so isolate the get_export call

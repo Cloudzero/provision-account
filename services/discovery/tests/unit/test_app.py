@@ -448,6 +448,25 @@ def test_handler_paginates_list_exports(
 
 
 @pytest.mark.unit
+def test_handler_preserves_exports_when_later_list_exports_page_fails(
+    context, cfn_event, describe_report_definitions_client_error, describe_organizations_local,
+):
+    # A mid-pagination ListExports failure must keep the ARNs already collected from page 1.
+    context.mock_cur.describe_report_definitions.side_effect = describe_report_definitions_client_error
+    context.mock_bcm.list_exports.side_effect = [
+        {'Exports': [{'ExportArn': EXPORT_ARN}], 'NextToken': 'page-2'},
+        ClientError({'Error': {'Code': 'ThrottlingException', 'Message': 'slow down'}}, 'ListExports'),
+    ]
+    context.mock_bcm.get_export.return_value = _get_export_response(DATA_EXPORT_BUCKET_NAME)
+    context.mock_orgs.describe_organization.return_value = describe_organizations_local
+    context.mock_s3.list_buckets.return_value = {'Buckets': [{'Name': DATA_EXPORT_BUCKET_NAME}]}
+    app.handler(cfn_event, None)
+    assert _output(context)['BillingBucketArns'] == (
+        f'arn:aws:s3:::{DATA_EXPORT_BUCKET_NAME},arn:aws:s3:::{DATA_EXPORT_BUCKET_NAME}/*'
+    )
+
+
+@pytest.mark.unit
 def test_handler_skips_export_with_no_destination_bucket(
     context, cfn_event, describe_report_definitions_client_error, describe_organizations_local,
 ):
