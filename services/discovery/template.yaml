@@ -33,10 +33,12 @@ Resources:
         - Sid: CZDiscovery20190912
           Effect: Allow
           Action:
-          - cloudtrail:DescribeTrails
           - s3:ListAllMyBuckets
           - cur:DescribeReportDefinitions
+          - bcm-data-exports:ListExports
+          - bcm-data-exports:GetExport
           - organizations:DescribeOrganization
+          - cloudformation:DescribeStacks
           Resource: '*'
       Environment:
         Variables:
@@ -50,37 +52,21 @@ Resources:
       Version: !Sub ${Version}
 
 Outputs:
-  AuditCloudTrailBucketName:
-    Value: !GetAtt DiscoveryResource.AuditCloudTrailBucketName
-  AuditCloudTrailBucketPrefix:
-    Value: !GetAtt DiscoveryResource.AuditCloudTrailBucketPrefix
-  CloudTrailSNSTopicArn:
-    Value: !GetAtt DiscoveryResource.CloudTrailSNSTopicArn
-  CloudTrailTrailArn:
-    Value: !GetAtt DiscoveryResource.CloudTrailTrailArn
-  IsAuditAccount:
-    Value: !GetAtt DiscoveryResource.IsAuditAccount
-  IsMasterPayerAccount:
-    Value: !GetAtt DiscoveryResource.IsMasterPayerAccount
-  IsCloudTrailOwnerAccount:
-    Value: !GetAtt DiscoveryResource.IsCloudTrailOwnerAccount
-  IsResourceOwnerAccount:
-    Value: !GetAtt DiscoveryResource.IsResourceOwnerAccount
-  MasterPayerBillingBucketName:
-    Value: !GetAtt DiscoveryResource.MasterPayerBillingBucketName
-  MasterPayerBillingBucketPath:
-    Value: !GetAtt DiscoveryResource.MasterPayerBillingBucketPath
-  MasterPayerBillingBucketArns:
-    Value: !GetAtt DiscoveryResource.MasterPayerBillingBucketArns
-  BillingReportFormat:
-    Value: !GetAtt DiscoveryResource.BillingReportFormat
-  RemoteCloudTrailBucket:
-    Value: !GetAtt DiscoveryResource.RemoteCloudTrailBucket
-  VisibleCloudTrailArns:
-    Value: !GetAtt DiscoveryResource.VisibleCloudTrailArns
-  IsOrganizationTrail:
-    Value: !GetAtt DiscoveryResource.IsOrganizationTrail
+  IsResourceConnection:
+    Value: !GetAtt DiscoveryResource.IsResourceConnection
+  IsBillingConnection:
+    Value: !GetAtt DiscoveryResource.IsBillingConnection
   IsOrganizationMasterAccount:
     Value: !GetAtt DiscoveryResource.IsOrganizationMasterAccount
   IsAccountOutsideOrganization:
     Value: !GetAtt DiscoveryResource.IsAccountOutsideOrganization
+  BillingBucketName:
+    Value: !GetAtt DiscoveryResource.BillingBucketName
+  BillingBucketPath:
+    Value: !GetAtt DiscoveryResource.BillingBucketPath
+  BillingBucketArns:
+    Value: !GetAtt DiscoveryResource.BillingBucketArns
+  BillingReportFormat:
+    Value: !GetAtt DiscoveryResource.BillingReportFormat
+  DetectedLegacyConnectionStacks:
+    Value: !GetAtt DiscoveryResource.DetectedLegacyConnectionStacks

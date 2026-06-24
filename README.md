@@ -69,12 +69,13 @@ CloudZero uses the following AWS-managed policies for broad read-only access:
 - **CloudWatchReadOnlyAccess**: Read access to CloudWatch metrics, logs, and alarms for performance monitoring and cost attribution
 - **AWSBillingReadOnlyAccess**: Read access to billing, cost, and usage data for cost analysis and reporting
 
-### Account Types
+### Connection Types
 
-CloudZero supports two primary account connection types:
+CloudZero supports two connection types. A single cross-account role (`cloudzero-connection`) is
+created regardless of type; a billing connection simply grants additional access to the CUR bucket.
 
-#### Master Payer Account
-The AWS account that contains your Cost and Usage Report (CUR) and is the payer for your organization. This account provides:
+#### Billing Connection
+The AWS account that contains your Cost and Usage Report (CUR) and is the payer for your organization. This connection provides:
 - Access to detailed billing data via CUR in S3
 - Organization-wide cost visibility
 - Consolidated billing information
@@ -82,10 +83,12 @@ The AWS account that contains your Cost and Usage Report (CUR) and is the payer 
 
 **Important**: CloudZero requires an HOURLY Cost and Usage Report. Daily reports are not supported.
 
-If the payer account has more than one CUR configured, the auto-generated IAM policy grants `s3:Get*`/`s3:List*` on every CUR bucket discovered in the account, not only the one CloudZero ingests as primary. This keeps the role aligned with the customer's actual CUR footprint and avoids surprises if the primary CUR is later swapped.
+**Deploy billing connections in `us-east-1`**: when the account has no existing CUR, this template creates one for you using the native `AWS::CUR::ReportDefinition` resource, which AWS only supports in `us-east-1` (the single region the Cost and Usage Report API runs in). Launch the stack in `us-east-1` for a billing connection. If it is launched elsewhere and a new CUR is needed, the cross-account role is still created but the CUR is not — the stack's `BillingCurStatus` output reports the skip. Accounts that already have a CUR are unaffected by region.
 
-#### Resource Owner Account
-Member accounts in your AWS Organization that own and run resources. These accounts provide:
+If the account has more than one CUR configured, the auto-generated IAM policy grants `s3:Get*`/`s3:List*` on every CUR bucket discovered in the account, not only the one CloudZero ingests as primary. This keeps the role aligned with the customer's actual CUR footprint and avoids surprises if the primary CUR is later swapped.
+
+#### Resource Connection
+Member accounts in your AWS Organization that own and run resources. These connections provide:
 - Resource-level cost attribution
 - Container and Kubernetes cost tracking
 - Activity monitoring and optimization recommendations
@@ -94,7 +97,7 @@ Member accounts in your AWS Organization that own and run resources. These accou
 ### Security & Privacy
 
 - **Read-Only Access**: All permissions are strictly read-only. CloudZero cannot create, modify, or delete any AWS resources
-- **Cross-Account IAM Roles**: Uses AWS best practice cross-account roles with external ID for secure, auditable access
+- **Cross-Account IAM Role**: Uses an AWS best-practice cross-account role with an external ID for secure, auditable access. Two CloudZero AWS accounts are trusted as equally-important principals to assume the role.
 - **Transparent Self-Inspection**: CloudZero reads its own role and attached policies so you can see exactly what access has been granted — useful during audits and permission reviews
 - **No Direct Access**: No SSH keys, API keys, or direct instance access required
 - **Encryption**: All data is encrypted in transit (TLS) and at rest
@@ -103,14 +106,22 @@ Member accounts in your AWS Organization that own and run resources. These accou
 
 For more information about CloudZero's security practices, visit [cloudzero.com/security](https://www.cloudzero.com/security)
 
+### Migrating from an older CloudZero stack
+
+If you previously connected this account with an older CloudZero template, migration is seamless:
+
+1. Deploy this template. Discovery automatically re-adopts your existing Cost and Usage Report, so no billing data is moved or lost, and no duplicate CUR is created.
+2. Confirm the new connection is reporting healthy in the CloudZero platform.
+3. Delete your previous CloudZero stack. The stack's `DetectedLegacyConnectionStacks` output lists the older stack(s) detected in this account, and the same guidance is written to `CLOUDZERO_CLEANUP_GUIDE.md` at the root of your CUR bucket.
+
 ### Deployment Options
 
 This repository provides two deployment methods:
 
 1. **CloudFormation Templates** (Recommended): Located in `services/` directory
    - Automated deployment via AWS CloudFormation
+   - Creates a single, fixed-name cross-account role (`cloudzero-connection`), so the stack must be launched with the **CAPABILITY_NAMED_IAM** capability acknowledged
    - Creates IAM roles and policies automatically
-   - Supports nested stacks for different account types
 
 2. **Terraform Modules**: Located in `terraform/` directory
    - Infrastructure-as-code deployment
