@@ -350,6 +350,7 @@ def handler(event, context, **kwargs):
     except Exception as err:
         logger.exception(err)
     finally:
-        logger.info('Discovery complete: IsBillingConnection=%s IsResourceConnection=%s',
-                    output.get('IsBillingConnection'), output.get('IsResourceConnection'))
+        # Static message: interpolating the classification flags trips CodeQL's
+        # clear-text-logging "private data" heuristic on the variable names.
+        logger.info('Discovery complete')
         cfnresponse.send(event, context, status, output, event.get('PhysicalResourceId'))
