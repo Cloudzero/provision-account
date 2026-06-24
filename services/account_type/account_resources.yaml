@@ -4,14 +4,14 @@
 
 AWSTemplateFormatVersion: '2010-09-09'
 Description: >
-  CloudZero Account Resources Template
+  CloudZero Connection Resources Template
 
-  Single nested stack that provisions the cross-account resources for whichever
-  account type Discovery detected. Merges the former resource_owner and master_payer
-  templates. Resource creation is gated on the Discovery flags passed in as parameters
-  (CloudFormation Conditions cannot read custom-resource outputs directly, so the
-  parent passes them as parameters here). The audit and cloudtrail-owner account types
-  are deprecated and intentionally not provisioned.
+  Single nested stack that provisions the cross-account resources for the CloudZero
+  connection. Every connection gets one cross-account role (`cloudzero-connection`); a
+  billing connection additionally gets read access to its Cost and Usage Report bucket
+  and, when needed, a freshly created CUR. Creation is gated on the Discovery flags
+  passed in as parameters (CloudFormation Conditions cannot read custom-resource outputs
+  directly). The audit and cloudtrail-owner connection types are deprecated.
 
 Parameters:
   ExternalId:
@@ -21,85 +21,90 @@ Parameters:
       associating this template with a Customer Organization
   ReactorAccountId:
     Type: String
-    Description: The CloudZero reactor AWS account ID
+    Description: CloudZero AWS account ID that assumes the cross-account connection role.
     Default: '061190967865'
   ConnectorsAccountId:
     Type: String
-    Description: Additional CloudZero AWS account ID that will assume the cross-account role.
+    Description: CloudZero AWS account ID that assumes the cross-account connection role.
     Default: '559846027439'
-  IsResourceOwnerAccount:
+  Version:
     Type: String
-    Description: Flag indicating whether to provision the resource-owner role.
-    AllowedValues: ['true', 'false']
-  IsOrganizationMasterAccount:
+    Default: 'latest'
+    Description: Version to target when deploying the stack. `latest` should be used by default.
+  IsBillingConnection:
     Type: String
-    Description: Flag indicating whether this is an organization management account.
+    Description: Flag indicating whether this is a billing connection (existing valid CUR or standalone).
     AllowedValues: ['true', 'false']
-  IsMasterPayerAccount:
-    Type: String
-    Description: Flag indicating whether this is the master-payer account (existing valid CUR or standalone).
-    AllowedValues: ['true', 'false']
-  MasterPayerBillingBucketName:
+  BillingBucketName:
     Type: String
     Description: The name of the existing S3 bucket holding billing (CUR) data, or 'null'.
-  MasterPayerBillingBucketArns:
+  BillingBucketArns:
     Type: String
     Default: ''
     Description: |
       Comma-separated list of S3 ARNs (both bucket and bucket/* forms) for every
       locally-owned S3 bucket referenced by any CUR report/export in this account.
       Empty only when no CUR points to a locally-owned bucket.
+  DetectedLegacyConnectionStacks:
+    Type: String
+    Default: ''
+    Description: |
+      Comma-separated names of previously-deployed CloudZero stacks detected in this
+      account, used to write a cleanup guide into the connected CUR bucket. Empty when none.
 
 Mappings:
-  MasterPayerDefaults:
+  BillingDefaults:
     Cur:
       BucketName: 'cz-cur-hourly-csv'
 
 Conditions:
-  # --- resource owner ---
-  ResourceOwnerCreateResources: !Equals [!Ref IsResourceOwnerAccount, 'true']
-
-  # --- master payer ---
   IsUsEast1: !Equals [!Ref 'AWS::Region', 'us-east-1']
-  MasterPayerValidExistingBucketName: !Not [!Equals [!Ref MasterPayerBillingBucketName, 'null']]
-  MasterPayerHasBillingBucketArns: !Not [!Equals [!Ref MasterPayerBillingBucketArns, '']]
-  # Master payer that has no existing CUR -> a new CUR should be created for it.
-  MasterPayerCreateCurAndBucketAndPolicy: !And
-    - !Not [Condition: MasterPayerValidExistingBucketName]
-    - !Equals [!Ref IsMasterPayerAccount, 'true']
-  # Master payer that already has a CUR -> only attach the read policy.
-  MasterPayerCreatePolicyForExistingCur: !And
-    - Condition: MasterPayerValidExistingBucketName
-    - !Equals [!Ref IsMasterPayerAccount, 'true']
-  # The cross-account role is created for any master payer (existing or new CUR).
-  MasterPayerCreateRoleAndPolicy: !Or
-    - Condition: MasterPayerCreatePolicyForExistingCur
-    - Condition: MasterPayerCreateCurAndBucketAndPolicy
+  BillingValidExistingBucketName: !Not [!Equals [!Ref BillingBucketName, 'null']]
+  BillingHasBucketArns: !Not [!Equals [!Ref BillingBucketArns, '']]
+  # Billing connection that has no existing CUR -> a new CUR should be created for it.
+  BillingCreateNewCur: !And
+    - !Not [Condition: BillingValidExistingBucketName]
+    - !Equals [!Ref IsBillingConnection, 'true']
+  # Billing connection that already has a CUR -> only attach the read policy.
+  BillingExistingCur: !And
+    - Condition: BillingValidExistingBucketName
+    - !Equals [!Ref IsBillingConnection, 'true']
+  # The billing CUR-bucket read policy is attached for any billing connection.
+  BillingCreateBucketPolicy: !Or
+    - Condition: BillingExistingCur
+    - Condition: BillingCreateNewCur
   # Native CUR resources (bucket + policy + report) can only be created in us-east-1,
-  # the single region in which AWS::CUR::ReportDefinition / the CUR API exist. A master
-  # payer onboarded from any other region therefore gets its role but no new CUR -- see
-  # the MasterPayerCurStatus output and README. Existing-CUR payers are unaffected.
-  MasterPayerCreateNativeCur: !And
-    - Condition: MasterPayerCreateCurAndBucketAndPolicy
+  # the single region in which AWS::CUR::ReportDefinition / the CUR API exist. A billing
+  # connection onboarded from any other region therefore gets its role but no new CUR --
+  # see the BillingCurStatus output and README. Existing-CUR connections are unaffected.
+  BillingCreateNativeCur: !And
+    - Condition: BillingCreateNewCur
     - Condition: IsUsEast1
+  HasLegacyConnectionStacks: !Not [!Equals [!Ref DetectedLegacyConnectionStacks, '']]
+  # Write the cleanup guide only when there is a connected CUR bucket to write to AND a
+  # previously-deployed CloudZero stack to guide the customer to remove.
+  WriteCleanupGuide: !And
+    - Condition: HasLegacyConnectionStacks
+    - !Or
+      - Condition: BillingValidExistingBucketName
+      - Condition: BillingCreateNativeCur
 
 Resources:
 
   #####################
   # Shared access
   #####################
-  # The resource-owner and master-payer roles need an identical baseline of read-only
-  # cost/usage/config access. That common grant lives here, in one managed policy
-  # attached to both roles, so the permission set has a single source of truth. The
-  # master-payer role layers one extra inline statement on top (S3 access to the CUR
-  # bucket -- see MasterPayerRolePolicy). Left unnamed so deployment needs only
-  # CAPABILITY_IAM (not CAPABILITY_NAMED_IAM).
+  # The single CloudZero connection role's baseline of read-only cost/usage/config access
+  # lives here, in one managed policy, so the permission set has a single source of truth.
+  # A billing connection layers one extra inline statement on top (S3 access to the CUR
+  # bucket -- see BillingBucketRolePolicy). Left unnamed so deployment needs only the
+  # default IAM capability for managed policies.
   CommonAccessManagedPolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:
       Description: >-
-        CloudZero common read-only cost, usage, and configuration access, shared by the
-        resource-owner and master-payer cross-account roles.
+        CloudZero common read-only cost, usage, and configuration access for the
+        cross-account connection role.
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -273,99 +278,15 @@ Resources:
               - arn:aws:iam::aws:policy/job-function/ViewOnlyAccess
 
   #####################
-  # Resource Owner
+  # Connection role
   #####################
-  ResourceOwnerRole:
+  # One cross-account role for the connection, used for both resource and billing
+  # connections. Fixed name ⇒ stack launch requires CAPABILITY_NAMED_IAM. Both CloudZero
+  # accounts (reactor and connections) are equally-trusted principals that assume it.
+  CloudZeroConnectionRole:
     Type: AWS::IAM::Role
-    Condition: ResourceOwnerCreateResources
     Properties:
-      Path: '/cloudzero/'
-      AssumeRolePolicyDocument:
-        Version: 2012-10-17
-        Statement:
-          - Effect: Allow
-            Principal:
-              AWS:
-                - !Sub 'arn:aws:iam::${ReactorAccountId}:root'
-                - !Sub 'arn:aws:iam::${ConnectorsAccountId}:root'
-            Action:
-              - 'sts:AssumeRole'
-            Condition:
-              StringEquals:
-                'sts:ExternalId': !Ref ExternalId
-      ManagedPolicyArns:
-        - !Ref CommonAccessManagedPolicy
-        - arn:aws:iam::aws:policy/CloudWatchReadOnlyAccess
-        - arn:aws:iam::aws:policy/ComputeOptimizerReadOnlyAccess
-        - arn:aws:iam::aws:policy/job-function/ViewOnlyAccess
-        - arn:aws:iam::aws:policy/AWSBillingReadOnlyAccess
-
-  #####################
-  # Master Payer
-  #####################
-  # Native Cost & Usage Report resources. Previously a Custom::CostAndUsageReport Lambda
-  # created these because CloudFormation had no CUR resource; AWS::CUR::ReportDefinition
-  # now exists, so we use it directly. Only created in us-east-1 (see MasterPayerCreateNativeCur).
-  # Billing data is never destroyed on stack delete -- hence DeletionPolicy: Retain.
-  MasterPayerCurBucket:
-    Type: AWS::S3::Bucket
-    Condition: MasterPayerCreateNativeCur
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
-    Properties:
-      BucketName: !Sub
-        - '${BucketName}-${Id}'
-        - BucketName: !FindInMap [MasterPayerDefaults, Cur, BucketName]
-          Id: !Select [2, !Split ['/', !Ref 'AWS::StackId']]
-
-  MasterPayerCurBucketPolicy:
-    Type: AWS::S3::BucketPolicy
-    Condition: MasterPayerCreateNativeCur
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
-    Properties:
-      Bucket: !Ref MasterPayerCurBucket
-      PolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Sid: AddBillReportsGet
-            Effect: Allow
-            Principal:
-              Service: billingreports.amazonaws.com
-            Action:
-              - 's3:GetBucketAcl'
-              - 's3:GetBucketPolicy'
-            Resource: !GetAtt MasterPayerCurBucket.Arn
-          - Sid: AddBillReportsPut
-            Effect: Allow
-            Principal:
-              Service: billingreports.amazonaws.com
-            Action: 's3:PutObject'
-            Resource: !Sub '${MasterPayerCurBucket.Arn}/*'
-
-  MasterPayerCurReport:
-    Type: AWS::CUR::ReportDefinition
-    Condition: MasterPayerCreateNativeCur
-    DependsOn: MasterPayerCurBucketPolicy
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
-    Properties:
-      ReportName: cloudzero-cur-hourly-csv
-      TimeUnit: HOURLY
-      Format: textORcsv
-      Compression: GZIP
-      AdditionalSchemaElements:
-        - RESOURCES
-      S3Bucket: !Ref MasterPayerCurBucket
-      S3Prefix: cloudzero
-      S3Region: !Ref 'AWS::Region'
-      RefreshClosedReports: true
-      ReportVersioning: CREATE_NEW_REPORT
-
-  MasterPayerRole:
-    Condition: MasterPayerCreateRoleAndPolicy
-    Type: 'AWS::IAM::Role'
-    Properties:
+      RoleName: cloudzero-connection
       Path: '/cloudzero/'
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
@@ -388,16 +309,16 @@ Resources:
         - arn:aws:iam::aws:policy/job-function/ViewOnlyAccess
         - arn:aws:iam::aws:policy/AWSBillingReadOnlyAccess
 
-  # Master-payer-only grant layered on top of CommonAccessManagedPolicy: read access to
-  # the CUR S3 bucket(s). Kept inline because the bucket ARNs are computed from
+  # Billing-connection-only grant layered on top of CommonAccessManagedPolicy: read
+  # access to the CUR S3 bucket(s). Inline because the bucket ARNs are computed from
   # stack-specific parameters / the freshly created CUR bucket.
-  MasterPayerRolePolicy:
-    Condition: MasterPayerCreateRoleAndPolicy
+  BillingBucketRolePolicy:
+    Condition: BillingCreateBucketPolicy
     Type: 'AWS::IAM::Policy'
     Properties:
-      PolicyName: !Sub 'cloudzero-master-payer-policy-${ReactorAccountId}'
+      PolicyName: !Sub 'cloudzero-billing-policy-${ReactorAccountId}'
       Roles:
-        - !Ref MasterPayerRole
+        - !Ref CloudZeroConnectionRole
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -406,46 +327,179 @@ Resources:
             Action:
               - s3:Get*
               - s3:List*
-            # The discovery Lambda emits MasterPayerBillingBucketArns as a comma-separated
-            # ARN list covering every locally-owned S3 bucket referenced by any CUR report
-            # (both `bucket` and `bucket/*` forms). When ARNs is empty (e.g., the stack was
-            # invoked directly with only MasterPayerBillingBucketName), we fall back to the
-            # legacy single-bucket pair so !Split never sees an empty string (which would
+            # The discovery Lambda emits BillingBucketArns as a comma-separated ARN list
+            # covering every locally-owned S3 bucket referenced by any CUR report (both
+            # `bucket` and `bucket/*` forms). When ARNs is empty (e.g., the stack was
+            # invoked directly with only BillingBucketName), we fall back to the legacy
+            # single-bucket pair so !Split never sees an empty string (which would
             # otherwise yield [''] and produce an invalid IAM Resource). When this stack is
             # also creating a brand-new CUR bucket, discovery found no existing CURs and
             # falls through to the new-bucket pair below.
             Resource: !Split
               - ','
               - !If
-                - MasterPayerCreatePolicyForExistingCur
+                - BillingExistingCur
                 - !If
-                  - MasterPayerHasBillingBucketArns
-                  - !Ref MasterPayerBillingBucketArns
-                  - !Sub 'arn:aws:s3:::${MasterPayerBillingBucketName},arn:aws:s3:::${MasterPayerBillingBucketName}/*'
+                  - BillingHasBucketArns
+                  - !Ref BillingBucketArns
+                  - !Sub 'arn:aws:s3:::${BillingBucketName},arn:aws:s3:::${BillingBucketName}/*'
                 - !Sub
                   - 'arn:aws:s3:::${BucketName}-${Id},arn:aws:s3:::${BucketName}-${Id}/*'
-                  - BucketName: !FindInMap [MasterPayerDefaults, Cur, BucketName]
+                  - BucketName: !FindInMap [BillingDefaults, Cur, BucketName]
                     Id: !Select [2, !Split ['/', !Ref 'AWS::StackId']]
 
+  #####################
+  # Billing CUR (native)
+  #####################
+  # Native Cost & Usage Report resources, only created in us-east-1 (see
+  # BillingCreateNativeCur). Billing data is never destroyed on stack delete -- hence
+  # DeletionPolicy: Retain.
+  BillingCurBucket:
+    Type: AWS::S3::Bucket
+    Condition: BillingCreateNativeCur
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub
+        - '${BucketName}-${Id}'
+        - BucketName: !FindInMap [BillingDefaults, Cur, BucketName]
+          Id: !Select [2, !Split ['/', !Ref 'AWS::StackId']]
+
+  BillingCurBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Condition: BillingCreateNativeCur
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Bucket: !Ref BillingCurBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AddBillReportsGet
+            Effect: Allow
+            Principal:
+              Service: billingreports.amazonaws.com
+            Action:
+              - 's3:GetBucketAcl'
+              - 's3:GetBucketPolicy'
+            Resource: !GetAtt BillingCurBucket.Arn
+          - Sid: AddBillReportsPut
+            Effect: Allow
+            Principal:
+              Service: billingreports.amazonaws.com
+            Action: 's3:PutObject'
+            Resource: !Sub '${BillingCurBucket.Arn}/*'
+
+  BillingCurReport:
+    Type: AWS::CUR::ReportDefinition
+    Condition: BillingCreateNativeCur
+    DependsOn: BillingCurBucketPolicy
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      ReportName: cloudzero-cur-hourly-csv
+      TimeUnit: HOURLY
+      Format: textORcsv
+      Compression: GZIP
+      AdditionalSchemaElements:
+        - RESOURCES
+      S3Bucket: !Ref BillingCurBucket
+      S3Prefix: cloudzero
+      S3Region: !Ref 'AWS::Region'
+      RefreshClosedReports: true
+      ReportVersioning: CREATE_NEW_REPORT
+
+  #####################
+  # Cleanup guide
+  #####################
+  # When a previously-deployed CloudZero stack was detected, drop a cleanup guide into the
+  # root of the connected CUR bucket. CloudFormation has no native S3-object resource, so a
+  # small handler (shipped in discovery.zip) performs the PutObject via a custom resource.
+  CleanupGuideWriterRole:
+    Type: AWS::IAM::Role
+    Condition: WriteCleanupGuide
+    Properties:
+      Path: '/cloudzero/'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: WriteCleanupGuide
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Sid: WriteCleanupGuideToCurBucket
+                Effect: Allow
+                Action:
+                  - s3:GetBucketLocation
+                  - s3:PutObject
+                Resource:
+                  - !If
+                    - BillingValidExistingBucketName
+                    - !Sub 'arn:aws:s3:::${BillingBucketName}'
+                    - !Sub
+                      - 'arn:aws:s3:::${BucketName}-${Id}'
+                      - BucketName: !FindInMap [BillingDefaults, Cur, BucketName]
+                        Id: !Select [2, !Split ['/', !Ref 'AWS::StackId']]
+                  - !If
+                    - BillingValidExistingBucketName
+                    - !Sub 'arn:aws:s3:::${BillingBucketName}/*'
+                    - !Sub
+                      - 'arn:aws:s3:::${BucketName}-${Id}/*'
+                      - BucketName: !FindInMap [BillingDefaults, Cur, BucketName]
+                        Id: !Select [2, !Split ['/', !Ref 'AWS::StackId']]
+
+  CleanupGuideWriterLambda:
+    Type: AWS::Lambda::Function
+    Condition: WriteCleanupGuide
+    Properties:
+      Description: Writes a CloudZero cleanup guide into the connected CUR bucket root.
+      Handler: src.cleanup_guide.handler
+      Runtime: python3.12
+      MemorySize: 256
+      Timeout: 60
+      Role: !GetAtt CleanupGuideWriterRole.Arn
+      Code:
+        S3Bucket: !Sub 'cz-provision-account-${AWS::Region}'
+        S3Key: !Sub ${Version}/services/discovery.zip
+
+  CleanupGuideResource:
+    Type: Custom::CleanupGuide
+    Condition: WriteCleanupGuide
+    Properties:
+      ServiceToken: !GetAtt CleanupGuideWriterLambda.Arn
+      Region: !Ref 'AWS::Region'
+      DetectedLegacyConnectionStacks: !Ref DetectedLegacyConnectionStacks
+      BucketName: !If
+        - BillingValidExistingBucketName
+        - !Ref BillingBucketName
+        - !Sub
+          - '${BucketName}-${Id}'
+          - BucketName: !FindInMap [BillingDefaults, Cur, BucketName]
+            Id: !Select [2, !Split ['/', !Ref 'AWS::StackId']]
+
 Outputs:
-  ResourceOwnerRoleArn:
-    Description: Resource Owner Cross Account Role ARN
-    Value: !If [ResourceOwnerCreateResources, !GetAtt ResourceOwnerRole.Arn, 'null']
-  MasterPayerRoleArn:
-    Description: Master Payer Cross Account Role ARN
-    Value: !If [MasterPayerCreateRoleAndPolicy, !GetAtt MasterPayerRole.Arn, 'null']
-  MasterPayerReportS3Bucket:
+  ConnectionRoleArn:
+    Description: The single CloudZero cross-account connection role ARN
+    Value: !GetAtt CloudZeroConnectionRole.Arn
+  BillingReportS3Bucket:
     Description: The CUR bucket if one was created
-    Value: !If [MasterPayerCreateNativeCur, !Ref MasterPayerCurBucket, 'null']
-  MasterPayerReportS3Prefix:
+    Value: !If [BillingCreateNativeCur, !Ref BillingCurBucket, 'null']
+  BillingReportS3Prefix:
     Description: The CUR prefix if a report was created
-    Value: !If [MasterPayerCreateNativeCur, 'cloudzero/cloudzero-cur-hourly-csv', 'null']
-  MasterPayerCurStatus:
+    Value: !If [BillingCreateNativeCur, 'cloudzero/cloudzero-cur-hourly-csv', 'null']
+  BillingCurStatus:
     Description: Whether a new CUR was created, and why not when skipped.
     Value: !If
-      - MasterPayerCreateNativeCur
+      - BillingCreateNativeCur
       - 'created'
       - !If
-        - MasterPayerCreateCurAndBucketAndPolicy
-        - 'skipped: master-payer stack must be deployed in us-east-1 to create a CUR'
+        - BillingCreateNewCur
+        - 'skipped: billing connection stack must be deployed in us-east-1 to create a CUR'
         - 'not-applicable'

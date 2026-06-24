@@ -8,15 +8,16 @@ Discovery custom-resource handler.
 Given the AWS account this stack is deployed into, inspect the account and report
 back the facts the connected-account stack needs to decide what to provision:
 
-  * Is this a resource-owner account?      (always yes -- every connected account)
-  * Is this the master-payer account?      (standalone account, or org management account)
-  * Where does this account's CUR live?    (classic Cost & Usage Report or BCM Data Export)
+  * Is this a resource connection?    (always yes -- every connected account)
+  * Is this a billing connection?     (standalone account, or org management account)
+  * Where does this account's CUR live?  (classic Cost & Usage Report or BCM Data Export)
+  * Are there older CloudZero stacks already deployed here?  (to guide cleanup)
 
 The flow is deliberately linear and side-effect-light: `handler` validates its input,
 calls `discover`, validates the output, and sends it back to CloudFormation. `discover`
-gathers raw facts from four AWS sources (each isolated so one failure can't sink the
-others) and then classifies them. There is no CloudTrail/audit detection -- those
-account types are deprecated.
+gathers raw facts from AWS sources (each isolated so one failure can't sink the others)
+and then classifies them. There is no CloudTrail/audit detection -- those connection
+types are deprecated.
 """
 
 import logging
@@ -34,17 +35,19 @@ cur = boto3.client('cur', region_name='us-east-1')  # cur is only in us-east-1
 bcm = boto3.client('bcm-data-exports', region_name='us-east-1')  # bcm-data-exports is only in us-east-1
 orgs = boto3.client('organizations')
 s3 = boto3.client('s3')
+cf = boto3.client('cloudformation')
 
 
 DEFAULT_OUTPUT = {
-    'IsResourceOwnerAccount': False,
-    'IsMasterPayerAccount': False,
+    'IsResourceConnection': False,
+    'IsBillingConnection': False,
     'IsOrganizationMasterAccount': False,
     'IsAccountOutsideOrganization': False,
-    'MasterPayerBillingBucketName': None,
-    'MasterPayerBillingBucketPath': None,
-    'MasterPayerBillingBucketArns': '',
+    'BillingBucketName': None,
+    'BillingBucketPath': None,
+    'BillingBucketArns': '',
     'BillingReportFormat': 'aws',
+    'DetectedLegacyConnectionStacks': '',
 }
 
 
@@ -66,11 +69,11 @@ INPUT_SCHEMA = Schema({
 
 OUTPUT_SCHEMA = Schema({
     'output': {
-        'IsResourceOwnerAccount': bool,
-        'IsMasterPayerAccount': bool,
+        'IsResourceConnection': bool,
+        'IsBillingConnection': bool,
         'IsOrganizationMasterAccount': bool,
-        'MasterPayerBillingBucketName': Any(None, str),
-        'MasterPayerBillingBucketArns': str,
+        'BillingBucketName': Any(None, str),
+        'BillingBucketArns': str,
     },
 }, required=True, extra=ALLOW_EXTRA)
 
@@ -105,10 +108,10 @@ def list_data_export_bucket_names():
 
     CUR 2.0 exports (and any other BCM Data Exports) live here rather than in the
     classic CUR. CloudZero only ingests COST_AND_USAGE_REPORT exports, but we collect
-    the S3 destination bucket for *every* export regardless of type so the master-payer
-    role's bucket access covers all of them -- a customer can then repoint CloudZero at
-    a different export without redeploying this stack. `list_exports` only returns export
-    ARNs, so each export is resolved with `get_export` to read its destination bucket.
+    the S3 destination bucket for *every* export regardless of type so the billing
+    connection role's bucket access covers all of them -- a customer can then repoint
+    CloudZero at a different export without redeploying this stack. `list_exports` only
+    returns export ARNs, so each export is resolved with `get_export` to read its bucket.
     """
     try:
         export_arns = []
@@ -142,12 +145,42 @@ def list_data_export_bucket_names():
 
 
 def get_organization_master_account_id():
-    """Return the org's management (master payer) account id, or None if not in an org."""
+    """Return the org's management account id, or None if not in an org."""
     try:
         return orgs.describe_organization().get('Organization', {}).get('MasterAccountId')
     except ClientError:
         # The account is not a member of an AWS Organization.
         return None
+
+
+def detect_legacy_connection_stacks(current_stack_id):
+    """
+    Return the names of other CloudZero stacks already deployed in this account/region.
+
+    A previously-deployed CloudZero connection (an older template generation) is tagged
+    `cloudzero-stack`. We surface any such stack other than the one currently deploying
+    (and its own nested stacks) so the customer can be guided to remove it once this
+    connection is in place. Read-only and best-effort: any failure yields an empty list.
+    """
+    try:
+        names = []
+        next_token = None
+        while True:
+            response = cf.describe_stacks(**({'NextToken': next_token} if next_token else {}))
+            for stack in response.get('Stacks', []):
+                # Skip the current deployment: the stack itself and any of its nested stacks.
+                if stack.get('StackId') == current_stack_id or stack.get('RootId') == current_stack_id:
+                    continue
+                tags = {t['Key']: t['Value'] for t in stack.get('Tags', [])}
+                if 'cloudzero-stack' in tags and stack.get('StackName'):
+                    names.append(stack['StackName'])
+            next_token = response.get('NextToken')
+            if not next_token:
+                break
+        return names
+    except (ClientError, BotoCoreError):
+        logger.warning('Failed to detect legacy CloudZero stacks', exc_info=True)
+        return []
 
 
 #####################
@@ -244,10 +277,10 @@ def all_local_billing_bucket_names(report_definitions, data_export_buckets, loca
     Every locally-owned bucket referenced by any CUR report or BCM Data Export.
 
     Deliberately schema-agnostic: a bucket referenced by any billing report/export is
-    legitimate billing storage, so the master-payer role gets s3:Get/List on all of
-    them. This lets a customer switch CloudZero between report formats (CSV/Parquet/CUR
-    2.0) without redeploying this stack. The schema filter in `select_ingest_cur` only
-    governs which report CloudZero currently ingests, not which buckets are legitimate.
+    legitimate billing storage, so the billing connection role gets s3:Get/List on all
+    of them. This lets a customer switch CloudZero between report formats (CSV/Parquet/
+    CUR 2.0) without redeploying this stack. The schema filter in `select_ingest_cur`
+    only governs which report CloudZero currently ingests, not which buckets are legitimate.
     """
     report_buckets = {r['S3Bucket'] for r in report_definitions if isinstance(r.get('S3Bucket'), str)}
     export_buckets = {b for b in data_export_buckets if isinstance(b, str)}
@@ -268,32 +301,34 @@ def format_bucket_arns(bucket_names):
 # Classification
 #
 #####################
-def discover(account_id):
+def discover(account_id, current_stack_id):
     """Gather account facts and classify the account for CloudZero onboarding."""
     local_bucket_names = list_local_bucket_names()
     report_definitions = list_cur_report_definitions()
     data_export_buckets = list_data_export_bucket_names()
     master_account_id = get_organization_master_account_id()
+    legacy_stacks = detect_legacy_connection_stacks(current_stack_id)
 
     is_outside_organization = master_account_id is None
     is_organization_master = account_id == master_account_id
     # A standalone account (no org) pays its own bill; in an org, the management account
-    # is the payer. Either way that account owns the consolidated CUR.
-    is_master_payer = is_outside_organization or is_organization_master
+    # is the billing account. Either way that account owns the consolidated CUR.
+    is_billing = is_outside_organization or is_organization_master
 
     ingest_bucket, ingest_path, billing_report_format = select_ingest_cur(report_definitions, local_bucket_names)
     billing_bucket_arns = format_bucket_arns(
         all_local_billing_bucket_names(report_definitions, data_export_buckets, local_bucket_names))
 
     return {
-        'IsResourceOwnerAccount': True,
-        'IsMasterPayerAccount': is_master_payer,
+        'IsResourceConnection': True,
+        'IsBillingConnection': is_billing,
         'IsOrganizationMasterAccount': is_organization_master,
         'IsAccountOutsideOrganization': is_outside_organization,
-        'MasterPayerBillingBucketName': ingest_bucket,
-        'MasterPayerBillingBucketPath': ingest_path,
-        'MasterPayerBillingBucketArns': billing_bucket_arns,
+        'BillingBucketName': ingest_bucket,
+        'BillingBucketPath': ingest_path,
+        'BillingBucketArns': billing_bucket_arns,
         'BillingReportFormat': billing_report_format,
+        'DetectedLegacyConnectionStacks': ','.join(legacy_stacks),
     }
 
 
@@ -309,12 +344,12 @@ def handler(event, context, **kwargs):
         # Avoid logging the full event/output: they carry account-identifying fields
         # that CodeQL flags as clear-text logging of sensitive data.
         logger.info('Processing %s discovery request', event.get('RequestType'))
-        validated = INPUT_SCHEMA({'event': event})
-        account_id = validated['event']['ResourceProperties']['AccountId']
-        output = OUTPUT_SCHEMA({'output': discover(account_id)})['output']
+        validated = INPUT_SCHEMA({'event': event})['event']
+        account_id = validated['ResourceProperties']['AccountId']
+        output = OUTPUT_SCHEMA({'output': discover(account_id, validated['StackId'])})['output']
     except Exception as err:
         logger.exception(err)
     finally:
-        logger.info('Discovery complete: IsMasterPayerAccount=%s IsResourceOwnerAccount=%s',
-                    output.get('IsMasterPayerAccount'), output.get('IsResourceOwnerAccount'))
+        logger.info('Discovery complete: IsBillingConnection=%s IsResourceConnection=%s',
+                    output.get('IsBillingConnection'), output.get('IsResourceConnection'))
         cfnresponse.send(event, context, status, output, event.get('PhysicalResourceId'))

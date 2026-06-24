@@ -13,8 +13,17 @@ from src import cfnresponse
 
 EXPECTED_URL = 'https://api.cloudzero.com/accounts/v1/link'
 ACCOUNT_ID = '123456789012'
-RESOURCE_OWNER_ROLE_ARN = f'arn:aws:iam::{ACCOUNT_ID}:role/cloudzero/resource-owner'
-MASTER_PAYER_ROLE_ARN = f'arn:aws:iam::{ACCOUNT_ID}:role/cloudzero/master-payer'
+CONNECTION_ROLE_ARN = f'arn:aws:iam::{ACCOUNT_ID}:role/cloudzero/cloudzero-connection'
+
+# The fixed reactor-payload key set. These tests guard it against accidental drift.
+EXPECTED_LINK_KEYS = {'audit', 'cloudtrail_owner', 'master_payer', 'resource_owner', 'legacy'}
+EXPECTED_DISCOVERY_KEYS = {
+    'audit_cloudtrail_bucket_name', 'audit_cloudtrail_bucket_prefix', 'cloudtrail_sns_topic_arn',
+    'cloudtrail_trail_arn', 'is_audit_account', 'is_cloudtrail_owner_account', 'is_organization_trail',
+    'remote_cloudtrail_bucket', 'visible_cloudtrail_arns', 'is_master_payer_account',
+    'is_organization_master_account', 'is_resource_owner_account', 'master_payer_billing_bucket_name',
+    'master_payer_billing_bucket_path',
+}
 
 
 def make_event(request_type='Create', **overrides):
@@ -25,15 +34,14 @@ def make_event(request_type='Create', **overrides):
         'ReactorCallbackUrl': EXPECTED_URL,
         'AccountName': 'my-account',
         'ReactorId': 'reactor-1',
-        'IsResourceOwnerAccount': 'true',
-        'IsMasterPayerAccount': 'false',
+        'IsResourceConnection': 'true',
+        'IsBillingConnection': 'false',
         'IsOrganizationMasterAccount': 'false',
-        'ResourceOwnerRoleArn': 'null',
-        'MasterPayerRoleArn': 'null',
-        'MasterPayerBillingBucketName': 'null',
-        'MasterPayerBillingBucketPath': 'null',
-        'MasterPayerReportS3Bucket': 'null',
-        'MasterPayerReportS3Prefix': 'null',
+        'ConnectionRoleArn': 'null',
+        'BillingBucketName': 'null',
+        'BillingBucketPath': 'null',
+        'BillingReportS3Bucket': 'null',
+        'BillingReportS3Prefix': 'null',
         'BillingReportFormat': 'null',
     }
     properties.update(overrides)
@@ -75,14 +83,13 @@ def _sent_output(context):
 
 
 @pytest.mark.unit
-def test_handler_posts_fixed_contract_payload(context):
+def test_handler_posts_fixed_contract_payload_for_billing_connection(context):
     event = make_event(
-        IsMasterPayerAccount='true',
+        IsBillingConnection='true',
         IsOrganizationMasterAccount='true',
-        ResourceOwnerRoleArn=RESOURCE_OWNER_ROLE_ARN,
-        MasterPayerRoleArn=MASTER_PAYER_ROLE_ARN,
-        MasterPayerBillingBucketName='cur-bucket',
-        MasterPayerBillingBucketPath='cloudzero/report',
+        ConnectionRoleArn=CONNECTION_ROLE_ARN,
+        BillingBucketName='cur-bucket',
+        BillingBucketPath='cloudzero/report',
         BillingReportFormat='aws',
     )
     app.handler(event, None)
@@ -103,9 +110,10 @@ def test_handler_posts_fixed_contract_payload(context):
             'links': {
                 'audit': {'role_arn': None},
                 'cloudtrail_owner': {'sqs_queue_arn': None, 'sqs_queue_policy_name': None},
-                'master_payer': {'role_arn': MASTER_PAYER_ROLE_ARN},
-                'resource_owner': {'role_arn': RESOURCE_OWNER_ROLE_ARN},
-                'legacy': {'role_arn': RESOURCE_OWNER_ROLE_ARN},
+                # The single connection role ARN is reported into all three slots.
+                'master_payer': {'role_arn': CONNECTION_ROLE_ARN},
+                'resource_owner': {'role_arn': CONNECTION_ROLE_ARN},
+                'legacy': {'role_arn': CONNECTION_ROLE_ARN},
             },
             'discovery': {
                 'audit_cloudtrail_bucket_name': None,
@@ -132,6 +140,36 @@ def test_handler_posts_fixed_contract_payload(context):
 
 
 @pytest.mark.unit
+def test_handler_payload_key_set_is_unchanged(context):
+    app.handler(make_event(), None)
+    data = _sent_output(context)['data']
+    assert set(data['links']) == EXPECTED_LINK_KEYS
+    assert set(data['discovery']) == EXPECTED_DISCOVERY_KEYS
+
+
+@pytest.mark.unit
+def test_handler_billing_connection_reports_one_arn_in_all_slots(context):
+    event = make_event(IsBillingConnection='true', ConnectionRoleArn=CONNECTION_ROLE_ARN)
+    app.handler(event, None)
+    links = _sent_output(context)['data']['links']
+    assert links['master_payer']['role_arn'] == CONNECTION_ROLE_ARN
+    assert links['resource_owner']['role_arn'] == CONNECTION_ROLE_ARN
+    assert links['legacy']['role_arn'] == CONNECTION_ROLE_ARN
+
+
+@pytest.mark.unit
+def test_handler_resource_only_connection_has_null_master_payer(context):
+    # Resource-only (non-billing) connection: resource/legacy carry the ARN, master_payer is null.
+    event = make_event(IsBillingConnection='false', ConnectionRoleArn=CONNECTION_ROLE_ARN)
+    app.handler(event, None)
+    links = _sent_output(context)['data']['links']
+    assert links['resource_owner']['role_arn'] == CONNECTION_ROLE_ARN
+    assert links['legacy']['role_arn'] == CONNECTION_ROLE_ARN
+    assert links['master_payer']['role_arn'] is None
+    assert _sent_output(context)['data']['discovery']['is_master_payer_account'] is False
+
+
+@pytest.mark.unit
 def test_handler_deprecated_audit_cloudtrail_fields_are_null(context):
     app.handler(make_event(), None)
     data = _sent_output(context)['data']
@@ -141,15 +179,6 @@ def test_handler_deprecated_audit_cloudtrail_fields_are_null(context):
     assert data['discovery']['is_cloudtrail_owner_account'] is False
     assert data['discovery']['cloudtrail_sns_topic_arn'] is None
     assert data['discovery']['audit_cloudtrail_bucket_name'] is None
-
-
-@pytest.mark.unit
-def test_handler_legacy_aliases_resource_owner_role(context):
-    event = make_event(ResourceOwnerRoleArn=RESOURCE_OWNER_ROLE_ARN)
-    app.handler(event, None)
-    links = _sent_output(context)['data']['links']
-    assert links['resource_owner']['role_arn'] == RESOURCE_OWNER_ROLE_ARN
-    assert links['legacy']['role_arn'] == RESOURCE_OWNER_ROLE_ARN
 
 
 @pytest.mark.unit
@@ -167,10 +196,12 @@ def test_handler_billing_format_fallback(context, raw_format, expected):
 def test_handler_billing_bucket_falls_back_to_created_report(context):
     # No existing discovered bucket, but a CUR was freshly created -> use the report outputs.
     event = make_event(
-        MasterPayerBillingBucketName='null',
-        MasterPayerBillingBucketPath='null',
-        MasterPayerReportS3Bucket='new-cur-bucket',
-        MasterPayerReportS3Prefix='cloudzero/cloudzero-cur-hourly-csv',
+        IsBillingConnection='true',
+        ConnectionRoleArn=CONNECTION_ROLE_ARN,
+        BillingBucketName='null',
+        BillingBucketPath='null',
+        BillingReportS3Bucket='new-cur-bucket',
+        BillingReportS3Prefix='cloudzero/cloudzero-cur-hourly-csv',
     )
     app.handler(event, None)
     discovery = _sent_output(context)['data']['discovery']

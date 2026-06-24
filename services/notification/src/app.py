@@ -5,15 +5,18 @@
 """
 NotifyCloudZero custom-resource handler.
 
-Posts the result of account provisioning back to the CloudZero reactor. The parent
-stack passes every value this needs directly as resource properties (resolved from
-`!GetAtt` of the Discovery resource and the AccountResources nested stack), so this
-handler no longer reads sibling CloudFormation stack outputs at runtime -- it just
-reshapes the properties into the reactor payload and POSTs it.
+Posts the result of provisioning back to the CloudZero reactor. The parent stack passes
+every value this needs directly as resource properties (resolved from `!GetAtt` of the
+Discovery resource and the ConnectionResources nested stack), so this handler no longer
+reads sibling CloudFormation stack outputs at runtime -- it just reshapes the properties
+into the reactor payload and POSTs it.
+
+A single connection role ARN is reported into both the resource and billing link slots
+to keep the link data contract intact.
 
 IMPORTANT: the reactor payload (`account-link-provisioned` / `-deprovisioned`) is a
 FIXED external contract. Do not add, rename, or drop keys. The audit and
-cloudtrail-owner account types are deprecated, but their keys remain in the payload
+cloudtrail-owner connection types are deprecated, but their keys remain in the payload
 and are emitted as null / no-op values.
 """
 
@@ -49,17 +52,16 @@ INPUT_SCHEMA = Schema({
             'AccountId': str,
             'Region': str,
             # Discovery flags (arrive as the strings 'true' / 'false')
-            'IsResourceOwnerAccount': str,
-            'IsMasterPayerAccount': str,
+            'IsResourceConnection': str,
+            'IsBillingConnection': str,
             'IsOrganizationMasterAccount': str,
-            # Provisioned role ARNs ('null' when that account type wasn't provisioned)
-            'ResourceOwnerRoleArn': str,
-            'MasterPayerRoleArn': str,
-            # Master-payer billing details
-            'MasterPayerBillingBucketName': str,
-            'MasterPayerBillingBucketPath': str,
-            'MasterPayerReportS3Bucket': str,
-            'MasterPayerReportS3Prefix': str,
+            # The single connection role ARN ('null' if the role wasn't provisioned)
+            'ConnectionRoleArn': str,
+            # Billing details
+            'BillingBucketName': str,
+            'BillingBucketPath': str,
+            'BillingReportS3Bucket': str,
+            'BillingReportS3Prefix': str,
             'BillingReportFormat': str,
         },
         'ResponseURL': str,
@@ -139,14 +141,18 @@ def to_bool(s):
 #####################
 def build_payload(properties, message_type):
     """Reshape the resource properties into the fixed reactor payload."""
-    resource_owner_role_arn = to_value(properties['ResourceOwnerRoleArn'])
-    master_payer_role_arn = to_value(properties['MasterPayerRoleArn'])
+    connection_role_arn = to_value(properties['ConnectionRoleArn'])
+    is_billing_connection = to_bool(properties['IsBillingConnection'])
+    # One connection role serves both resource and billing access. Its ARN is reported
+    # into the resource_owner and legacy slots always, and into the master_payer slot for
+    # a billing connection -- the fixed reactor contract keeps all three keys.
+    billing_role_arn = connection_role_arn if is_billing_connection else None
     # An existing CUR reports its bucket via discovery; a freshly created CUR reports it
-    # via the master-payer report outputs. Prefer the discovered one.
-    billing_bucket_name = to_value(properties['MasterPayerBillingBucketName']) or \
-        to_value(properties['MasterPayerReportS3Bucket'])
-    billing_bucket_path = to_value(properties['MasterPayerBillingBucketPath']) or \
-        to_value(properties['MasterPayerReportS3Prefix'])
+    # via the billing report outputs. Prefer the discovered one.
+    billing_bucket_name = to_value(properties['BillingBucketName']) or \
+        to_value(properties['BillingReportS3Bucket'])
+    billing_bucket_path = to_value(properties['BillingBucketPath']) or \
+        to_value(properties['BillingReportS3Prefix'])
 
     return {
         'version': '1',
@@ -167,9 +173,9 @@ def build_payload(properties, message_type):
                 # fixed contract but are always null/no-op now.
                 'audit': {'role_arn': None},
                 'cloudtrail_owner': {'sqs_queue_arn': None, 'sqs_queue_policy_name': None},
-                'master_payer': {'role_arn': master_payer_role_arn},
-                'resource_owner': {'role_arn': resource_owner_role_arn},
-                'legacy': {'role_arn': resource_owner_role_arn},
+                'master_payer': {'role_arn': billing_role_arn},
+                'resource_owner': {'role_arn': connection_role_arn},
+                'legacy': {'role_arn': connection_role_arn},
             },
             'discovery': {
                 # Deprecated cloudtrail/audit discovery fields -- retained as null/no-op
@@ -183,10 +189,10 @@ def build_payload(properties, message_type):
                 'is_organization_trail': None,
                 'remote_cloudtrail_bucket': True,
                 'visible_cloudtrail_arns': None,
-                # Live discovery values
-                'is_master_payer_account': to_bool(properties['IsMasterPayerAccount']),
+                # Live discovery values (payload keys are the fixed external contract)
+                'is_master_payer_account': is_billing_connection,
                 'is_organization_master_account': to_bool(properties['IsOrganizationMasterAccount']),
-                'is_resource_owner_account': to_bool(properties['IsResourceOwnerAccount']),
+                'is_resource_owner_account': to_bool(properties['IsResourceConnection']),
                 'master_payer_billing_bucket_name': billing_bucket_name,
                 'master_payer_billing_bucket_path': billing_bucket_path,
             }

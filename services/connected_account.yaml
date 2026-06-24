@@ -3,7 +3,7 @@
 # Licensed under the BSD-style license. See LICENSE file in the project root for full license information.
 
 AWSTemplateFormatVersion: '2010-09-09'
-Description: CloudZero Connected Account Template
+Description: CloudZero Connection Template
 
 Metadata:
   AWS::CloudFormation::Interface:
@@ -71,7 +71,7 @@ Resources:
   # ---------------------------------------------------------------------------
   # Discovery: inspect this account at deploy time. Inlined here (previously a
   # nested stack) so its outputs can be passed as parameters into the single
-  # AccountResources stack -- CloudFormation Conditions cannot read custom-resource
+  # ConnectionResources stack -- CloudFormation Conditions cannot read custom-resource
   # outputs directly, so parameterizing them through a nested stack is required.
   # ---------------------------------------------------------------------------
   DiscoveryFunctionRole:
@@ -99,6 +99,7 @@ Resources:
                   - bcm-data-exports:ListExports
                   - bcm-data-exports:GetExport
                   - organizations:DescribeOrganization
+                  - cloudformation:DescribeStacks
                 Resource: '*'
 
   DiscoveryFunction:
@@ -124,11 +125,12 @@ Resources:
       Version: !Sub ${Version}
 
   # ---------------------------------------------------------------------------
-  # The single remaining nested stack: provisions resources for whichever account
-  # type Discovery detected (resource-owner and/or master-payer). Discovery outputs
-  # are passed in as parameters so the nested stack's Conditions can gate on them.
+  # The single remaining nested stack: provisions the connection role (and, for a
+  # billing connection, CUR access). Discovery outputs are passed in as parameters so
+  # the nested stack's Conditions can gate on them. NOTE: it creates a fixed-name role,
+  # so the launch must include CAPABILITY_NAMED_IAM.
   # ---------------------------------------------------------------------------
-  AccountResources:
+  ConnectionResources:
     Type: AWS::CloudFormation::Stack
     Properties:
       Tags:
@@ -141,11 +143,11 @@ Resources:
         ExternalId: !Ref ExternalId
         ReactorAccountId: !FindInMap [CallbackConfiguration, !Ref Stage, ReactorAccountId]
         ConnectorsAccountId: !FindInMap [CallbackConfiguration, !Ref Stage, ConnectorsAccountId]
-        IsResourceOwnerAccount: !GetAtt DiscoveryResource.IsResourceOwnerAccount
-        IsOrganizationMasterAccount: !GetAtt DiscoveryResource.IsOrganizationMasterAccount
-        IsMasterPayerAccount: !GetAtt DiscoveryResource.IsMasterPayerAccount
-        MasterPayerBillingBucketName: !GetAtt DiscoveryResource.MasterPayerBillingBucketName
-        MasterPayerBillingBucketArns: !GetAtt DiscoveryResource.MasterPayerBillingBucketArns
+        Version: !Sub ${Version}
+        IsBillingConnection: !GetAtt DiscoveryResource.IsBillingConnection
+        BillingBucketName: !GetAtt DiscoveryResource.BillingBucketName
+        BillingBucketArns: !GetAtt DiscoveryResource.BillingBucketArns
+        DetectedLegacyConnectionStacks: !GetAtt DiscoveryResource.DetectedLegacyConnectionStacks
 
   # ---------------------------------------------------------------------------
   # Notification: POST the provisioning result back to the CloudZero reactor.
@@ -195,26 +197,32 @@ Resources:
       ReactorId: !FindInMap [CallbackConfiguration, !Ref Stage, ReactorId]
       ReactorCallbackUrl: !FindInMap [CallbackConfiguration, !Ref Stage, ReactorCallbackUrl]
       # Discovery flags + billing details (resolved from the Discovery custom resource)
-      IsResourceOwnerAccount: !GetAtt DiscoveryResource.IsResourceOwnerAccount
-      IsMasterPayerAccount: !GetAtt DiscoveryResource.IsMasterPayerAccount
+      IsResourceConnection: !GetAtt DiscoveryResource.IsResourceConnection
+      IsBillingConnection: !GetAtt DiscoveryResource.IsBillingConnection
       IsOrganizationMasterAccount: !GetAtt DiscoveryResource.IsOrganizationMasterAccount
-      MasterPayerBillingBucketName: !GetAtt DiscoveryResource.MasterPayerBillingBucketName
-      MasterPayerBillingBucketPath: !GetAtt DiscoveryResource.MasterPayerBillingBucketPath
+      BillingBucketName: !GetAtt DiscoveryResource.BillingBucketName
+      BillingBucketPath: !GetAtt DiscoveryResource.BillingBucketPath
       BillingReportFormat: !GetAtt DiscoveryResource.BillingReportFormat
-      # Provisioned outputs (resolved from the AccountResources nested stack)
-      ResourceOwnerRoleArn: !GetAtt AccountResources.Outputs.ResourceOwnerRoleArn
-      MasterPayerRoleArn: !GetAtt AccountResources.Outputs.MasterPayerRoleArn
-      MasterPayerReportS3Bucket: !GetAtt AccountResources.Outputs.MasterPayerReportS3Bucket
-      MasterPayerReportS3Prefix: !GetAtt AccountResources.Outputs.MasterPayerReportS3Prefix
+      # Provisioned outputs (resolved from the ConnectionResources nested stack). The one
+      # connection role ARN is reported into both the resource and billing link slots.
+      ConnectionRoleArn: !GetAtt ConnectionResources.Outputs.ConnectionRoleArn
+      BillingReportS3Bucket: !GetAtt ConnectionResources.Outputs.BillingReportS3Bucket
+      BillingReportS3Prefix: !GetAtt ConnectionResources.Outputs.BillingReportS3Prefix
 
 Outputs:
   Discovery:
     Value: !Ref DiscoveryResource
-  AccountResources:
-    Value: !Ref AccountResources
-  MasterPayerCurStatus:
-    Description: Whether a new CUR was created for a master-payer account (or why it was skipped).
-    Value: !GetAtt AccountResources.Outputs.MasterPayerCurStatus
+  ConnectionResources:
+    Value: !Ref ConnectionResources
+  BillingCurStatus:
+    Description: Whether a new CUR was created for a billing connection (or why it was skipped).
+    Value: !GetAtt ConnectionResources.Outputs.BillingCurStatus
+  DetectedLegacyConnectionStacks:
+    Description: |
+      Names of previously-deployed CloudZero stacks detected in this account. After
+      confirming this connection is healthy, these can be safely deleted (see the
+      CLOUDZERO_CLEANUP_GUIDE.md written to your CUR bucket).
+    Value: !GetAtt DiscoveryResource.DetectedLegacyConnectionStacks
   NotifyCloudZeroReactor:
     Value: !If
     - ValidReactorCallbackUrl
