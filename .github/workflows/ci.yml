@@ -32,7 +32,7 @@ jobs:
       - name: Init
         uses: ./.github/actions/init
         with:
-          python-version: 3.11.9
+          python-version: "3.12"
       - name: Lint
         shell: bash
         run: make lint
