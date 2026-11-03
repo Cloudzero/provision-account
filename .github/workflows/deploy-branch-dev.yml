@@ -1,0 +1,77 @@
+# Copyright (c) 2016-present, CloudZero, Inc. All rights reserved.
+# Licensed under the BSD-style license. See LICENSE file in the project root for full license information.
+
+# Manually upload the dispatched branch's artifacts to the shared v1.0.dev/ S3 path, so a
+# feature branch can be tested with connected_account_dev.yaml before it merges.
+# The dev environment's deployment branch policy decides which branches may run this.
+
+name: Deploy Branch to Dev
+
+on:
+  workflow_dispatch:
+    inputs:
+      regions:
+        description: "Space-separated regions for the Lambda zips (1-3 of: us-east-1 us-east-2 us-west-1)"
+        required: true
+        default: "us-east-1"
+
+# v1.0.dev/ is shared; don't let two branch deploys overwrite each other mid-upload.
+concurrency:
+  group: deploy-branch-dev
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy-branch-dev:
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - name: Validate regions
+        shell: bash
+        env:
+          REGIONS: ${{ inputs.regions }}
+        run: |
+          read -ra list <<< "$REGIONS"
+          if (( ${#list[@]} < 1 || ${#list[@]} > 3 )); then
+            echo "::error::Pass 1-3 regions, got ${#list[@]}"; exit 1
+          fi
+          for r in "${list[@]}"; do
+            case "$r" in
+              us-east-1|us-east-2|us-west-1) ;;
+              *) echo "::error::Region '$r' has no dev bucket; use us-east-1, us-east-2, or us-west-1"; exit 1 ;;
+            esac
+          done
+      - name: Checkout
+        uses: actions/checkout@v3
+      # sam build needs the template's Runtime interpreter on PATH; ubuntu-latest ships 3.12 only.
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.14"
+      - name: Setup AWS SAM
+        uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v3
+        with:
+          role-to-assume: ${{ secrets.SAM_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-1
+      # version must stay 'dev': any other value makes `make deploy` also publish to latest/.
+      - name: Upload S3 Artifacts
+        shell: bash
+        env:
+          REGIONS: ${{ inputs.regions }}
+        run: make deploy version='dev' regions="$REGIONS"
+      - name: Summary
+        shell: bash
+        env:
+          REGIONS: ${{ inputs.regions }}
+        run: |
+          {
+            echo "Deployed \`${GITHUB_REF_NAME}\` (${GITHUB_SHA::7}) to \`s3://cz-provision-account/v1.0.dev/\`; Lambda zips in: ${REGIONS}"
+            echo
+            echo "Template URL: https://cz-provision-account.s3.amazonaws.com/v1.0.dev/services/connected_account_dev.yaml"
+          } >> "$GITHUB_STEP_SUMMARY"
