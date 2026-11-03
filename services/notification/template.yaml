@@ -24,7 +24,7 @@ Conditions:
 
 Globals:
   Function:
-    Runtime: python3.12
+    Runtime: python3.14
     MemorySize: 512
     Timeout: 30
 
