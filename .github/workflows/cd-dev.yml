@@ -20,6 +20,9 @@ jobs:
   cd-dev:
     runs-on: ubuntu-latest
     environment: dev
+    # Shared with deploy-branch-dev.yml: both write s3://cz-provision-account/v1.0.dev/.
+    concurrency:
+      group: deploy-branch-dev
     steps:
       - name: Checkout
         uses: actions/checkout@v3
