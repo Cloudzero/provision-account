@@ -154,7 +154,7 @@ Resources:
     Properties:
       Description: Create/Delete Cost and Usage Report
       Handler: index.handler
-      Runtime: python3.12
+      Runtime: python3.14
       Role: !GetAtt CostAndUsageReportRole.Arn
       Timeout: 120
       Code:
